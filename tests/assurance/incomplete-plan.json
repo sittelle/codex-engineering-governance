@@ -1,0 +1,23 @@
+{
+  "schema_version": "1",
+  "project": "runner-selftest",
+  "checks": [
+    {
+      "id": "missing",
+      "capability": "sast",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "__definitely_missing_governance_tool__"
+      ],
+      "applicable": true,
+      "required": true,
+      "reason": null,
+      "timeout_seconds": 10,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": []
+    }
+  ]
+}

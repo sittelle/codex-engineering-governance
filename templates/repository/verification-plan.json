@@ -1,0 +1,138 @@
+{
+  "schema_version": "2",
+  "project": "<project-name>",
+  "assurance": {
+    "maturity": "M1",
+    "level": "SA1",
+    "facts": {
+      "has_dependencies": null,
+      "has_exposed_web_surface": null,
+      "has_container_artifact": null,
+      "has_iac": null,
+      "has_persisted_data": null,
+      "ships_distributable_artifact": null
+    },
+    "capabilities": [
+      {
+        "id": "lint-format",
+        "decision": "REQUIRED",
+        "reason": "M1/SA1 baseline requirement.",
+        "checks": []
+      },
+      {
+        "id": "type-compile",
+        "decision": "REQUIRED",
+        "reason": "M1/SA1 baseline requirement.",
+        "checks": []
+      },
+      {
+        "id": "tests",
+        "decision": "REQUIRED",
+        "reason": "M1/SA1 baseline requirement.",
+        "checks": []
+      },
+      {
+        "id": "build-package",
+        "decision": "REQUIRED",
+        "reason": "M1/SA1 baseline requirement.",
+        "checks": []
+      },
+      {
+        "id": "secret-scan",
+        "decision": "REQUIRED",
+        "reason": "M1/SA1 baseline requirement.",
+        "checks": []
+      },
+      {
+        "id": "sast",
+        "decision": "REQUIRED",
+        "reason": "M1/SA1 baseline requirement.",
+        "checks": []
+      },
+      {
+        "id": "sca",
+        "decision": "UNRESOLVED",
+        "reason": "Resolve applicability after stack/design discovery.",
+        "checks": []
+      },
+      {
+        "id": "security-tests",
+        "decision": "UNRESOLVED",
+        "reason": "Resolve applicability after stack/design discovery.",
+        "checks": []
+      },
+      {
+        "id": "sbom",
+        "decision": "UNRESOLVED",
+        "reason": "Resolve applicability after stack/design discovery.",
+        "checks": []
+      },
+      {
+        "id": "container-scan",
+        "decision": "UNRESOLVED",
+        "reason": "Resolve applicability after stack/design discovery.",
+        "checks": []
+      },
+      {
+        "id": "iac-scan",
+        "decision": "UNRESOLVED",
+        "reason": "Resolve applicability after stack/design discovery.",
+        "checks": []
+      },
+      {
+        "id": "dast",
+        "decision": "UNRESOLVED",
+        "reason": "Resolve applicability after stack/design discovery.",
+        "checks": []
+      },
+      {
+        "id": "fuzz",
+        "decision": "UNRESOLVED",
+        "reason": "Resolve applicability after stack/design discovery.",
+        "checks": []
+      },
+      {
+        "id": "recovery-verification",
+        "decision": "UNRESOLVED",
+        "reason": "Resolve applicability after stack/design discovery.",
+        "checks": []
+      },
+      {
+        "id": "provenance-signing",
+        "decision": "UNRESOLVED",
+        "reason": "Resolve applicability after stack/design discovery.",
+        "checks": []
+      }
+    ]
+  },
+  "checks": [
+    {
+      "id": "configure-verification-before-use",
+      "stages": [
+        "quick",
+        "full"
+      ],
+      "command": [
+        "__NOT_CONFIGURED__"
+      ],
+      "reason": "Replace after stack selection. Until then verification is UNVERIFIED / not executable.",
+      "timeout_seconds": 30,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "version": "1.0.0",
+  "contexts": {
+    "GLOBAL_KERNEL": "Run in an otherwise empty workspace without repository AGENTS.md/project-governance.yml; scenario-supplied hypothetical facts are authoritative unless materialization is explicitly required.",
+    "GOVERNED_REPOSITORY": "Run in a minimal governed repository pinned to the current baseline; scenario-supplied hypothetical facts are authoritative unless the scenario explicitly relies on fixture state.",
+    "GOVERNANCE_FRAMEWORK_REPOSITORY": "Run in the Governance Framework repository with root AGENTS.md and framework-governance.yml."
+  },
+  "tests": {
+    "GOV-001": "GLOBAL_KERNEL",
+    "GOV-002": "GOVERNED_REPOSITORY",
+    "GOV-003": "GLOBAL_KERNEL",
+    "GOV-004": "GOVERNED_REPOSITORY",
+    "GOV-005": "GOVERNED_REPOSITORY",
+    "GOV-006": "GOVERNED_REPOSITORY",
+    "GOV-007": "GOVERNED_REPOSITORY",
+    "GOV-008": "GOVERNED_REPOSITORY",
+    "GOV-009": "GOVERNED_REPOSITORY",
+    "GOV-010": "GOVERNED_REPOSITORY",
+    "GOV-011": "GOVERNED_REPOSITORY",
+    "GOV-012": "GOVERNED_REPOSITORY",
+    "GOV-013": "GOVERNED_REPOSITORY",
+    "GOV-014": "GOVERNED_REPOSITORY",
+    "GOV-015": "GOVERNED_REPOSITORY",
+    "GOV-016": "GOVERNED_REPOSITORY",
+    "GOV-017": "GOVERNED_REPOSITORY",
+    "GOV-018": "GOVERNED_REPOSITORY",
+    "GOV-019": "GOVERNED_REPOSITORY",
+    "GOV-020": "GOVERNED_REPOSITORY",
+    "GOV-021": "GOVERNED_REPOSITORY",
+    "GOV-022": "GOVERNED_REPOSITORY",
+    "GOV-023": "GOVERNED_REPOSITORY",
+    "GOV-024": "GOVERNED_REPOSITORY",
+    "GOV-025": "GOVERNED_REPOSITORY",
+    "GOV-026": "GOVERNED_REPOSITORY",
+    "GOV-027": "GOVERNED_REPOSITORY",
+    "GOV-028": "GOVERNED_REPOSITORY",
+    "GOV-029": "GOVERNANCE_FRAMEWORK_REPOSITORY",
+    "GOV-030": "GOVERNED_REPOSITORY"
+  }
+}

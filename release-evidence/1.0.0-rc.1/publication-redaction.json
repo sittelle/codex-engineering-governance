@@ -1,0 +1,15 @@
+{
+  "schema_version": "1",
+  "target_version": "1.0.0-rc.1",
+  "purpose": "Approved publication-safety redaction of environment-specific absolute path only.",
+  "records": [
+    {
+      "path": "tests/governance/evaluations/2026-09-04/GOV-029-framework-self-governance-applicability-attempt-5.md",
+      "source_sha256": "339c57c8ad6c99e2949d0c34e51234603404a8b99a36668f640833fee062b4fb",
+      "candidate_sha256": "8af28feea32df144b654baceb7b7008cdf73aea95c8eb1bf96c207b6133b8ea2",
+      "semantics_changed": false,
+      "original_retained": "private pre-1.0 archive",
+      "replacement": "<GOVERNANCE_ROOT>/framework-verification-plan.json"
+    }
+  ]
+}

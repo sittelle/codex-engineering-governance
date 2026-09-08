@@ -1,0 +1,59 @@
+{
+  "schema_version": "1",
+  "tools": [
+    {
+      "id": "gitleaks",
+      "version": "8.30.1",
+      "target": {"os": "Linux", "machine": "x86_64"},
+      "kind": "archive",
+      "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz",
+      "sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
+      "archive": "tar.gz",
+      "member": "gitleaks",
+      "executable": "gitleaks",
+      "version_args": ["version"]
+    },
+    {
+      "id": "shellcheck",
+      "version": "0.11.0",
+      "target": {"os": "Linux", "machine": "x86_64"},
+      "kind": "archive",
+      "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz",
+      "sha256": "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198",
+      "archive": "tar.xz",
+      "member": "shellcheck-v0.11.0/shellcheck",
+      "executable": "shellcheck",
+      "version_args": ["--version"]
+    },
+    {
+      "id": "zizmor",
+      "version": "1.28.0",
+      "target": {"os": "Linux", "machine": "x86_64"},
+      "kind": "archive",
+      "url": "https://github.com/zizmorcore/zizmor/releases/download/v1.28.0/zizmor-x86_64-unknown-linux-gnu.tar.gz",
+      "sha256": "e87b67160194884e375a46a12c57ccc904f762b53845f254fab7f17d98809c09",
+      "archive": "tar.gz",
+      "member": "zizmor",
+      "executable": "zizmor",
+      "version_args": ["--version"]
+    },
+    {
+      "id": "semgrep",
+      "version": "1.172.0",
+      "target": {"os": "Linux", "machine": "x86_64"},
+      "kind": "docker",
+      "image": "semgrep/semgrep:1.172.0-nonroot",
+      "digest": "sha256:2e01772afbd85789464594ca86e22896748cbc78a5d9751dfc947a40b214ccc2"
+    },
+    {
+      "id": "psscriptanalyzer",
+      "version": "1.25.0",
+      "target": {"os": "Windows", "machine": "x86_64"},
+      "kind": "powershell-module",
+      "url": "https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/1.25.0",
+      "sha256": "14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60",
+      "module": "PSScriptAnalyzer",
+      "module_manifest": "PSScriptAnalyzer.psd1"
+    }
+  ]
+}

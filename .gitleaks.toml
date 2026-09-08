@@ -1,0 +1,4 @@
+title = "Codex Engineering Governance secret scanning"
+[extend]
+useDefault = true
+# Intentionally no broad allowlists. Narrow exceptions require reviewed configuration changes.

@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/codex-governance/verification-report-v5.schema.json",
+  "title": "Governed Verification Report v5 (target-aware)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project",
+    "plan_schema_version",
+    "stage",
+    "overall",
+    "plan_sha256",
+    "assurance_baseline_sha256",
+    "generated_at_utc",
+    "environment",
+    "capability_preflight",
+    "results",
+    "execution_context",
+    "runner_sha256",
+    "git_worktree_dirty",
+    "required_check_ids",
+    "artifact_identities",
+    "execution_target"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "5"
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "plan_schema_version": {
+      "type": "string"
+    },
+    "stage": {
+      "enum": [
+        "quick",
+        "full"
+      ]
+    },
+    "overall": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCOMPLETE_ASSURANCE"
+      ]
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "assurance_baseline_sha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "generated_at_utc": {
+      "type": "string"
+    },
+    "git_commit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ci": {
+      "type": "boolean"
+    },
+    "environment": {
+      "type": "object"
+    },
+    "capability_preflight": {
+      "type": "object"
+    },
+    "results": {
+      "type": "array"
+    },
+    "execution_context": {
+      "enum": [
+        "LOCAL",
+        "CI",
+        "SPECIALIZED"
+      ]
+    },
+    "runner_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "git_worktree_dirty": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "required_check_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "artifact_identities": {
+      "type": "object",
+      "required": [
+        "plan",
+        "assurance_baseline",
+        "runner"
+      ],
+      "properties": {
+        "plan": {
+          "type": "object",
+          "required": [
+            "source",
+            "sha256",
+            "working_tree_sha256"
+          ],
+          "properties": {
+            "source": {
+              "enum": [
+                "GIT_HEAD",
+                "WORKTREE_BYTES"
+              ]
+            },
+            "repository_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "working_tree_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "assurance_baseline": {
+          "type": "object",
+          "required": [
+            "source",
+            "sha256",
+            "working_tree_sha256"
+          ],
+          "properties": {
+            "source": {
+              "enum": [
+                "GIT_HEAD",
+                "WORKTREE_BYTES"
+              ]
+            },
+            "repository_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "working_tree_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "runner": {
+          "type": "object",
+          "required": [
+            "source",
+            "sha256",
+            "working_tree_sha256"
+          ],
+          "properties": {
+            "source": {
+              "enum": [
+                "GIT_HEAD",
+                "WORKTREE_BYTES"
+              ]
+            },
+            "repository_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "working_tree_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "ci_event_sha": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "precondition_failure": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "execution_target": {
+      "type": "object",
+      "required": [
+        "context",
+        "os",
+        "machine"
+      ],
+      "properties": {
+        "context": {
+          "enum": [
+            "LOCAL",
+            "CI",
+            "SPECIALIZED"
+          ]
+        },
+        "os": {
+          "type": "string",
+          "minLength": 1
+        },
+        "machine": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

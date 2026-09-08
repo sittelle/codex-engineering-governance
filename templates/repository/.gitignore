@@ -1,0 +1,30 @@
+# Local environment/secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Common caches/build output
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+dist/
+build/
+coverage/
+.coverage
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Governance local logs
+.codex-log/
+
+# BEGIN CODEX-GOVERNANCE-ASSURANCE
+.governance/evidence/
+# END CODEX-GOVERNANCE-ASSURANCE

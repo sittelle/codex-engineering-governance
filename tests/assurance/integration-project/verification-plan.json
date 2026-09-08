@@ -1,0 +1,224 @@
+{
+  "schema_version": "2",
+  "project": "assurance-integration-fixture",
+  "assurance": {
+    "maturity": "M1",
+    "level": "SA1",
+    "facts": {
+      "has_dependencies": false,
+      "has_exposed_web_surface": false,
+      "has_container_artifact": false,
+      "has_iac": false,
+      "has_persisted_data": false,
+      "ships_distributable_artifact": false
+    },
+    "capabilities": [
+      {
+        "id": "lint-format",
+        "decision": "REQUIRED",
+        "checks": [
+          "lint"
+        ],
+        "reason": "M1/SA1 baseline"
+      },
+      {
+        "id": "type-compile",
+        "decision": "REQUIRED",
+        "checks": [
+          "compile"
+        ],
+        "reason": "M1/SA1 baseline"
+      },
+      {
+        "id": "tests",
+        "decision": "REQUIRED",
+        "checks": [
+          "tests"
+        ],
+        "reason": "M1/SA1 baseline"
+      },
+      {
+        "id": "build-package",
+        "decision": "REQUIRED",
+        "checks": [
+          "build"
+        ],
+        "reason": "M1/SA1 baseline"
+      },
+      {
+        "id": "secret-scan",
+        "decision": "REQUIRED",
+        "checks": [
+          "secrets"
+        ],
+        "reason": "M1/SA1 baseline"
+      },
+      {
+        "id": "sast",
+        "decision": "REQUIRED",
+        "checks": [
+          "sast"
+        ],
+        "reason": "M1/SA1 baseline"
+      },
+      {
+        "id": "sca",
+        "decision": "NOT_APPLICABLE",
+        "checks": [],
+        "reason": "fixture intentionally has no third-party dependencies"
+      },
+      {
+        "id": "security-tests",
+        "decision": "OPTIONAL",
+        "checks": [],
+        "reason": "no security-critical behavior in integration fixture"
+      },
+      {
+        "id": "sbom",
+        "decision": "NOT_APPLICABLE",
+        "checks": [],
+        "reason": "no third-party dependency graph or distribution artifact"
+      },
+      {
+        "id": "container-scan",
+        "decision": "NOT_APPLICABLE",
+        "checks": [],
+        "reason": "no container artifact"
+      },
+      {
+        "id": "iac-scan",
+        "decision": "NOT_APPLICABLE",
+        "checks": [],
+        "reason": "no IaC"
+      },
+      {
+        "id": "dast",
+        "decision": "NOT_APPLICABLE",
+        "checks": [],
+        "reason": "no network/web surface"
+      },
+      {
+        "id": "fuzz",
+        "decision": "NOT_APPLICABLE",
+        "checks": [],
+        "reason": "no complex untrusted parser"
+      },
+      {
+        "id": "recovery-verification",
+        "decision": "NOT_APPLICABLE",
+        "checks": [],
+        "reason": "no persisted data"
+      },
+      {
+        "id": "provenance-signing",
+        "decision": "NOT_APPLICABLE",
+        "checks": [],
+        "reason": "no distributable artifact"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "id": "lint",
+      "stages": [
+        "quick",
+        "full"
+      ],
+      "command": [
+        "__TEST_PYTHON__",
+        "-c",
+        "import pathlib; assert all(\"\\t\" not in p.read_text() for p in pathlib.Path(\"src\").rglob(\"*.py\"))"
+      ],
+      "reason": null,
+      "timeout_seconds": 20,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": []
+    },
+    {
+      "id": "compile",
+      "stages": [
+        "quick",
+        "full"
+      ],
+      "command": [
+        "__TEST_PYTHON__",
+        "-m",
+        "compileall",
+        "-q",
+        "src"
+      ],
+      "reason": null,
+      "timeout_seconds": 20,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [
+        "current integration-test Python runtime"
+      ]
+    },
+    {
+      "id": "tests",
+      "stages": [
+        "quick",
+        "full"
+      ],
+      "command": [
+        "__TEST_PYTHON__",
+        "checks/test_app.py"
+      ],
+      "reason": null,
+      "timeout_seconds": 20,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": []
+    },
+    {
+      "id": "build",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "__TEST_PYTHON__",
+        "-m",
+        "compileall",
+        "-q",
+        "src"
+      ],
+      "reason": "fixture build sanity",
+      "timeout_seconds": 20,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": []
+    },
+    {
+      "id": "secrets",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "__TEST_PYTHON__",
+        "checks/secret_check.py"
+      ],
+      "reason": null,
+      "timeout_seconds": 20,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": []
+    },
+    {
+      "id": "sast",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "__TEST_PYTHON__",
+        "checks/static_check.py"
+      ],
+      "reason": null,
+      "timeout_seconds": 20,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": []
+    }
+  ]
+}

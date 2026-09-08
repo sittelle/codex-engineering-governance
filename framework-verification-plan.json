@@ -1,0 +1,617 @@
+{
+  "schema_version": "3",
+  "project": "Codex Engineering Governance Framework",
+  "assurance": {
+    "maturity": "M2",
+    "level": "SA1",
+    "facts": {
+      "has_dependencies": false,
+      "has_exposed_web_surface": false,
+      "has_container_artifact": false,
+      "has_iac": false,
+      "has_persisted_data": false,
+      "ships_distributable_artifact": true
+    },
+    "capabilities": [
+      {
+        "id": "lint-format",
+        "decision": "REQUIRED",
+        "reason": "Normative/source structure must be validated.",
+        "checks": [
+          "governance-static"
+        ]
+      },
+      {
+        "id": "type-compile",
+        "decision": "REQUIRED",
+        "reason": "Distributed Python tooling must compile.",
+        "checks": [
+          "python-compile"
+        ]
+      },
+      {
+        "id": "tests",
+        "decision": "REQUIRED",
+        "reason": "Assurance and lifecycle behavior are release-critical.",
+        "checks": [
+          "assurance-integration",
+          "lifecycle-common",
+          "lifecycle-windows",
+          "lifecycle-posix"
+        ]
+      },
+      {
+        "id": "build-package",
+        "decision": "REQUIRED",
+        "reason": "The ZIP distribution must match the declared manifest.",
+        "checks": [
+          "manifest-package"
+        ]
+      },
+      {
+        "id": "secret-scan",
+        "decision": "REQUIRED",
+        "reason": "Distributed scripts/workflows must be checked for committed secrets.",
+        "checks": [
+          "secret-scan"
+        ]
+      },
+      {
+        "id": "sast",
+        "decision": "REQUIRED",
+        "reason": "Python, POSIX, PowerShell, and GitHub Actions surfaces require appropriate static security analysis.",
+        "checks": [
+          "sast-python",
+          "sast-posix",
+          "sast-powershell",
+          "workflow-security"
+        ]
+      },
+      {
+        "id": "sca",
+        "decision": "NOT_APPLICABLE",
+        "reason": "No committed third-party runtime/build/dev dependency graph exists; scanner acquisition is separately integrity-pinned.",
+        "checks": []
+      },
+      {
+        "id": "security-tests",
+        "decision": "REQUIRED",
+        "reason": "Scanner configurations must prove positive and negative behavior.",
+        "checks": [
+          "scanner-regressions-linux",
+          "scanner-regressions-windows"
+        ]
+      },
+      {
+        "id": "sbom",
+        "decision": "OPTIONAL",
+        "reason": "Reassess before 1.0 if the approved publication channel makes an SBOM materially useful or required.",
+        "checks": []
+      },
+      {
+        "id": "container-scan",
+        "decision": "NOT_APPLICABLE",
+        "reason": "The framework does not build or distribute a container artifact.",
+        "checks": []
+      },
+      {
+        "id": "iac-scan",
+        "decision": "NOT_APPLICABLE",
+        "reason": "The repository contains no deployment infrastructure-as-code.",
+        "checks": []
+      },
+      {
+        "id": "dast",
+        "decision": "NOT_APPLICABLE",
+        "reason": "There is no network-facing application/service surface.",
+        "checks": []
+      },
+      {
+        "id": "fuzz",
+        "decision": "OPTIONAL",
+        "reason": "No current parser/native-code risk justifies fuzzing as a release requirement at SA1.",
+        "checks": []
+      },
+      {
+        "id": "recovery-verification",
+        "decision": "NOT_APPLICABLE",
+        "reason": "The package has no persisted operational service data/state requiring recovery testing.",
+        "checks": []
+      },
+      {
+        "id": "provenance-signing",
+        "decision": "OPTIONAL",
+        "reason": "Source+artifact-digest+evidence binding is required now; signing/stronger provenance activates when the publication channel is approved.",
+        "checks": []
+      }
+    ]
+  },
+  "checks": [
+    {
+      "id": "governance-static",
+      "stages": [
+        "quick",
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/validate-governance.py"
+      ],
+      "reason": "Static governance/source/package contract validation.",
+      "timeout_seconds": 60,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    },
+    {
+      "id": "python-compile",
+      "stages": [
+        "quick",
+        "full"
+      ],
+      "command": [
+        "python",
+        "-m",
+        "compileall",
+        "-q",
+        "assurance",
+        "scripts"
+      ],
+      "reason": "Python syntax/compile verification.",
+      "timeout_seconds": 60,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    },
+    {
+      "id": "assurance-integration",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-assurance-integration.py"
+      ],
+      "reason": "Generic assurance compatibility and evidence semantics.",
+      "timeout_seconds": 300,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    },
+    {
+      "id": "manifest-package",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-manifest-inventory.py"
+      ],
+      "reason": "Source/package manifest and exact ZIP inventory regression.",
+      "timeout_seconds": 120,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    },
+    {
+      "id": "lifecycle-common",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-framework-lifecycle.py",
+        "--mode",
+        "common"
+      ],
+      "reason": "Host-neutral assurance bootstrap lifecycle boundaries.",
+      "timeout_seconds": 180,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    },
+    {
+      "id": "lifecycle-windows",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-framework-lifecycle.py",
+        "--mode",
+        "windows"
+      ],
+      "reason": "Windows installer/New/Adopt/update/bootstrap distribution contract.",
+      "timeout_seconds": 240,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "CI"
+        ],
+        "required_contexts": [
+          "CI"
+        ],
+        "required_targets": [
+          {
+            "context": "CI",
+            "os": "Windows",
+            "machine": "x86_64"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lifecycle-posix",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-framework-lifecycle.py",
+        "--mode",
+        "posix"
+      ],
+      "reason": "POSIX installer/New/Adopt/update/bootstrap distribution contract.",
+      "timeout_seconds": 240,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "CI"
+        ],
+        "required_contexts": [
+          "CI"
+        ],
+        "required_targets": [
+          {
+            "context": "CI",
+            "os": "Linux",
+            "machine": "x86_64"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scanner-regressions-linux",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-framework-scanners.py",
+        "--platform",
+        "linux"
+      ],
+      "reason": "Linux scanner configurations must detect positive fixtures and pass safe equivalents.",
+      "timeout_seconds": 300,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "DOCUMENTED_EXIT_CODES",
+        "did_not_execute_codes": [
+          125
+        ],
+        "reference": "scripts/test-framework-scanners.py harness contract: 0 fixture coverage passes, 1 fixture regression fails, 125 scanner/tool operational nonexecution"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "CI"
+        ],
+        "required_contexts": [
+          "CI"
+        ],
+        "required_targets": [
+          {
+            "context": "CI",
+            "os": "Linux",
+            "machine": "x86_64"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scanner-regressions-windows",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-framework-scanners.py",
+        "--platform",
+        "windows"
+      ],
+      "reason": "PowerShell scanner configuration must detect a positive fixture and pass a safe equivalent.",
+      "timeout_seconds": 300,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "DOCUMENTED_EXIT_CODES",
+        "did_not_execute_codes": [
+          125
+        ],
+        "reference": "scripts/test-framework-scanners.py harness contract: 0 fixture coverage passes, 1 fixture regression fails, 125 scanner/tool operational nonexecution"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "CI"
+        ],
+        "required_contexts": [
+          "CI"
+        ],
+        "required_targets": [
+          {
+            "context": "CI",
+            "os": "Windows",
+            "machine": "x86_64"
+          }
+        ]
+      }
+    },
+    {
+      "id": "secret-scan",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/run-framework-scanner.py",
+        "gitleaks"
+      ],
+      "reason": "Pinned Gitleaks repository secret scan.",
+      "timeout_seconds": 180,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "DOCUMENTED_EXIT_CODES",
+        "did_not_execute_codes": [
+          125
+        ],
+        "reference": "scripts/run-framework-scanner.py adapter contract: 0 clean, 1 finding/policy failure, 125 operational nonexecution"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "CI"
+        ],
+        "required_contexts": [
+          "CI"
+        ],
+        "required_targets": [
+          {
+            "context": "CI",
+            "os": "Linux",
+            "machine": "x86_64"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sast-python",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/run-framework-scanner.py",
+        "semgrep"
+      ],
+      "reason": "Pinned Semgrep Python governance-automation SAST using local rules.",
+      "timeout_seconds": 300,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "DOCUMENTED_EXIT_CODES",
+        "did_not_execute_codes": [
+          125
+        ],
+        "reference": "scripts/run-framework-scanner.py adapter contract: 0 clean, 1 finding/policy failure, 125 operational nonexecution"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "CI"
+        ],
+        "required_contexts": [
+          "CI"
+        ],
+        "required_targets": [
+          {
+            "context": "CI",
+            "os": "Linux",
+            "machine": "x86_64"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sast-posix",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/run-framework-scanner.py",
+        "shellcheck"
+      ],
+      "reason": "Pinned ShellCheck analysis of distributed POSIX shell tooling.",
+      "timeout_seconds": 180,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "DOCUMENTED_EXIT_CODES",
+        "did_not_execute_codes": [
+          125
+        ],
+        "reference": "scripts/run-framework-scanner.py adapter contract: 0 clean, 1 finding/policy failure, 125 operational nonexecution"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "CI"
+        ],
+        "required_contexts": [
+          "CI"
+        ],
+        "required_targets": [
+          {
+            "context": "CI",
+            "os": "Linux",
+            "machine": "x86_64"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sast-powershell",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/run-framework-scanner.py",
+        "psscriptanalyzer"
+      ],
+      "reason": "Pinned PSScriptAnalyzer analysis of distributed PowerShell tooling.",
+      "timeout_seconds": 240,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "DOCUMENTED_EXIT_CODES",
+        "did_not_execute_codes": [
+          125
+        ],
+        "reference": "scripts/run-framework-scanner.py adapter contract: 0 clean, 1 finding/policy failure, 125 operational nonexecution"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "CI"
+        ],
+        "required_contexts": [
+          "CI"
+        ],
+        "required_targets": [
+          {
+            "context": "CI",
+            "os": "Windows",
+            "machine": "x86_64"
+          }
+        ]
+      }
+    },
+    {
+      "id": "workflow-security",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/run-framework-scanner.py",
+        "zizmor"
+      ],
+      "reason": "Pinned Zizmor analysis of repository-owned GitHub Actions workflow.",
+      "timeout_seconds": 180,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "DOCUMENTED_EXIT_CODES",
+        "did_not_execute_codes": [
+          125
+        ],
+        "reference": "scripts/run-framework-scanner.py adapter contract: 0 clean, 1 finding/policy failure, 125 operational nonexecution"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "CI"
+        ],
+        "required_contexts": [
+          "CI"
+        ],
+        "required_targets": [
+          {
+            "context": "CI",
+            "os": "Linux",
+            "machine": "x86_64"
+          }
+        ]
+      }
+    }
+  ]
+}

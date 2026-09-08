@@ -1,0 +1,64 @@
+governance:
+  baseline: "1.0.0"
+  source: "codex-home-locator"
+  locator: "$CODEX_HOME/GOVERNANCE_ROOT"
+
+project:
+  name: "<project-name>"
+  maturity: "M1"
+  # Machine identifier: SA0 | SA1 | SA2 | SA3
+  assurance: "SA1"
+  lifecycle: "ACTIVE"
+
+# Governed architecture-significant technology state.
+# Allowed states: UNESTABLISHED | ESTABLISHED | RECONCILIATION_REQUIRED
+technology_baseline:
+  state: "UNESTABLISHED"
+  record: "docs/design.md#technology-baseline"
+
+platforms:
+  development: []
+  runtime: []
+
+# Profiles select reusable guidance; they do not define or constrain the approved Technology Baseline.
+profiles:
+  languages: []
+  frameworks: []
+  platforms: []
+  data: []
+  infrastructure: []
+  publication: []
+
+verification:
+  quick: "<command>"
+  full: "<command>"
+  plan: "verification-plan.json"
+  plan_schema: "2"
+  assurance_baseline: ".governance/assurance-baseline.json"
+  evidence_directory: ".governance/evidence"
+  local_ci_parity_required: true
+
+security:
+  threat_model_required: false
+  sbom_required: false
+  dast_required: false
+  critical_release_blocker: true
+  high_release_blocker: true
+
+documentation:
+  design: "docs/design.md"
+  requirements: null
+  architecture: null
+  security: null
+  adr_directory: "docs/adr"
+  risk_register: "docs/risk/accepted-risks.md"
+
+publication:
+  intended_public: false
+  license_decided: false
+
+exceptions:
+  active: []
+
+accepted_risks:
+  active: []

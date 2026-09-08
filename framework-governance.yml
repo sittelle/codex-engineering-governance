@@ -1,0 +1,28 @@
+schema_version: "1"
+framework:
+  name: "codex-engineering-governance"
+  kind: "distributed-governance-tooling-package"
+authority:
+  global_governance_root: "."
+  verification_plan: "framework-verification-plan.json"
+  verification_runner: "assurance/run-verification.py"
+  aggregation_runner: "assurance/aggregate-verification.py"
+  release_workflow: "workflows/release/WORKFLOW.md"
+  exception_policy: "assurance/exception-policy.md"
+change_mapping:
+  framework-policy-or-assurance: "C2"
+  installer-updater-or-bootstrap: "C2"
+  control-weakening-or-publication: "C3 when consequences meet the global C3 criteria"
+  documentation-only-without-normative-effect: "C0/C1"
+evidence:
+  threat_model: "docs/framework-threat-model.md"
+  release_records: "release-evidence"
+  verification_reports: "release-evidence/verification"
+  security_reviews: "release-evidence/security-reviews"
+  exceptions: "release-evidence/exceptions"
+repository_applicability:
+  distribution_contracts:
+    - "Windows"
+    - "POSIX"
+  assurance_source: "framework-verification-plan.json"
+  note: "Application-only applicability and assurance capability decisions are not duplicated here."

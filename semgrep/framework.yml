@@ -1,0 +1,18 @@
+rules:
+  - id: framework-python-shell-true
+    languages: [python]
+    severity: ERROR
+    message: Avoid shell=True in governance automation; use bounded argv execution.
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run(..., shell=True, ...)
+          - pattern: subprocess.Popen(..., shell=True, ...)
+          - pattern: subprocess.call(..., shell=True, ...)
+
+  - id: framework-python-direct-destructive-cli-path
+    languages: [python]
+    severity: ERROR
+    message: Do not pass a CLI-derived path directly to recursive deletion; resolve and bound the target first.
+    pattern-either:
+      - pattern: shutil.rmtree($ARGS.$ATTR)
+      - pattern: shutil.rmtree(sys.argv[$IDX])

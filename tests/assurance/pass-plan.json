@@ -1,0 +1,43 @@
+{
+  "schema_version": "1",
+  "project": "runner-selftest",
+  "checks": [
+    {
+      "id": "pass",
+      "capability": "tests",
+      "stages": [
+        "quick",
+        "full"
+      ],
+      "command": [
+        "__TEST_PYTHON__",
+        "-c",
+        "import sys; sys.exit(0)"
+      ],
+      "applicable": true,
+      "required": true,
+      "reason": null,
+      "timeout_seconds": 10,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": []
+    },
+    {
+      "id": "na",
+      "capability": "dast",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "not-used"
+      ],
+      "applicable": false,
+      "required": false,
+      "reason": "no web surface",
+      "timeout_seconds": 10,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": []
+    }
+  ]
+}

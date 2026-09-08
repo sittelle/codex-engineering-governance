@@ -1,0 +1,127 @@
+name: Framework Verification
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Produce canonical Ubuntu evidence
+        shell: bash
+        run: |
+          set +e
+          python scripts/bootstrap-framework-tools.py --apply
+          bootstrap_rc=$?
+          if [ "$bootstrap_rc" -eq 0 ]; then
+            python scripts/verify-framework.py full --execution-context CI --report release-evidence/verification/ci-ubuntu.json
+          else
+            python scripts/verify-framework.py full --execution-context CI --report release-evidence/verification/ci-ubuntu.json --precondition-failure "framework tool bootstrap exited ${bootstrap_rc}"
+          fi
+          assurance_rc=$?
+          echo "Canonical assurance exit: ${assurance_rc}"
+          test -s release-evidence/verification/ci-ubuntu.json || exit 1
+          python -c "import json; json.load(open('release-evidence/verification/ci-ubuntu.json', encoding='utf-8'))"
+          exit 0
+      - name: Upload Ubuntu evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: framework-evidence-ubuntu
+          path: release-evidence/verification/ci-ubuntu.json
+          if-no-files-found: error
+
+  windows-evidence:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Produce canonical Windows evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          python scripts/bootstrap-framework-tools.py --apply
+          $bootstrapRc = $LASTEXITCODE
+          if ($bootstrapRc -eq 0) {
+            python scripts/verify-framework.py full --execution-context CI --report release-evidence/verification/ci-windows.json
+          } else {
+            python scripts/verify-framework.py full --execution-context CI --report release-evidence/verification/ci-windows.json --precondition-failure "framework tool bootstrap exited $bootstrapRc"
+          }
+          $assuranceRc = $LASTEXITCODE
+          Write-Host "Canonical assurance exit: $assuranceRc"
+          if (-not (Test-Path release-evidence/verification/ci-windows.json)) { throw 'canonical Windows evidence was not produced' }
+          Get-Content -Raw release-evidence/verification/ci-windows.json | ConvertFrom-Json | Out-Null
+          exit 0
+      - name: Upload Windows evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: framework-evidence-windows
+          path: release-evidence/verification/ci-windows.json
+          if-no-files-found: error
+
+  aggregate-full:
+    if: always()
+    needs: [ubuntu-evidence, windows-evidence]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Download Ubuntu evidence
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: framework-evidence-ubuntu
+          path: evidence/ubuntu
+      - name: Download Windows evidence
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: framework-evidence-windows
+          path: evidence/windows
+      - name: Aggregate canonical evidence
+        if: always()
+        id: aggregate
+        shell: bash
+        run: |
+          set +e
+          if [ -s evidence/ubuntu/ci-ubuntu.json ] && [ -s evidence/windows/ci-windows.json ]; then
+            python assurance/aggregate-verification.py evidence/ubuntu/ci-ubuntu.json evidence/windows/ci-windows.json --output release-evidence/verification/aggregate-full.json
+            rc=$?
+          else
+            echo 'Expected canonical producer evidence is missing; aggregate assurance cannot pass.' >&2
+            rc=3
+          fi
+          echo "code=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload aggregate evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: framework-evidence-aggregate
+          path: release-evidence/verification/aggregate-full.json
+          if-no-files-found: warn
+      - name: Enforce aggregate assurance gate
+        if: always()
+        shell: bash
+        run: exit "${{ steps.aggregate.outputs.code }}"

@@ -1,0 +1,171 @@
+{
+  "schema_version": "1",
+  "governance_version": "1.0.0",
+  "facts": [
+    {
+      "id": "has_dependencies",
+      "description": "Project has third-party runtime/build/dev dependencies relevant to assurance."
+    },
+    {
+      "id": "has_exposed_web_surface",
+      "description": "Project has a network-accessible web/API surface in intended operation."
+    },
+    {
+      "id": "has_container_artifact",
+      "description": "Project builds or ships a container image."
+    },
+    {
+      "id": "has_iac",
+      "description": "Repository contains infrastructure-as-code used for deployment/operation."
+    },
+    {
+      "id": "has_persisted_data",
+      "description": "Project persists material data requiring recovery consideration."
+    },
+    {
+      "id": "ships_distributable_artifact",
+      "description": "Project publishes/distributes installable or update artifacts."
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "lint-format",
+      "title": "Lint / format",
+      "m1_sa1": "REQUIRED",
+      "sa2": "REQUIRED",
+      "sa3": "REQUIRED"
+    },
+    {
+      "id": "type-compile",
+      "title": "Type / compile",
+      "m1_sa1": "REQUIRED",
+      "sa2": "REQUIRED",
+      "sa3": "REQUIRED"
+    },
+    {
+      "id": "tests",
+      "title": "Automated tests",
+      "m1_sa1": "REQUIRED",
+      "sa2": "REQUIRED",
+      "sa3": "REQUIRED"
+    },
+    {
+      "id": "build-package",
+      "title": "Build / package sanity",
+      "m1_sa1": "REQUIRED",
+      "sa2": "REQUIRED",
+      "sa3": "REQUIRED"
+    },
+    {
+      "id": "secret-scan",
+      "title": "Secret scanning",
+      "m1_sa1": "REQUIRED",
+      "sa2": "REQUIRED",
+      "sa3": "REQUIRED"
+    },
+    {
+      "id": "sast",
+      "title": "Static application security testing",
+      "m1_sa1": "REQUIRED",
+      "sa2": "REQUIRED",
+      "sa3": "REQUIRED"
+    },
+    {
+      "id": "sca",
+      "title": "Software composition / dependency audit",
+      "m1_sa1": "CONDITIONAL",
+      "sa2": "REQUIRED",
+      "sa3": "REQUIRED",
+      "required_if": [
+        {
+          "fact": "has_dependencies",
+          "equals": true,
+          "minimum_maturity": "M1"
+        }
+      ]
+    },
+    {
+      "id": "security-tests",
+      "title": "Security-focused tests",
+      "m1_sa1": "CONDITIONAL",
+      "sa2": "REQUIRED",
+      "sa3": "REQUIRED"
+    },
+    {
+      "id": "sbom",
+      "title": "Software bill of materials",
+      "m1_sa1": "CONDITIONAL",
+      "sa2": "REQUIRED",
+      "sa3": "REQUIRED"
+    },
+    {
+      "id": "container-scan",
+      "title": "Container image scanning",
+      "m1_sa1": "CONDITIONAL",
+      "sa2": "CONDITIONAL",
+      "sa3": "CONDITIONAL",
+      "required_if": [
+        {
+          "fact": "has_container_artifact",
+          "equals": true,
+          "minimum_assurance": "SA2"
+        }
+      ]
+    },
+    {
+      "id": "iac-scan",
+      "title": "Infrastructure-as-code scanning",
+      "m1_sa1": "CONDITIONAL",
+      "sa2": "CONDITIONAL",
+      "sa3": "CONDITIONAL",
+      "required_if": [
+        {
+          "fact": "has_iac",
+          "equals": true,
+          "minimum_assurance": "SA2"
+        }
+      ]
+    },
+    {
+      "id": "dast",
+      "title": "Dynamic application security testing",
+      "m1_sa1": "CONDITIONAL",
+      "sa2": "CONDITIONAL",
+      "sa3": "CONDITIONAL",
+      "required_if": [
+        {
+          "fact": "has_exposed_web_surface",
+          "equals": true,
+          "minimum_assurance": "SA2"
+        }
+      ]
+    },
+    {
+      "id": "fuzz",
+      "title": "Fuzz testing",
+      "m1_sa1": "CONDITIONAL",
+      "sa2": "CONDITIONAL",
+      "sa3": "CONDITIONAL"
+    },
+    {
+      "id": "recovery-verification",
+      "title": "Recovery verification",
+      "m1_sa1": "CONDITIONAL",
+      "sa2": "CONDITIONAL",
+      "sa3": "REQUIRED"
+    },
+    {
+      "id": "provenance-signing",
+      "title": "Provenance / signing",
+      "m1_sa1": "CONDITIONAL",
+      "sa2": "CONDITIONAL",
+      "sa3": "REQUIRED"
+    }
+  ],
+  "notes": [
+    "M1/SA1 values mirror the human capability matrix.",
+    "CONDITIONAL must be resolved in the project plan to REQUIRED, OPTIONAL, or NOT_APPLICABLE; UNRESOLVED makes full assurance incomplete.",
+    "Project policy/design may strengthen any conditional capability to REQUIRED.",
+    "Baseline REQUIRED capabilities cannot be downgraded in the project plan."
+  ]
+}

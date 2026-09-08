@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/codex-governance/aggregate-bundle-v2.schema.json",
+  "title": "Governed Aggregate Evidence Bundle v2",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "report_schema_version",
+    "overall",
+    "project",
+    "git_commit",
+    "plan_sha256",
+    "assurance_baseline_sha256",
+    "runner_sha256",
+    "artifact_identities",
+    "reports",
+    "issues",
+    "required_checks"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2"
+    },
+    "report_schema_version": {
+      "const": "5"
+    },
+    "overall": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCOMPLETE_ASSURANCE"
+      ]
+    },
+    "project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "git_commit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "plan_sha256": {
+      "type": "string"
+    },
+    "assurance_baseline_sha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "runner_sha256": {
+      "type": "string"
+    },
+    "artifact_identities": {
+      "type": "object"
+    },
+    "reports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256",
+          "context",
+          "overall",
+          "execution_target"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "context": {
+            "enum": [
+              "LOCAL",
+              "CI",
+              "SPECIALIZED"
+            ]
+          },
+          "overall": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "INCOMPLETE_ASSURANCE"
+            ]
+          },
+          "execution_target": {
+            "type": "object",
+            "required": [
+              "context",
+              "os",
+              "machine"
+            ],
+            "properties": {
+              "context": {
+                "enum": [
+                  "LOCAL",
+                  "CI",
+                  "SPECIALIZED"
+                ]
+              },
+              "os": {
+                "type": "string"
+              },
+              "machine": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "environment": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "issues": {
+      "type": "array"
+    },
+    "required_checks": {
+      "type": "array"
+    }
+  },
+  "additionalProperties": false
+}
