@@ -1,521 +1,669 @@
 # Codex Engineering Governance
 
-> **Release status: STABLE CANDIDATE** — approved for regular supervised use after validation. This is not formal compliance certification and does not authorize unattended high-consequence autonomy.
+> **Latest stable release: v1.0.0**
+>
+> The `master` branch may contain unreleased documentation or framework-development changes. For normal installation, use a published stable release.
 
-Version **1.0.0**.
+Codex Engineering Governance is a practical engineering-governance framework for people who build software with Codex.
 
+It is especially useful if you work by describing what you want, letting Codex implement much of it, and iterating from there — often called **vibe coding**.
 
-`1.0.0` is the final 1.0 release tree promoted from the accepted rc.3 baseline. rc.3 closed the release-package reproducibility defect by using `ZIP_STORED` and Git-tree-derived executable modes. The required fresh behavioral campaign completed 30/30 scenarios with 60/60 points, no critical 0s, and GOV-026..GOV-030 all 2/2; all 116 durable behavioral evaluation records are included. All 30 frozen GOV scenario/rubric files remain unchanged, and no governance or assurance semantic is changed by the final evidence/version integration. Technical readiness does not authorize publication.
+The framework is designed around a simple problem:
 
-A technology-neutral governance baseline for using Codex as a professional software-engineering agent while preserving developer control over product intent, material tradeoffs, security risk, and consequential actions.
+**AI can produce software very quickly, but speed does not remove the need for good engineering decisions.**
 
-## Design goals
+Codex can write a lot of code before requirements are clear. It can choose technologies without discussing the consequences, change security-sensitive behavior while solving an unrelated problem, or treat “the code runs” as equivalent to “the change is ready.”
 
-- specification before implementation;
-- recommendation-first technical guidance;
-- material ambiguity remains unresolved;
-- no unexpected material behavior;
-- proportional engineering rigor;
-- secure-by-design/default;
-- evidence-based completion;
-- release-blocking security policy;
-- durable repository context rather than chat-only memory.
+This framework adds a lightweight engineering process around Codex so you can keep the speed of AI-assisted development while making important decisions, risks, verification, and release actions explicit.
 
-## Codex instruction architecture
+---
 
-Install `codex-home/AGENTS.md` as the global `~/.codex/AGENTS.md`.
+## Background and goals
 
-Each governed project then receives its own repository-root `AGENTS.md` from `templates/repository/AGENTS.md`.
+### What problem does this solve?
 
-Keep `AGENTS.md` concise. Detailed requirements, architecture, security context, ADRs, and risks belong in project documents and are read when the active workflow requires them.
+When you ask Codex to build something, there are two different kinds of work happening.
 
+One is easy to see:
 
-## Windows downloaded-package trust
+- writing code;
+- changing files;
+- fixing errors;
+- running tests.
 
-Windows may attach Internet-zone metadata (Mark-of-the-Web) to a downloaded ZIP and propagate it to extracted `.ps1` files. Under common `RemoteSigned` execution-policy configurations, PowerShell can then refuse to run the unsigned framework scripts even though their contents are unchanged.
+The other is less visible, but often more important:
 
-Treat this as a package-trust decision, not permission to bypass PowerShell policy. Prefer this sequence for a package obtained from a trusted release channel:
+- understanding what the product is actually supposed to do;
+- deciding which technical approach is appropriate;
+- identifying security and data risks;
+- deciding whether an architecture change is worth its consequences;
+- determining what must be tested before the change is considered complete;
+- deciding whether something is safe and ready to publish.
 
-1. verify the downloaded archive's published SHA-256/release identity;
-2. unblock the **verified archive before extraction**;
-3. extract it normally;
-4. run the scripts without `-ExecutionPolicy Bypass`.
+Without a governance model, an AI agent can make those decisions implicitly while it is implementing your request.
 
-Example after comparing the archive hash with the published release record:
+This framework tries to prevent that.
 
-```powershell
-Get-FileHash .\codex-engineering-governance-v1.0.0.zip -Algorithm SHA256
-Unblock-File .\codex-engineering-governance-v1.0.0.zip
-```
+### What should change when the framework is installed?
 
-If the archive was already extracted and the verified extracted `.ps1` files still carry zone metadata, unblock only those trusted scripts deliberately:
+You should still be able to talk to Codex normally.
 
-```powershell
-Get-ChildItem . -Recurse -File -Filter *.ps1 | Unblock-File
-```
-
-Do not edit/resave scripts merely to make them executable: doing so changes distributed artifact bytes and obscures package/evidence identity. Do not weaken machine-wide execution policy or use a blanket execution-policy bypass just to make governance tooling run.
-
-## Main areas
-
-- `global/` — normative engineering/security/governance standards.
-- `workflows/` — task-specific execution procedures.
-- `skills/` — reusable specialist reasoning procedures.
-- `profiles/` — technology/platform specialization.
-- `templates/` — project bootstrap material.
-- `assurance/` — verification and release-gate policy.
-- `release-evidence/` — durable release records and versioned validation history (`release-evidence/validation/`).
-- `tests/governance/` — behavioral regression scenarios.
-- `reference-projects/` — governance validation scenarios.
-
-
-## Framework repository self-governance
-
-The governance source repository dogfoods only the controls that materially apply to distributed governance/tooling. `framework-governance.yml` contains repository-specific pointers; `framework-verification-plan.json` is the single assurance applicability source. Application auth/authz, DAST, container/IaC scanning, operational recovery verification, and dependency SCA remain N/A while their factual triggers are absent.
-
-Canonical repository verification:
+For example:
 
 ```text
-python scripts/verify-framework.py quick
-python scripts/verify-framework.py full
+Build me a small web app for tracking expenses.
 ```
-
-Verification-plan schema v3 adds target-aware evidence for required OS/machine contracts. Existing project plan schema v2 remains supported unchanged. Windows and Ubuntu CI produce canonical full reports; `aggregate-full` is the combined assurance/release gate.
-For this framework repository, push-triggered self-verification is bound to the repository `master` branch; pull requests and manual dispatch remain available.
-
-## Default classification
-
-Maturity:
-- M0 Exploration
-- M1 Maintained
-- M2 Distributed
-- M3 Operated
-
-Security assurance:
-- SA-0 Experimental
-- SA-1 Standard
-- SA-2 Elevated
-- SA-3 High Assurance
-
-Change consequence:
-- C0 Trivial
-- C1 Normal
-- C2 Material
-- C3 Critical/high consequence
-
-## Important principle
-
-Governance requires sufficient durable information and evidence, **not unnecessary document ceremony**. Small projects may consolidate requirements, architecture, security assumptions, and test notes when clarity and discoverability remain strong.
-
-## Technology Baseline
-
-For M1+ governed projects, architecture-significant choices are recorded as a project-owned Technology Baseline rather than being left as chat-only stack decisions.
-
-The default project manifest contains:
-
-```yaml
-technology_baseline:
-  state: "UNESTABLISHED"
-  record: "docs/design.md#technology-baseline"
-```
-
-States are `UNESTABLISHED`, `ESTABLISHED`, and `RECONCILIATION_REQUIRED`.
-
-The baseline records stack-shaping decisions such as primary language/toolchain, runtime, central framework/platform, persistence, deployment/packaging, supported targets, and other components whose replacement materially changes architecture, support, security/trust, operations, supply-chain exposure, or canonical verification. It does **not** duplicate the complete dependency graph; exact resolved versions remain in ecosystem manifests/lockfiles.
-
-The governed path is:
-
-`Requirements / Constraints → Architecture → Technology Selection → Technology Baseline → C2/C3 approval where required → durable project record → canonical verification → implementation`
-
-A material later baseline change is C2 at minimum, uses normal dependency/security/data workflows as applicable, remains `RECONCILIATION_REQUIRED` during transition, and is complete only after the durable record, repository/dependency state, support claims, and canonical verification agree.
-
-Technology neutrality is preserved: governance controls the decision process and evidence, not which language/framework/database must be chosen.
-
-## Core skills
-
-The v0.1.1 core includes `authentication-design` in addition to technology-selection, architecture-design, threat-modeling, authorization-review, dependency-review, testing-strategy, automation-safety, and security-review.
-
-
-## Central governance discovery
-
-The installed global kernel is intentionally compact. Detailed governance is located through:
 
 ```text
-$CODEX_HOME/GOVERNANCE_ROOT
+Add Google login.
 ```
 
-If `CODEX_HOME` is unset, the installer uses:
+```text
+I want to move this project from SQLite to PostgreSQL.
+```
+
+```text
+Prepare this project for its first public release.
+```
+
+You do not need to translate those requests into formal engineering documents yourself.
+
+Instead, Codex should apply more or less engineering rigor depending on the consequences of the task.
+
+A typo or harmless cleanup should stay lightweight.
+
+A database migration, authentication change, architecture transition, security exception, or public release should receive more analysis, verification, and explicit approval.
+
+### What remains your decision?
+
+The framework deliberately keeps the developer in control of product intent and consequential decisions.
+
+You decide:
+
+- what you want the product to do;
+- which important trade-offs you accept;
+- whether a material architecture change should happen;
+- whether an identified risk is acceptable;
+- whether an exception to normal policy is justified;
+- whether something should be released or published.
+
+Codex is expected to do the engineering due diligence around those decisions.
+
+It should:
+
+- inspect the existing project before changing it;
+- identify important ambiguity instead of inventing requirements;
+- recommend a technical approach;
+- explain material trade-offs;
+- identify relevant security, dependency, data, and operational consequences;
+- obtain approval before implementing decisions that require it;
+- implement the approved change;
+- run the applicable verification;
+- report failures and incomplete checks truthfully.
+
+### Recommendation first, implementation second
+
+For material changes, the intended pattern is:
+
+```text
+Your goal
+    ↓
+Codex investigates the project
+    ↓
+Codex explains the important choices
+    ↓
+Codex recommends an approach
+    ↓
+You approve or change the direction
+    ↓
+Codex implements it
+    ↓
+Codex verifies the result
+```
+
+The framework is not intended to force this ceremony onto trivial work.
+
+Its goal is **proportional engineering rigor**.
+
+### Durable project knowledge
+
+Important engineering decisions should not exist only in a chat transcript.
+
+A governed project therefore keeps a small amount of durable information in the repository.
+
+The main project files are:
+
+| File | Purpose |
+| --- | --- |
+| `AGENTS.md` | Tells Codex how to load the governance framework for this repository. |
+| `project-governance.yml` | Records the project's governance baseline and important governance state. |
+| `verification-plan.json` | Describes the checks used to verify the project. |
+| `docs/design.md` | A place for important architecture and Technology Baseline decisions. |
+
+Detailed governance rules remain in this central framework repository. They do not need to be copied into every project.
+
+### Technology Baseline in plain language
+
+For maintained projects, the framework keeps major stack decisions explicit.
+
+For example:
+
+```text
+language/toolchain
+runtime
+main application framework
+database/persistence approach
+deployment or packaging model
+supported platforms
+```
+
+Together these form the project's **Technology Baseline**.
+
+You can think of it as:
+
+> “These are the big technical choices this project currently depends on.”
+
+Adding a small library normally does not mean redesigning the Technology Baseline.
+
+Replacing the database, application framework, runtime, or another architecture-shaping component usually does.
+
+Codex should not silently make that kind of transition as a side effect of another task.
+
+### What this framework is not
+
+This framework is not a compliance certification system.
+
+It does not guarantee that a project is secure merely because governance is installed.
+
+It does not replace human responsibility for important product, risk, or publication decisions.
+
+It also does not require every small project to produce a large pile of documents.
+
+The principle is:
+
+**preserve enough durable information and evidence to make engineering decisions understandable and verifiable, without unnecessary ceremony.**
+
+---
+
+## Local setup
+
+The normal setup has three parts:
+
+```text
+one local copy of the governance framework
+        ↓
+a small global Codex instruction file
+        ↓
+governance metadata inside each governed project
+```
+
+You install the global framework once.
+
+After that, each project can use the same central governance installation.
+
+### Requirements
+
+You should have:
+
+- Codex;
+- Git;
+- Python 3;
+- PowerShell on Windows, or a POSIX-compatible shell on macOS/Linux.
+
+You do not need to understand the internal governance architecture before installing it.
+
+### 1. Download a stable release
+
+For normal use, install a published release rather than an arbitrary snapshot of `master`.
+
+Open the repository's **Releases** page and download both the release ZIP and its `.sha256` file.
+
+For v1.0.0 they are:
+
+```text
+codex-engineering-governance-v1.0.0.zip
+codex-engineering-governance-v1.0.0.zip.sha256
+```
+
+### 2. Verify the download
+
+Before extracting the ZIP, verify that its SHA-256 matches the published sidecar.
+
+#### Windows
+
+```powershell
+$zip = ".\codex-engineering-governance-v1.0.0.zip"
+
+$actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = ((Get-Content "$zip.sha256" -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+
+if ($actual -ne $expected) {
+    throw "SHA-256 mismatch"
+}
+
+"SHA-256 verified: $actual"
+```
+
+Do not continue if the values differ.
+
+#### Linux
+
+```sh
+sha256sum codex-engineering-governance-v1.0.0.zip
+cat codex-engineering-governance-v1.0.0.zip.sha256
+```
+
+#### macOS
+
+```sh
+shasum -a 256 codex-engineering-governance-v1.0.0.zip
+cat codex-engineering-governance-v1.0.0.zip.sha256
+```
+
+The values must agree.
+
+### 3. Extract the framework to a permanent location
+
+Choose a location you intend to keep.
+
+For example on Windows:
+
+```text
+D:\development\codex-engineering-governance
+```
+
+or on macOS/Linux:
+
+```text
+~/development/codex-engineering-governance
+```
+
+Do not install the framework into a temporary download directory.
+
+Codex stores the framework location and uses it later.
+
+### 4. Connect the framework to Codex
+
+Open a terminal in the extracted framework directory.
+
+#### Windows
+
+```powershell
+.\codex-home\install.ps1
+```
+
+#### macOS / Linux
+
+```sh
+./codex-home/install.sh
+```
+
+The installer:
+
+- installs the framework's global Codex `AGENTS.md`;
+- records the framework location in `GOVERNANCE_ROOT`;
+- backs up an existing global `AGENTS.md` before replacing it.
+
+By default these files are stored under:
 
 ```text
 ~/.codex
 ```
 
-`GOVERNANCE_ROOT` contains one absolute filesystem path: the root of this governance repository.
-
-For a governed project, Codex should:
-1. read project `AGENTS.md` and `project-governance.yml`;
-2. resolve `GOVERNANCE_ROOT`;
-3. verify the central repository `VERSION` against the project's pinned baseline when the task is C2/C3, security-sensitive, or release-related;
-4. load only the applicable workflow, skills, profiles, and detailed standards.
-
-The locator prevents hard-coding a developer-specific governance path into every project.
-
-## Version semantics
-
-The package `VERSION` is the governance distribution version. Public stable releases use SemVer; compatibility, package-production, provenance, and publication rules are defined in `docs/release-policy.md`.
-
-The four files under `global/` are normative package documents and follow the package version.
-
-Machine-readable assurance identifiers use:
+The important locator is:
 
 ```text
-SA0
-SA1
-SA2
-SA3
+~/.codex/GOVERNANCE_ROOT
 ```
 
-Human prose may render them as `SA-0` through `SA-3`.
+It contains the absolute path to this governance repository.
 
+After installation, **start a fresh Codex session**.
 
-## Updating an existing governed project
+### 5. Create a new governed project
 
-Use the project updater instead of manually changing the pinned baseline.
+The project-management scripts are preview-first.
 
-Windows preview:
+Running them without `-Apply` / `--apply` shows what will happen without changing the project.
+
+#### Windows — preview
 
 ```powershell
-.\scripts\update-governed-project.ps1 -ProjectRoot "D:\development\example"
+.\scripts\manage-governed-project.ps1 `
+  -Mode New `
+  -ParentRoot "D:\development" `
+  -ProjectName "my-project"
 ```
 
 Apply after reviewing the preview:
 
 ```powershell
-.\scripts\update-governed-project.ps1 -ProjectRoot "D:\development\example" -Apply
+.\scripts\manage-governed-project.ps1 `
+  -Mode New `
+  -ParentRoot "D:\development" `
+  -ProjectName "my-project" `
+  -Apply
 ```
 
-If `-ProjectRoot` is omitted, the script prompts for it.
+#### macOS / Linux — preview
 
-POSIX preview:
-
-```bash
-./scripts/update-governed-project.sh /path/to/project
+```sh
+./scripts/manage-governed-project.sh New \
+  --parent ~/development \
+  --name my-project
 ```
 
 Apply:
 
-```bash
-./scripts/update-governed-project.sh /path/to/project --apply
-```
-
-The updater:
-- verifies the target looks like a governed project;
-- compares the project pin with this governance repository `VERSION`;
-- refuses mutation on a dirty Git worktree unless explicitly overridden;
-- creates timestamped backups;
-- updates only governance baseline/source/locator metadata;
-- installs/refreshes a marked central-governance loading block in project `AGENTS.md`;
-- preserves project-specific instructions and design/security content.
-
-It does **not** automatically accept new risks, change maturity/assurance, rewrite project requirements, or modify project verification commands.
-
-
-## Behavioral-test execution contexts
-
-Behavioral tests declare one of two execution contexts:
-
-- `GLOBAL_KERNEL` — run in an empty workspace with no project `AGENTS.md` or `project-governance.yml`;
-- `GOVERNED_REPOSITORY` — run in a minimal governed repository with a current project baseline so detailed central workflows/skills/standards are part of the intended evaluation path.
-
-Do not score a `GOVERNED_REPOSITORY` test as if the compact global kernel alone were expected to reproduce every detailed invariant.
-
-
-## Governed project lifecycle
-
-Use `scripts/manage-governed-project.ps1` on Windows.
-
-New governed project, preview then apply:
-
-```powershell
-.\scripts\manage-governed-project.ps1 -Mode New -ParentRoot "D:\development" -ProjectName "my-project"
-.\scripts\manage-governed-project.ps1 -Mode New -ParentRoot "D:\development" -ProjectName "my-project" -Apply
-```
-
-Adopt an existing ungoverned project, preview then apply:
-
-```powershell
-.\scripts\manage-governed-project.ps1 -Mode Adopt -ProjectRoot "D:\development\existing-project"
-.\scripts\manage-governed-project.ps1 -Mode Adopt -ProjectRoot "D:\development\existing-project" -Apply
-```
-
-If parameters are omitted, the script prompts interactively. New mode refuses an existing non-empty target. Adopt mode preserves existing project content and records `RECONCILIATION_REQUIRED`; it never retroactively claims that pre-existing work was governance-approved.
-
-
-## Deterministic release package production
-
-Build a candidate/release artifact only from a clean committed repository state:
-
-```powershell
-python .\scripts\build-release-package.py
-```
-
-The builder reads MANIFEST-managed bytes from exact Git `HEAD`, uses deterministic `ZIP_STORED` members plus Git-tree executable modes, independently rebuilds the archive to prove byte reproducibility, writes `codex-engineering-governance-v1.0.0.zip`, and writes its `.sha256` sidecar. It does not commit, tag, push, create a GitHub Release, or change repository visibility.
-
-## Candidate validation and application workflow
-
-Use the repository-owned candidate tooling instead of manually repeating validation commands or recursively replacing the worktree.
-
-Preflight a downloaded candidate first:
-
-```powershell
-python .\scripts\preflight-candidate-package.py `
-  --zip "$HOME\Downloads\codex-engineering-governance-v1.0.0.zip" `
-  --sha256 <expected-sha256>
-```
-
-The preflight verifies the ZIP digest and exact MANIFEST inventory and requires all current durable behavioral evaluation records plus all frozen GOV scenario files to be byte-identical in the candidate package. It fails before replacement if historical evidence or scenario definitions drift.
-
-Plan the bounded worktree transition (dry-run is the default):
-
-```powershell
-python .\scripts\apply-candidate-package.py `
-  --zip "$HOME\Downloads\codex-engineering-governance-v1.0.0.zip" `
-  --sha256 <expected-sha256>
-```
-
-After reviewing the plan, apply it explicitly:
-
-```powershell
-python .\scripts\apply-candidate-package.py `
-  --zip "$HOME\Downloads\codex-engineering-governance-v1.0.0.zip" `
-  --sha256 <expected-sha256> `
+```sh
+./scripts/manage-governed-project.sh New \
+  --parent ~/development \
+  --name my-project \
   --apply
 ```
 
-The application tool automatically reruns package preflight, requires a clean Git worktree, preserves `.git` and non-MANIFEST source/local files, writes only candidate-MANIFEST files, removes only files owned by the previous MANIFEST, verifies the resulting MANIFEST-managed bytes, and then runs `scripts/validate-candidate.py`. It never recursively deletes the worktree. If application or post-apply validation fails, it restores the pre-apply MANIFEST-managed file bytes and reports rollback status.
+The command creates the governance/project structure and can initialize Git.
 
-If the currently installed baseline predates `apply-candidate-package.py`, extract the trusted candidate archive to a temporary directory and run the candidate copy of the script with `--repo` pointing at the authoritative framework worktree; after v0.5.24 is installed, future candidates can invoke the repository copy directly.
+It does **not** generate your application automatically.
 
-The local validation bundle runs governance validation, manifest regression, lifecycle common plus the host-native lifecycle path, assurance integration, canonical quick verification, canonical local full verification, and `git diff --check`. A local full result may remain `INCOMPLETE_ASSURANCE` only when every remaining required nonexecution is an approved CI-context deferral; real FAIL, operational nonexecution, or another unexpected disposition fails the bundle. Exact-commit cross-platform CI evidence is still required before freeze.
+Afterward, open the project in Codex and describe what you want to build.
 
-## Post-freeze baseline activation
+### 6. Add governance to an existing project
 
-After a framework version is already frozen/tagged, use the repository-owned activation tool to repin the evaluation fixture and install/verify the global Codex kernel instead of pasting a multi-step shell sequence. This tool is specific to the framework evaluation fixture plus Codex home; it does not publish tags/releases or alter the frozen framework tree.
+You can also adopt an existing project.
 
-Preview only (default):
+The framework deliberately does not pretend that decisions made before governance was installed were already reviewed under this framework.
 
-```powershell
-python .\scripts\activate-frozen-baseline.py `
-  --fixture "D:\development\codex-governance-eval"
+An adopted project therefore starts in:
+
+```text
+RECONCILIATION_REQUIRED
 ```
 
-Apply explicitly after reviewing the plan:
+That tells Codex to understand and reconcile the project's existing architecture, dependencies, verification, and other relevant state.
+
+#### Windows — preview
 
 ```powershell
-python .\scripts\activate-frozen-baseline.py `
-  --fixture "D:\development\codex-governance-eval" `
-  --apply
+.\scripts\manage-governed-project.ps1 `
+  -Mode Adopt `
+  -ProjectRoot "D:\development\existing-project"
 ```
 
-The activation tool requires a clean fixture Git worktree, invokes the existing governed-project updater, reconciles the evaluation fixture's baseline assertion, verifies the authoritative managed `AGENTS.md` block (including the valid no-diff case when it is already byte-equivalent), runs fixture quick/full verification plus `git diff --check`, removes updater backup artifacts, and requires the remaining fixture diff to be commit-ready and bounded to `AGENTS.md`, `project-governance.yml`, and `tests/eval-verification.py`. It then installs the global kernel with the existing host-native installer and verifies byte identity plus `GOVERNANCE_ROOT`. Dry-run is non-mutating; apply failures restore the wrapper-owned fixture/global state.
-
-The activation path remains available for already-frozen baselines. Release-candidate evaluation and final public-lineage preparation remain separate from activation.
-
-## Stable-candidate change discipline
-
-The v0.2.x line is intentionally conservative. Global policy should change only for a reproducible governance regression, security defect, integration/compatibility defect, repeated cross-project proportionality failure, or deliberately planned new capability with tests. Project-specific lessons remain project-local unless repeated evidence shows a reusable governance need.
-
-
-## Data migration workflow
-
-Use `workflows/data-migration/WORKFLOW.md` for schema/data changes that move, transform, delete, reinterpret, backfill, repartition, or otherwise materially alter persisted data.
-
-The workflow is intentionally broader than destructive deletion. It applies to migrations where correctness depends on:
-- old/new data invariants;
-- compatibility during rollout;
-- backfill/transformation semantics;
-- preservation/recovery;
-- post-migration validation.
-
-Destructive steps remain subject to the global destructive-data invariant and explicit C3 approval boundary.
-
-
-## Dependency change workflow
-
-Use `workflows/dependency-change/WORKFLOW.md` when adding, removing, upgrading, replacing, pinning, or materially reconfiguring a dependency.
-
-The workflow distinguishes:
-- low-risk patch/minor maintenance;
-- security-driven dependency changes;
-- major-version/API/runtime-support changes;
-- dependency replacement/removal;
-- direct versus transitive effects.
-
-It requires technical due diligence without turning every routine patch update into an architecture exercise.
-
-
-## Emergency fix workflow
-
-Use `workflows/emergency-fix/WORKFLOW.md` for production incidents, active outages, severe regressions, urgent security containment, and other situations where normal delivery time is materially compressed.
-
-The workflow keeps only the minimum safe governance needed to act quickly:
-- confirm the incident and affected scope;
-- prefer containment/rollback over broad weakening;
-- make the smallest viable change;
-- preserve security/destructive stop conditions;
-- run the minimum meaningful verification;
-- record anything skipped;
-- require explicit risk acceptance where residual risk is knowingly introduced;
-- reconcile and complete deferred evidence after stabilization.
-
-Emergency does not mean governance-free.
-
-
-## Refactor workflow
-
-Use `workflows/refactor/WORKFLOW.md` for structural/code-quality changes whose intended outcome is behavior preservation.
-
-The workflow distinguishes:
-- pure/internal refactoring;
-- public API/contract changes;
-- persistence/data-model changes;
-- dependency/toolchain changes;
-- performance/security behavior changes.
-
-Material non-refactor changes are split into their appropriate workflow/approval boundary rather than being hidden inside “cleanup.”
-
-
-## Local / CI assurance architecture
-
-v0.3.0 introduces a technology-neutral verification contract.
-
-A governed project may use the reference JSON plan/runner or an ecosystem-equivalent interface, but it must preserve the same semantics:
-- canonical `quick` and `full`;
-- named assurance capabilities;
-- explicit applicability;
-- truthful PASS / FAIL / NOT_APPLICABLE / DID_NOT_EXECUTE evidence;
-- local and CI execution of the same underlying checks;
-- no silent downgrade when a required control cannot run.
-
-See:
-- `assurance/architecture.md`
-- `assurance/capability-matrix.md`
-- `assurance/verification-plan.schema.json`
-- `assurance/run-verification.py`
-
-The reference runner is dependency-free Python and uses argv arrays, so checks do not depend on shell-specific `&&` syntax. It is a reference implementation, not a mandatory application runtime dependency.
-
-
-## Bootstrap project-local assurance
-
-After the project stack and canonical checks are defined, install the project-local assurance runner and GitHub baseline.
-
-Windows preview/apply:
+Apply:
 
 ```powershell
-.\scripts\bootstrap-assurance.ps1 -ProjectRoot "D:\development\my-project"
-.\scripts\bootstrap-assurance.ps1 -ProjectRoot "D:\development\my-project" -Apply
+.\scripts\manage-governed-project.ps1 `
+  -Mode Adopt `
+  -ProjectRoot "D:\development\existing-project" `
+  -Apply
 ```
 
-POSIX preview/apply:
+#### macOS / Linux — preview
 
 ```sh
-./scripts/bootstrap-assurance.sh --project-root /path/to/project
-./scripts/bootstrap-assurance.sh --project-root /path/to/project --apply
+./scripts/manage-governed-project.sh Adopt \
+  --project ~/development/existing-project
 ```
 
-The bootstrap preserves an existing verification plan, installs the reference runner under `.governance/`, records hashes, ignores local evidence, and installs `.github/workflows/governance-verify.yml` only after the plan is configured. A project may add `.governance/ci-bootstrap.py` for CI-only environment/tool setup; that hook must not redefine or weaken the plan.
+Apply:
 
-The generated workflow uses SHA-pinned official GitHub Actions dependencies. Future action updates are dependency changes and should be reviewed accordingly.
+```sh
+./scripts/manage-governed-project.sh Adopt \
+  --project ~/development/existing-project \
+  --apply
+```
 
+Existing project content is preserved.
 
-## Verification plan schema v2
+### 7. Use Codex normally
 
-`verification-plan.json` now carries an explicit capability inventory, while `.governance/assurance-baseline.json` is managed from the governance package. Full verification compares the two before executing checks.
+Once governance is installed, you do not need to repeat governance instructions in every prompt.
 
-This prevents a false-green plan that simply omits a required capability.
+For example:
 
-The reference runner also resolves the first argv element with `shutil.which()` using the check environment PATH. A logical command such as `["npm", "test"]` therefore remains one cross-platform plan: Windows may resolve it to `npm.cmd`, while POSIX resolves `npm`.
+```text
+Add password-reset functionality.
+```
 
-Existing schema-v1 plans are not silently treated as assurance-complete. They may still be inspected/migrated, but canonical full verification remains `INCOMPLETE_ASSURANCE` until reconciled to v2.
+```text
+Review the current authentication design and recommend improvements.
+```
 
+```text
+I want to replace SQLite with PostgreSQL. Recommend how we should approach the transition.
+```
 
-## Assurance execution semantics
+```text
+Prepare this project for release.
+```
 
-v0.3.3 distinguishes three materially different outcomes:
+Codex should:
 
-- the assurance tool completed and passed;
-- the assurance tool completed and reported a policy/test finding (`FAIL`);
-- the assurance tool did not successfully complete (`DID_NOT_EXECUTE` → `INCOMPLETE_ASSURANCE`).
+1. read the project instructions;
+2. find the central governance framework;
+3. load the workflow and specialist guidance relevant to the task;
+4. apply only the amount of process justified by the consequences.
 
-The default remains fail-safe: exit `0` is PASS and every other exit code is FAIL. A project may classify explicitly documented nonzero tool-error exit codes as `DID_NOT_EXECUTE` only with a `DOCUMENTED_EXIT_CODES` policy and a durable contract reference. Unknown/unmapped nonzero codes remain FAIL.
+You generally do not need to decide whether something is “C0”, “C1”, “C2”, or “C3” yourself.
 
-Checks may also declare approved execution contexts. A required capability may be evidenced in CI or another approved specialized environment without being made `NOT_APPLICABLE` on a developer workstation. Single-environment `full` remains incomplete until all required execution-context evidence exists.
+Codex should classify the change and explain the important approval boundary when it matters.
 
-Use `assurance/aggregate-verification.py` (or the project-managed copy) to combine full reports. Aggregation requires the same project, exact Git commit, clean worktree evidence, verification-plan hash, assurance-baseline hash, and runner hash.
+### 8. Updating an already governed project
 
+When you install a newer governance baseline, update governed projects using the project updater instead of manually editing version metadata.
 
-## v0.3.4 portability note
+#### Windows — preview
 
-The assurance integration fixture is host-neutral. Its static plan uses the test-only `__TEST_PYTHON__` placeholder, materialized by the integration harness with the interpreter actually running the test. The PATH-resolution probe is `.cmd` on Windows and an executable script on POSIX. This affects only framework self-testing.
+```powershell
+.\scripts\update-governed-project.ps1 `
+  -ProjectRoot "D:\development\my-project"
+```
 
-## v0.5.11 Technology Baseline Transition Summary
+Apply:
 
-v0.5.11 retains the existing Technology Baseline policy and unchanged GOV-030 rubric, but makes the pre-implementation output contract explicit. For a C2/C3 architecture-significant transition, the response/readiness/design record emits a `Technology Baseline Transition Summary` with labeled fields for delta/classification, technical recommendation, dependency/supply-chain and triggered impacts, approval state, transition state/durable record, verification/assurance reconciliation, and `ESTABLISHED` closure criteria. A genuinely irrelevant field is stated `NOT APPLICABLE` with reason rather than silently omitted. New-feature work that discovers/proposes such a stack delta routes into the existing technology-selection and dependency-change mechanisms.
+```powershell
+.\scripts\update-governed-project.ps1 `
+  -ProjectRoot "D:\development\my-project" `
+  -Apply
+```
 
-## v0.5.10 Technology Baseline transition completeness
+#### macOS / Linux — preview
 
-v0.5.10 records the first valid GOV-030 attempt as 1/2 and strengthens only the proximate project instruction path needed for consistent transition behavior. A material change to an established Technology Baseline must explicitly cover technology-selection plus dependency/supply-chain analysis, the agent's recommendation, C2/C3 approval, durable target state with `RECONCILIATION_REQUIRED`, canonical quick/full plus newly applicable assurance capabilities, and return to `ESTABLISHED` only when the durable baseline, repository/dependency state, support claims, and verification agree. The GOV-030 rubric and underlying policy are unchanged.
+```sh
+./scripts/update-governed-project.sh /path/to/my-project
+```
 
-## v0.5.9 Legacy governed-project Technology Baseline migration
+Apply:
 
-v0.5.9 closes the compatibility gap found while preparing GOV-030: a repository already governed under a pre-Technology-Baseline version could previously be repinned to the new framework while still lacking the new baseline state. The Windows and POSIX governed-project updaters now detect a missing `technology_baseline` section and add `RECONCILIATION_REQUIRED` with the standard durable record pointer. Existing Technology Baselines are preserved byte-for-byte in substance; the updater does not infer historical approval or silently mark an older stack `ESTABLISHED`. Lifecycle regressions cover both legacy migration and preservation of an existing project-owned baseline.
+```sh
+./scripts/update-governed-project.sh /path/to/my-project --apply
+```
 
-## v0.5.8 Technology Baseline governance
+The updater preserves project-specific instructions and does not silently accept new risks or architectural changes on your behalf.
 
-v0.5.8 makes architecture-significant technology decisions a first-class governed project state without prescribing technologies. New M1+ projects begin `UNESTABLISHED`; adopted repositories begin `RECONCILIATION_REQUIRED`; an established baseline cannot silently drift through implementation or dependency maintenance. Material baseline changes are C2 at minimum, reuse existing technology/dependency/data/security analysis, and require canonical-verification reconciliation. GOV-030 covers the drift-prevention path.
+---
 
-## v0.5.7 framework applicability response completeness
+## Windows downloaded-package trust
 
-GOV-029 attempts 1 and 2 each scored 1/2 and remain retained. The six-part response-completeness contract then produced fresh attempt 3 at 2/2 under the unchanged wording/rubric. The frozen v0.5.7 commit `76e39efb073776984f455d88c33bab7a0ae23fee` also passed GitHub Actions run `33365512612` with aggregate schema v2/report v5, `overall: PASS`, `issues: []`, and all 14 required Windows/Ubuntu checks PASS.
+Windows may attach Internet-zone metadata (Mark-of-the-Web) to a downloaded ZIP and propagate it to extracted PowerShell scripts. Under common `RemoteSigned` execution-policy configurations, PowerShell can then refuse to run the unsigned framework scripts even though their contents are unchanged.
 
-## v0.5.6 Linux scanner fixture calibration
+Treat this as a package-trust decision, not as permission to bypass PowerShell policy.
 
-The real v0.5.5 Windows/Ubuntu rerun reduced the aggregate failure to the Linux positive-fixture regression only: production Gitleaks, Semgrep, ShellCheck, Zizmor, and the Windows PSScriptAnalyzer path otherwise passed. The Gitleaks fixture had used an alphabet-sequence token that the pinned default configuration intentionally treats as a stopword, while the ShellCheck fixture exercised informational `SC2086` under a production threshold that admits only warning/error findings. v0.5.6 corrects those fixtures without weakening scanner policy: it uses a non-stopword deterministic synthetic PAT-shaped value with the repository Gitleaks configuration, and it uses the field-observed warning-level `SC1007` case for ShellCheck.
+For the current v1.0.0 release, first verify `codex-engineering-governance-v1.0.0.zip` against its published SHA-256 as described above. After that verification, unblock the **verified archive before extraction**:
 
-## v0.5.5 cross-platform field fixes
+```powershell
+Unblock-File .\codex-engineering-governance-v1.0.0.zip
+```
 
-The first real Windows/Ubuntu framework aggregate run confirmed that Git-canonical plan/baseline/runner hashes match across platforms while checkout-byte hashes may differ because of line-ending normalization. Aggregation therefore compares only the canonical Git-bound identity (`source`, `repository_path`, committed `sha256`); `working_tree_sha256` remains diagnostic.
+Then extract it normally and run the framework scripts without an execution-policy bypass.
 
-The same field run found ShellCheck `SC1007` in POSIX `CDPATH` path-resolution idioms and an opaque Linux scanner-regression operational failure. v0.5.5 fixes the shell syntax without suppressing ShellCheck, makes the non-root Semgrep fixture mount readable, and retains bounded scanner-specific diagnostics for any future operational nonexecution.
+If you already extracted the verified archive and its `.ps1` files still carry zone metadata, deliberately unblock only those trusted scripts from the extracted framework directory:
 
-## Cross-platform evidence identity
+```powershell
+Get-ChildItem . -Recurse -File -Filter *.ps1 | Unblock-File
+```
 
-For clean tracked project assurance artifacts, verification evidence binds to committed Git `HEAD` content, not the platform-specific bytes produced by checkout. This keeps local Windows and Ubuntu CI evidence comparable when Git performs ordinary line-ending conversion.
+Do not edit or resave scripts merely to make them executable: doing so changes the distributed bytes and makes package/evidence identity harder to reason about. Do not weaken the machine-wide PowerShell execution policy or use a blanket `-ExecutionPolicy Bypass` just to run the governance tooling.
 
-Reports also record working-tree hashes for diagnostics. Dirty/untracked artifacts are not eligible for cross-environment aggregation.
+---
 
+## Developing this governance framework
 
-## v0.3.9 source/package inventory validation
+This section is for contributors changing the governance framework itself.
 
-Source-tree validation no longer mistakes Git metadata or developer-local files for distributable package content. `MANIFEST.json` is the distribution allowlist; exact package inventory is checked against a concrete ZIP or extracted package with `python scripts/validate-governance.py --artifact <path>`.
+Normal users do not need these steps merely to use the framework.
 
-## v0.3.8 release-evidence hygiene
+### Repository self-governance
 
-The static validator distinguishes **behavioral scenarios** from completed behavioral evaluations. Scenario files are not counted as if they had been executed. Completed evaluations use durable records under `tests/governance/evaluations/`. The package manifest is also checked against the actual packaged file inventory so missing or unlisted files cannot silently pass static validation.
+The framework repository governs itself.
 
-The current behavioral acceptance rule is documented in `tests/governance/README.md`; a 1.0 candidate requires a complete candidate evaluation set rather than relying on historical scenario-file counts.
+Start with:
 
-## v0.3.7 aggregate failure observability
+```text
+AGENTS.md
+framework-governance.yml
+```
 
-Cross-environment aggregation is fail-dominant: if an attributable execution of a required check reports `FAIL`, a `PASS` from another approved context cannot mask it, including for `required_contexts: ["ANY"]`. The aggregate report and console output identify the failed check and failing execution context(s). `DID_NOT_EXECUTE` deferral remains distinct and may be satisfied by valid PASS evidence in another permitted context when the plan allows it.
+`framework-governance.yml` identifies the repository's authoritative verification plan, release workflow, evidence locations, and change-classification rules.
 
-## v0.3.6 CI bootstrap evidence and tool locks
+The framework is a distributed governance/tooling package, not a hosted application.
 
-The generated GitHub workflow invokes `.governance/run-ci-verification.py`. The orchestrator runs optional project CI bootstrap and always routes into canonical full verification when the managed runner remains operational. Bootstrap failure therefore produces `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE` evidence instead of merely ending the job before `ci-full.json` exists.
+That means its assurance model applies controls appropriate to this repository rather than mechanically requiring application-only checks whose factual triggers do not exist.
 
-Assurance-tool dependency locks are environment-bound unless proven universal. Prefer explicit per-environment locks for platform-sensitive Python/binary tooling; never drop hashes or pinning merely because a lock generated on one OS fails on another.
+### Main repository areas
 
-### Failure evidence versus policy exceptions
+| Path | Purpose |
+| --- | --- |
+| `global/` | Normative engineering, security, and governance standards. |
+| `workflows/` | Task-specific execution procedures. |
+| `skills/` | Reusable specialist engineering procedures. |
+| `profiles/` | Technology and platform specialization. |
+| `templates/` | Files installed into governed projects. |
+| `assurance/` | Verification semantics, runners, schemas, and release gates. |
+| `tests/governance/` | Behavioral regression scenarios and retained evaluation evidence. |
+| `reference-projects/` | Framework integration/validation fixtures. |
+| `release-evidence/` | Durable verification, security-review, and release records. |
 
-Behavioral failures/regressions are retained in their evaluation records, and verification failures remain in canonical verification evidence/reports. Neither requires a second parallel record. Explicit approved policy exceptions remain governed only by `assurance/exception-policy.md`; a failure is not an exception or waiver by itself.
+Avoid creating a second policy, assurance model, severity model, or exception mechanism when an existing framework component already owns that responsibility.
+
+### Change classification
+
+Documentation-only changes without normative effect are normally C0/C1.
+
+Changes to framework policy, assurance semantics, installers, updaters, or bootstrap behavior are material and are normally C2.
+
+Control weakening and other high-consequence changes may require C3 depending on their consequences.
+
+C2/C3 changes require the applicable recommendation and approval before substantial implementation.
+
+### Development verification
+
+For fast feedback:
+
+```text
+python scripts/verify-framework.py quick
+```
+
+For canonical local verification:
+
+```text
+python scripts/verify-framework.py full
+```
+
+The framework also uses Windows and Ubuntu CI evidence and combines those reports for cross-platform assurance.
+
+A required check that did not execute is never treated as PASS.
+
+Do not disable, suppress, or weaken a control simply to obtain a green result.
+
+### Behavioral governance tests
+
+The scenarios under:
+
+```text
+tests/governance/
+```
+
+test whether Codex actually follows the intended governance behavior.
+
+They are decision probes, not ordinary unit tests.
+
+Behavioral evaluations use fresh Codex sessions and declared execution contexts.
+
+The raw response is preserved as evidence.
+
+Historical failures remain historical failures. Do not delete or rewrite them merely because a later attempt succeeds.
+
+When a governance or instruction change could materially alter agent behavior, evaluate the applicable behavioral scenarios according to the repository's behavioral-test protocol.
+
+### Deterministic release packages
+
+A candidate/release package must be built from a clean committed repository state:
+
+```text
+python scripts/build-release-package.py
+```
+
+The builder reads package content from exact Git `HEAD`, verifies deterministic reproduction, and produces:
+
+```text
+codex-engineering-governance-v<version>.zip
+codex-engineering-governance-v<version>.zip.sha256
+```
+
+Building the archive does not authorize:
+
+- committing;
+- tagging;
+- pushing;
+- creating a GitHub Release;
+- changing repository visibility;
+- any other consequential publication action.
+
+Those are separate decisions.
+
+### Release and compatibility policy
+
+Public stable releases use Semantic Versioning.
+
+See:
+
+```text
+docs/release-policy.md
+workflows/release/WORKFLOW.md
+```
+
+for the compatibility promise, deterministic package contract, assurance requirements, and publication boundary.
+
+### Version history
+
+Detailed version-by-version history intentionally lives in:
+
+```text
+CHANGELOG.md
+```
+
+rather than in this README.
+
+That keeps this document focused on:
+
+1. why the framework exists;
+2. how to install and use it;
+3. how to develop the framework.
+
+### Security
+
+See:
+
+```text
+SECURITY.md
+```
+
+for vulnerability-reporting guidance.
+
+---
+
+## License
+
+MIT — Copyright (c) 2026 Sittelle
