@@ -459,34 +459,31 @@ Use `assurance/aggregate-verification.py` (or the project-managed copy) to combi
 
 The assurance integration fixture is host-neutral. Its static plan uses the test-only `__TEST_PYTHON__` placeholder, materialized by the integration harness with the interpreter actually running the test. The PATH-resolution probe is `.cmd` on Windows and an executable script on POSIX. This affects only framework self-testing.
 
-
-
-
-### v0.5.11 Technology Baseline Transition Summary
+## v0.5.11 Technology Baseline Transition Summary
 
 v0.5.11 retains the existing Technology Baseline policy and unchanged GOV-030 rubric, but makes the pre-implementation output contract explicit. For a C2/C3 architecture-significant transition, the response/readiness/design record emits a `Technology Baseline Transition Summary` with labeled fields for delta/classification, technical recommendation, dependency/supply-chain and triggered impacts, approval state, transition state/durable record, verification/assurance reconciliation, and `ESTABLISHED` closure criteria. A genuinely irrelevant field is stated `NOT APPLICABLE` with reason rather than silently omitted. New-feature work that discovers/proposes such a stack delta routes into the existing technology-selection and dependency-change mechanisms.
 
-### v0.5.10 Technology Baseline transition completeness
+## v0.5.10 Technology Baseline transition completeness
 
 v0.5.10 records the first valid GOV-030 attempt as 1/2 and strengthens only the proximate project instruction path needed for consistent transition behavior. A material change to an established Technology Baseline must explicitly cover technology-selection plus dependency/supply-chain analysis, the agent's recommendation, C2/C3 approval, durable target state with `RECONCILIATION_REQUIRED`, canonical quick/full plus newly applicable assurance capabilities, and return to `ESTABLISHED` only when the durable baseline, repository/dependency state, support claims, and verification agree. The GOV-030 rubric and underlying policy are unchanged.
 
-### v0.5.9 Legacy governed-project Technology Baseline migration
+## v0.5.9 Legacy governed-project Technology Baseline migration
 
 v0.5.9 closes the compatibility gap found while preparing GOV-030: a repository already governed under a pre-Technology-Baseline version could previously be repinned to the new framework while still lacking the new baseline state. The Windows and POSIX governed-project updaters now detect a missing `technology_baseline` section and add `RECONCILIATION_REQUIRED` with the standard durable record pointer. Existing Technology Baselines are preserved byte-for-byte in substance; the updater does not infer historical approval or silently mark an older stack `ESTABLISHED`. Lifecycle regressions cover both legacy migration and preservation of an existing project-owned baseline.
 
-### v0.5.8 Technology Baseline governance
+## v0.5.8 Technology Baseline governance
 
 v0.5.8 makes architecture-significant technology decisions a first-class governed project state without prescribing technologies. New M1+ projects begin `UNESTABLISHED`; adopted repositories begin `RECONCILIATION_REQUIRED`; an established baseline cannot silently drift through implementation or dependency maintenance. Material baseline changes are C2 at minimum, reuse existing technology/dependency/data/security analysis, and require canonical-verification reconciliation. GOV-030 covers the drift-prevention path.
 
-### v0.5.7 framework applicability response completeness
+## v0.5.7 framework applicability response completeness
 
 GOV-029 attempts 1 and 2 each scored 1/2 and remain retained. The six-part response-completeness contract then produced fresh attempt 3 at 2/2 under the unchanged wording/rubric. The frozen v0.5.7 commit `76e39efb073776984f455d88c33bab7a0ae23fee` also passed GitHub Actions run `33365512612` with aggregate schema v2/report v5, `overall: PASS`, `issues: []`, and all 14 required Windows/Ubuntu checks PASS.
 
-### v0.5.6 Linux scanner fixture calibration
+## v0.5.6 Linux scanner fixture calibration
 
 The real v0.5.5 Windows/Ubuntu rerun reduced the aggregate failure to the Linux positive-fixture regression only: production Gitleaks, Semgrep, ShellCheck, Zizmor, and the Windows PSScriptAnalyzer path otherwise passed. The Gitleaks fixture had used an alphabet-sequence token that the pinned default configuration intentionally treats as a stopword, while the ShellCheck fixture exercised informational `SC2086` under a production threshold that admits only warning/error findings. v0.5.6 corrects those fixtures without weakening scanner policy: it uses a non-stopword deterministic synthetic PAT-shaped value with the repository Gitleaks configuration, and it uses the field-observed warning-level `SC1007` case for ShellCheck.
 
-### v0.5.5 cross-platform field fixes
+## v0.5.5 cross-platform field fixes
 
 The first real Windows/Ubuntu framework aggregate run confirmed that Git-canonical plan/baseline/runner hashes match across platforms while checkout-byte hashes may differ because of line-ending normalization. Aggregation therefore compares only the canonical Git-bound identity (`source`, `repository_path`, committed `sha256`); `working_tree_sha256` remains diagnostic.
 
