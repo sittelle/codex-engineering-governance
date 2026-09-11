@@ -107,6 +107,8 @@ def discover(host, override=None):
             candidates += list(base.glob(f"openai.chatgpt-*/bin/{target}/{name}"))
     else:
         candidates += [home/".local/bin/claude",home/".local/bin/claude.exe"]
+        for base in (home/".vscode/extensions",home/".vscode-insiders/extensions"):
+            candidates += list(base.glob("anthropic.claude-code-*/resources/native-binary/claude*"))
     valid=[]
     for p in sorted(candidates,key=_vk,reverse=True):
         try: p=p.resolve()
@@ -143,11 +145,14 @@ def seed(host, dest, env):
             shutil.copy2(source/".credentials.json",dest/".credentials.json")
         out["CLAUDE_CONFIG_DIR"]=str(dest)
 
+    governance_env=out.copy()
+    governance_env.pop("ANTHROPIC_API_KEY",None)
+    governance_env.pop("ANTHROPIC_AUTH_TOKEN",None)
     for argv in (
         [sys.executable,str(ROOT/"governance.py"),"host","install","--host",host,"-y"],
         [sys.executable,str(ROOT/"governance.py"),"host","verify","--host",host],
     ):
-        p=run(argv,cwd=ROOT,env=out,timeout=120)
+        p=run(argv,cwd=ROOT,env=governance_env,timeout=120)
         if p.returncode:
             raise Error(f"{host} adapter setup failed:\n{p.stdout}\n{p.stderr}")
     return out
@@ -212,21 +217,29 @@ def json_object(text):
             pass
     return None
 
-def claude(exe,model,workspace,prompt,env):
+def response_kind(response):
+    if re.search(r"(?im)^\s*(?:\*\*)?tool use\s*:",response) or "<tool_use>" in response.lower():
+        return "TOOL_TRANSCRIPT"
+    return "TEXT"
+
+def claude(exe,model,workspace,prompt,env,max_budget_usd=None):
     h=run([str(exe),"--help"],env=env,timeout=30)
     ht=h.stdout+"\n"+h.stderr
 
-    if h.returncode or "--model" not in ht:
-        raise Error("Claude CLI lacks required --model contract")
+    required=("--model","--no-session-persistence","--restricted","--tools")
+    if h.returncode or any(flag not in ht for flag in required):
+        raise Error("Claude CLI lacks required model-selection, stateless-session, or no-tools contract")
 
-    argv=[str(exe),"-p","--model",model]
+    argv=[str(exe),"-p","--model",model,"--no-session-persistence","--restricted","--tools",""]
 
     if "--output-format" in ht:
         argv += ["--output-format","json"]
     if "--permission-mode" in ht and "plan" in ht:
         argv += ["--permission-mode","plan"]
-    if "--tools" in ht:
-        argv += ["--tools",""]
+    if "--permission-prompts" in ht:
+        argv += ["--permission-prompts","none"]
+    if max_budget_usd is not None:
+        argv += ["--max-budget-usd",f"{max_budget_usd:.6f}"]
 
     argv.append(prompt)
 
@@ -247,10 +260,20 @@ def claude(exe,model,workspace,prompt,env):
     elif isinstance(payload.get("model"),str):
         resolved=payload["model"]
 
+    cost=payload.get("total_cost_usd")
+    if not isinstance(cost,(int,float)) or isinstance(cost,bool) or cost<0:
+        cost=None
+
     return p,response,{
         "resolved_model":resolved,
         "permission_mode":"plan" if "--permission-mode" in ht and "plan" in ht else None,
-        "tools_disabled":"--tools" in ht,
+        "restricted_mode":True,
+        "tools_disabled":True,
+        "permission_prompts":"none" if "--permission-prompts" in ht else None,
+        "session_persistence":False,
+        "response_kind":response_kind(response),
+        "requested_budget_usd":max_budget_usd,
+        "cost_usd":cost,
     }
 
 def write_json(path,data):
@@ -317,16 +340,44 @@ def select(found,args):
 
     return result
 
-def preflight(host,exe,model,workspace,env,reasoning_effort=None):
+def preflight(host,exe,model,workspace,env,reasoning_effort=None,claude_max_budget_usd=None):
     prompt="Reply with exactly: governance-campaign-preflight-ok"
     response_file=workspace/"governance-campaign-preflight.txt"
     if host=="codex":
         process,response,metadata=codex(exe,model,workspace,prompt,env,response_file,reasoning_effort)
     else:
-        process,response,metadata=claude(exe,model,workspace,prompt,env)
-    if process.returncode or not response.strip():
+        process,response,metadata=claude(exe,model,workspace,prompt,env,claude_max_budget_usd)
+    if process.returncode or not response.strip() or metadata.get("response_kind")!="TEXT" or response.strip()!=prompt.replace("Reply with exactly: ",""):
         raise Error(f"{host} model preflight failed for {model}: exit {process.returncode}")
     return metadata
+
+def budget_settings(args,host):
+    total=args.claude_total_budget_usd
+    per_call=args.claude_per_call_budget_usd
+    if (total is None) != (per_call is None):
+        raise Error("Claude total and per-call budget limits must be supplied together")
+    if host!="claude" or total is None:
+        return None
+    if total<=0 or per_call<=0:
+        raise Error("Claude budget limits must be positive")
+    return {"total_usd":total,"per_call_usd":per_call,"spent_usd":0.0,"calls":[]}
+
+def next_call_budget(budget):
+    remaining=budget["total_usd"]-budget["spent_usd"]
+    if remaining<=0.000001:
+        raise Error("Claude campaign budget exhausted before the next model call")
+    return min(budget["per_call_usd"],remaining)
+
+def account_claude_call(budget,metadata,limit,kind):
+    if budget is None:
+        return
+    actual=metadata.get("cost_usd")
+    charged=float(actual) if isinstance(actual,(int,float)) and not isinstance(actual,bool) and actual>=0 else limit
+    budget["spent_usd"]+=charged
+    overrun=actual is not None and actual>limit+0.000001
+    budget["calls"].append({"kind":kind,"limit_usd":limit,"cost_usd":actual,"charged_usd":charged,"provider_limit_exceeded":overrun})
+    if overrun:
+        budget["provider_limit_exceeded"]=True
 
 def campaign(args):
     commit,clean=repo_identity(args.allow_dirty)
@@ -346,6 +397,7 @@ def campaign(args):
 
     failed=False
     for host,model in selected:
+        budget=budget_settings(args,host)
         stamp=datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         cid=f"{stamp}-{host}-{slug(model)}-{commit[:12]}"
         dest=CAPTURES/cid
@@ -380,6 +432,7 @@ def campaign(args):
                 "executable_name":found[host]["exe_name"],
                 "executable_sha256":found[host]["exe_sha256"],
                 "requested_model":model,
+                "claude_budget":budget,
                 "tls_ca_bundle_sha256":file_sha(ca_bundle) if ca_bundle else None,
                 "platform":{
                     "system":platform.system(),
@@ -397,7 +450,11 @@ def campaign(args):
 
             print(f"Preflighting {host} / {model} ... ",end="",flush=True)
             try:
-                preflight_metadata=preflight(host,exe,model,ws[rows[0]["context"]],env,args.codex_reasoning_effort)
+                preflight_limit=next_call_budget(budget) if budget else None
+                preflight_metadata=preflight(
+                    host,exe,model,ws[rows[0]["context"]],env,args.codex_reasoning_effort,preflight_limit
+                )
+                account_claude_call(budget,preflight_metadata,preflight_limit,"preflight")
             except (Error,subprocess.TimeoutExpired) as exc:
                 meta["model_preflight"]={"status":"FAILED","error":str(exc),"completed_at":utc()}
                 meta["completed_at"]=utc(); meta["result"]="PREFLIGHT_FAILED"
@@ -424,15 +481,24 @@ def campaign(args):
                 prompt_file.write_text(row["prompt"],encoding="utf-8",newline="\n")
 
                 try:
+                    call_limit=next_call_budget(budget) if budget else None
+                except Error as exc:
+                    meta["budget_stop"]={"test_id":row["id"],"reason":str(exc),"completed_at":utc()}
+                    write_json(dest/"campaign.json",meta)
+                    print("BUDGET_EXHAUSTED")
+                    break
+
+                try:
                     if host=="codex":
                         p,response,hm=codex(
                             exe,model,ws[row["context"]],row["prompt"],env,tmp_response,args.codex_reasoning_effort
                         )
                     else:
                         p,response,hm=claude(
-                            exe,model,ws[row["context"]],row["prompt"],env
+                            exe,model,ws[row["context"]],row["prompt"],env,call_limit
                         )
-                    status="CAPTURED" if p.returncode==0 and response.strip() else "EXECUTION_FAILED"
+                        account_claude_call(budget,hm,call_limit,"scenario")
+                    status="CAPTURED" if p.returncode==0 and response.strip() and hm.get("response_kind")=="TEXT" else "EXECUTION_FAILED"
                 except subprocess.TimeoutExpired as exc:
                     p=subprocess.CompletedProcess(exc.cmd,124,exc.stdout or "",exc.stderr or "")
                     response=""; hm={"resolved_model":model,"execution_error":"scenario timeout"}; status="EXECUTION_FAILED"
@@ -837,6 +903,22 @@ def self_test():
         failures.append("failure/incomplete semantics")
     if rows and [row["id"] for row in choose_scenarios(rows,f"{rows[0]['id']}-{rows[min(1,len(rows)-1)]['id']}")] != [row["id"] for row in rows[:2]]:
         failures.append("challenge-range selection")
+    if response_kind("**Tool use: Bash**\n")!="TOOL_TRANSCRIPT" or response_kind("A direct answer.")!="TEXT":
+        failures.append("Claude response-kind validation")
+    budget={"total_usd":0.30,"per_call_usd":0.15,"spent_usd":0.0,"calls":[]}
+    first_limit=next_call_budget(budget)
+    account_claude_call(budget,{"cost_usd":0.10},first_limit,"preflight")
+    second_limit=next_call_budget(budget)
+    account_claude_call(budget,{"cost_usd":None},second_limit,"scenario")
+    final_limit=next_call_budget(budget)
+    account_claude_call(budget,{"cost_usd":0.05},final_limit,"scenario")
+    try:
+        next_call_budget(budget)
+        failures.append("Claude budget exhaustion")
+    except Error:
+        pass
+    if any(abs(value-expected)>0.000001 for value,expected in ((first_limit,0.15),(second_limit,0.15),(final_limit,0.05))) or abs(budget["spent_usd"]-0.30)>0.000001:
+        failures.append("Claude budget accounting")
 
     with tempfile.TemporaryDirectory() as td:
         base=Path(td); real=base/"real"; isolated=base/"isolated"; real.mkdir()
@@ -889,6 +971,8 @@ def parser():
         command.add_argument("--codex-reasoning-effort",choices=("low","medium","high","xhigh"))
         command.add_argument("--ca-bundle",type=Path,help="PEM CA bundle for this isolated campaign only; TLS verification remains enabled.")
         command.add_argument("--claude-model")
+        command.add_argument("--claude-total-budget-usd",type=float,help="Claude campaign-wide accounting limit in USD; requires --claude-per-call-budget-usd. Stops new calls when recorded spend reaches the limit.")
+        command.add_argument("--claude-per-call-budget-usd",type=float,help="Requested Claude CLI limit for each preflight or scenario call; requires --claude-total-budget-usd. Provider-reported cost can exceed this request.")
         command.add_argument("--tests",help="all, comma-separated GOV IDs, or inclusive GOV-ID ranges")
         command.add_argument("--allow-dirty",action="store_true")
         command.add_argument("--continue-on-error",action="store_true")
