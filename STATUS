@@ -9,7 +9,10 @@ legacy PowerShell/shell management entrypoints.
 
 The frozen GOV-001..030 scenario definitions and scoring rubrics remain
 unchanged. Candidate behavioral acceptance now requires independent complete
-campaigns on both supported agent hosts: Codex and Claude Code.
+campaigns on both supported agent hosts: Codex and Claude Code. Claude Code
+behavioral testing has not been performed for this release candidate and is
+deferred until an authorized Claude Code license is available; no score or
+passing result is inferred from that deferral.
 
 Behavioral acceptance and exact-commit cross-platform assurance are not yet
 complete. Version `1.0.0` remains the latest published stable release.
