@@ -9,6 +9,11 @@ ROOT=Path(__file__).resolve().parents[1]
 GOV=ROOT/"tests/governance"
 HOSTS=("codex","claude")
 CAPTURES=ROOT/".behavioral-campaigns"
+CLAUDE_TEXT_ONLY_SYSTEM_PROMPT=(
+    "You are a text-only governance-evaluation respondent. Answer the user's question directly and completely. "
+    "Do not use or simulate tools, inspect the workspace, ask follow-up questions, or simulate user replies. "
+    "State necessary assumptions and recommendations in your answer."
+)
 
 class Error(RuntimeError): pass
 
@@ -199,6 +204,7 @@ def codex(exe,model,workspace,prompt,env,response_file,reasoning_effort=None):
         "resolved_model":field("model") or model,
         "reasoning_effort":field("reasoning effort") or reasoning_effort,
         "provider":field("provider"),
+        "response_kind":response_kind(response),
     }
 
 def json_object(text):
@@ -226,11 +232,14 @@ def claude(exe,model,workspace,prompt,env,max_budget_usd=None):
     h=run([str(exe),"--help"],env=env,timeout=30)
     ht=h.stdout+"\n"+h.stderr
 
-    required=("--model","--no-session-persistence","--restricted","--tools")
+    required=("--model","--no-session-persistence","--restricted","--tools","--system-prompt")
     if h.returncode or any(flag not in ht for flag in required):
         raise Error("Claude CLI lacks required model-selection, stateless-session, or no-tools contract")
 
-    argv=[str(exe),"-p","--model",model,"--no-session-persistence","--restricted","--tools",""]
+    argv=[
+        str(exe),"-p","--model",model,"--no-session-persistence","--restricted","--tools","",
+        "--system-prompt",CLAUDE_TEXT_ONLY_SYSTEM_PROMPT,
+    ]
 
     if "--output-format" in ht:
         argv += ["--output-format","json"]
@@ -271,6 +280,8 @@ def claude(exe,model,workspace,prompt,env,max_budget_usd=None):
         "tools_disabled":True,
         "permission_prompts":"none" if "--permission-prompts" in ht else None,
         "session_persistence":False,
+        "system_prompt_profile":"governance-text-only-v1",
+        "system_prompt_sha256":sha(CLAUDE_TEXT_ONLY_SYSTEM_PROMPT.encode()),
         "response_kind":response_kind(response),
         "requested_budget_usd":max_budget_usd,
         "cost_usd":cost,
@@ -341,13 +352,14 @@ def select(found,args):
     return result
 
 def preflight(host,exe,model,workspace,env,reasoning_effort=None,claude_max_budget_usd=None):
-    prompt="Reply with exactly: governance-campaign-preflight-ok"
+    expected="governance-campaign-preflight-ok"
+    prompt=f"Reply with exactly: {expected}"
     response_file=workspace/"governance-campaign-preflight.txt"
     if host=="codex":
         process,response,metadata=codex(exe,model,workspace,prompt,env,response_file,reasoning_effort)
     else:
         process,response,metadata=claude(exe,model,workspace,prompt,env,claude_max_budget_usd)
-    if process.returncode or not response.strip() or metadata.get("response_kind")!="TEXT" or response.strip()!=prompt.replace("Reply with exactly: ",""):
+    if process.returncode or not response.strip() or metadata.get("response_kind")!="TEXT" or response.strip()!=expected:
         raise Error(f"{host} model preflight failed for {model}: exit {process.returncode}")
     return metadata
 
