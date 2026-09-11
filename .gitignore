@@ -1,4 +1,5 @@
 .framework-tools/
+.behavioral-campaigns/
 release-evidence/verification/*.json
 __pycache__/
 *.pyc

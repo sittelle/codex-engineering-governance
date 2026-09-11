@@ -8,6 +8,26 @@ The v0.4.0 package includes the exact GOV-024, GOV-025, and GOV-026 records avai
 
 GOV-027 and GOV-028 were introduced in v0.4.0 and intentionally have no completed evaluation record until their fresh-session responses are actually executed and scored.
 
+## Multi-host 2.0 evidence
+
+For 2.0 candidate acceptance, every newly scored record for the current
+governance version MUST include:
+
+`Host: codex`
+
+or:
+
+`Host: claude`
+
+Candidate acceptance is calculated independently for each host. Attempt numbers
+for new 2.0 evidence are scoped to the tuple `(governance version, host, Test ID)`;
+for example, Codex attempt 1 and Claude attempt 1 for the same GOV scenario are
+distinct records.
+
+Historical records remain immutable. Historical evidence that predates the
+`Host:` field remains valid history, but it cannot satisfy a current 2.0
+multi-host candidate campaign.
+
 ## Re-evaluation and retry records
 
 Do not overwrite or edit a prior scored attempt merely because governance guidance changed afterward. Preserve the original attempt and add a separate record for every fresh retry. For repeated attempts of the same GOV scenario:

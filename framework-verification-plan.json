@@ -32,7 +32,7 @@
       {
         "id": "tests",
         "decision": "REQUIRED",
-        "reason": "Assurance and lifecycle behavior are release-critical.",
+        "reason": "Assurance plus unified host/project lifecycle behavior are release-critical.",
         "checks": [
           "assurance-integration",
           "lifecycle-common",
@@ -168,9 +168,40 @@
         "compileall",
         "-q",
         "assurance",
-        "scripts"
+        "scripts",
+        "governance.py"
       ],
       "reason": "Python syntax/compile verification.",
+      "timeout_seconds": 60,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    },
+    {
+      "id": "behavioral-campaign-harness",
+      "stages": [
+        "quick",
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/behavioral-campaign.py",
+        "self-test"
+      ],
+      "reason": "Offline frozen-scenario capture, assessment parsing, and host-isolation invariants; no live model execution.",
       "timeout_seconds": 60,
       "working_directory": null,
       "environment": {},
@@ -256,7 +287,7 @@
         "--mode",
         "common"
       ],
-      "reason": "Host-neutral assurance bootstrap lifecycle boundaries.",
+      "reason": "Unified management, assurance bootstrap, and frozen-baseline activation lifecycle boundaries.",
       "timeout_seconds": 180,
       "working_directory": null,
       "environment": {},
@@ -286,8 +317,8 @@
         "--mode",
         "windows"
       ],
-      "reason": "Windows installer/New/Adopt/update/bootstrap distribution contract.",
-      "timeout_seconds": 240,
+      "reason": "Windows unified host/project management plus assurance-bootstrap wrapper distribution contract.",
+      "timeout_seconds": 300,
       "working_directory": null,
       "environment": {},
       "verified_targets": [],
@@ -321,8 +352,8 @@
         "--mode",
         "posix"
       ],
-      "reason": "POSIX installer/New/Adopt/update/bootstrap distribution contract.",
-      "timeout_seconds": 240,
+      "reason": "POSIX unified host/project management plus assurance-bootstrap wrapper distribution contract.",
+      "timeout_seconds": 300,
       "working_directory": null,
       "environment": {},
       "verified_targets": [],

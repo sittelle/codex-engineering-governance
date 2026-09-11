@@ -1,10 +1,21 @@
 # Changelog
 
+## 2.0.0-rc.1 ? Native Multi-Host Governance Candidate
+
+- Introduces native governance adapters for Codex and Claude Code.
+- Replaces the legacy host/project PowerShell and shell management entrypoints with the single Python `governance.py` interface.
+- Makes host-adapter installation independent of whether the corresponding agent executable is installed.
+- Adds ownership-safe managed host blocks, host-neutral governed-project lifecycle handling, and native Claude repository bridging.
+- Removes the standalone `PSScriptAnalyzerSettings.psd1`; the single intentional `PSAvoidUsingWriteHost` exclusion is enforced directly by the Python scanner adapter.
+- Preserves all frozen GOV-001..030 scenario definitions and rubrics.
+- Requires fresh independent Codex and Claude Code 30-scenario behavioral campaigns before 2.0 acceptance.
+- Does not authorize commit, tag, push, release, or publication.
+
 ## 1.0.0 — Final 1.0 Evidence Integration
 
 - Promotes the accepted `1.0.0-rc.3` framework tree to final `1.0.0` package metadata without changing frozen governance or assurance semantics.
 - Integrates the fresh 30/30 behavioral campaign: 60/60 total, no critical 0s, and GOV-026..GOV-030 all 2/2.
-- Corrects the live MIT copyright holder from `prerelease attribution` to `Sittelle`; historical prerelease records remain unchanged.
+- Corrects the live MIT copyright holder from the temporary prerelease attribution to `Sittelle`; historical prerelease records remain unchanged.
 - Preserves all 30 frozen GOV scenario/rubric files and the accepted publication-sanitization boundary.
 - Final release readiness still requires exact-commit CI and deterministic package/source/evidence binding. Publication remains separately authorized.
 
@@ -19,7 +30,7 @@
 
 ## 1.0.0-rc.2 — MIT Copyright-Holder Correction (Rejected Before Freeze)
 
-- Supersedes prepared but unapplied `1.0.0-rc.1` after the developer corrected the intended MIT copyright-holder wording from `Sittelle` to `prerelease attribution`.
+- Supersedes prepared but unapplied `1.0.0-rc.1` after the developer corrected the intended MIT copyright-holder wording from `Sittelle` to the prerelease attribution.
 - Changes only the MIT copyright-holder line plus current-version/history metadata required for the new prerelease identity.
 - Carries the rc.1 release contract, deterministic clean-HEAD ZIP builder, publication-safety redaction, security policy, SemVer policy, and assurance applicability decisions unchanged.
 - Preserves all 86 durable behavioral records and all 30 frozen GOV scenarios/rubrics; the single approved GOV-029 publication path redaction is unchanged and remains hash-bound to the original private evidence.

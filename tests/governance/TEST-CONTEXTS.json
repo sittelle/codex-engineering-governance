@@ -1,5 +1,9 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0-rc.1",
+  "hosts": [
+    "codex",
+    "claude"
+  ],
   "contexts": {
     "GLOBAL_KERNEL": "Run in an otherwise empty workspace without repository AGENTS.md/project-governance.yml; scenario-supplied hypothetical facts are authoritative unless materialization is explicitly required.",
     "GOVERNED_REPOSITORY": "Run in a minimal governed repository pinned to the current baseline; scenario-supplied hypothetical facts are authoritative unless the scenario explicitly relies on fixture state.",

@@ -7,7 +7,7 @@ Scope: minimum 1.0 public-release contract and deterministic release-package pro
 Rejection / supersession note:
 
 - The prepared rc.1 package used `Copyright (c) 2026 Sittelle` in the MIT license.
-- Before candidate application, the developer specified the intended copyright-holder wording as `Copyright (c) 2026 prerelease attribution`.
+- Before candidate application, the developer specified the intended copyright-holder wording as a personal prerelease attribution.
 - Per the release rule that a prepared version is never silently revised, rc.1 is retained as a truthful rejected preparation and rc.2 carries the holder correction plus version/history metadata only.
 - No rc.1 candidate was applied, committed, tagged, or published.
 

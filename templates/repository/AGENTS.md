@@ -4,7 +4,7 @@ Governance baseline: see `project-governance.yml`.
 
 Before substantial work:
 1. read this file and `project-governance.yml`;
-2. resolve the central governance root using the manifest locator (`$CODEX_HOME/GOVERNANCE_ROOT` by default);
+2. resolve the central governance root using the active host adapter's `GOVERNANCE_ROOT` locator;
 3. select and read the applicable central workflow;
 4. load relevant central skills/profiles and only the detailed standards needed by the task;
 5. read relevant project requirements/design/security/ADR/risk material;
@@ -104,14 +104,14 @@ Use the minimum relevant detailed context.
 Do not bulk-load every profile/skill into context.
 
 
-<!-- BEGIN CODEX-GOVERNANCE-MANAGED -->
+<!-- BEGIN ENGINEERING-GOVERNANCE-MANAGED -->
 ## Central governance integration
 
 This project is governed by the baseline recorded in `project-governance.yml`.
 
 Before substantial work:
 1. read this repository `AGENTS.md` and `project-governance.yml`;
-2. resolve the central governance repository using the manifest locator (`$CODEX_HOME/GOVERNANCE_ROOT` by default);
+2. resolve the central governance repository using the active host adapter's `GOVERNANCE_ROOT` locator;
 3. select and read the applicable central workflow;
 4. load only relevant central skills/profiles and detailed standards;
 5. read relevant project design/security/ADR/risk material;
@@ -135,4 +135,4 @@ Do not silently drift from an `ESTABLISHED` Technology Baseline. Before C2/C3 ap
 - Emergency completion: urgency may compress process but does not erase material approval/security boundaries. Service restoration is not governance completion; after stabilization, run deferred verification and review/remove or deliberately reconcile temporary bypasses, toggles, exceptions, and emergency risk acceptances. A complete emergency answer explicitly states both post-stabilization duties: complete/reconcile deferred verification, and review/remove or deliberately reconcile those temporary measures. Mentioning only deferred verification is incomplete.
 
 Do not bulk-load every skill/profile. Project-specific instructions outside this managed block remain authoritative subject to the normal governance hierarchy.
-<!-- END CODEX-GOVERNANCE-MANAGED -->
+<!-- END ENGINEERING-GOVERNANCE-MANAGED -->

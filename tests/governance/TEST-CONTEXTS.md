@@ -16,6 +16,19 @@ This tests the complete governance system rather than the global kernel alone.
 
 Run in the Governance Framework repository with root `AGENTS.md`, `framework-governance.yml`, and `framework-verification-plan.json`. This context tests proportional self-governance of the distributed tooling package rather than an application baseline.
 
+## Supported agent hosts
+
+For the 2.0 candidate line, behavioral acceptance is host-specific.
+
+The complete GOV-001..030 campaign MUST be executed independently on:
+
+- `codex`;
+- `claude`.
+
+A passing campaign on one host does not substitute for the other. Each scenario
+still uses the execution context declared below; the host dimension is additional
+acceptance evidence and does not modify the frozen scenario or rubric.
+
 ## Classification
 
 | Test | Context |

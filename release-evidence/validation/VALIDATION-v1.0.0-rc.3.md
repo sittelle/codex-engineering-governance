@@ -23,7 +23,7 @@ rc.3 correction:
 
 Carried 1.0 product decisions remain unchanged:
 
-- MIT, copyright holder `prerelease attribution`;
+- MIT, personal prerelease copyright attribution;
 - SemVer;
 - public artifact: MANIFEST-bounded ZIP + SHA-256 + exact tag/commit;
 - repository-owned deterministic package production required;

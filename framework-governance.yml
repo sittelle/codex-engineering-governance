@@ -24,5 +24,9 @@ repository_applicability:
   distribution_contracts:
     - "Windows"
     - "POSIX"
+  host_adapters:
+    - "Codex"
+    - "Claude Code"
+  management_entrypoint: "governance.py"
   assurance_source: "framework-verification-plan.json"
   note: "Application-only applicability and assurance capability decisions are not duplicated here."

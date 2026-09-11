@@ -97,14 +97,9 @@ def main():
     paths=args.paths or [str(ROOT/'codex-home'),str(ROOT/'scripts')]
     quoted=','.join("'"+str(Path(x)).replace("'","''")+"'" for x in paths)
     escaped_manifest=str(manifest).replace("'","''")
-    settings=ROOT/'PSScriptAnalyzerSettings.psd1'
-    if not settings.exists():
-        print('PSScriptAnalyzer settings unavailable',file=sys.stderr)
-        return OPERATIONAL_EXIT
-    escaped_settings=str(settings).replace("'","''")
     command=("$ErrorActionPreference='Stop'; try { "
              f"Import-Module '{escaped_manifest}' -Force; "
-             f"$r=@({quoted}) | ForEach-Object {{ Invoke-ScriptAnalyzer -Path $_ -Recurse -Settings '{escaped_settings}' }}; "
+             f"$r=@({quoted}) | ForEach-Object {{ Invoke-ScriptAnalyzer -Path $_ -Recurse -ExcludeRule 'PSAvoidUsingWriteHost' }}; "
              "$r | Format-Table -AutoSize; if ($r.Count -gt 0) { exit 1 } else { exit 0 } "
              "} catch { Write-Error $_; exit 125 }")
     return classify('psscriptanalyzer',run([pwsh,'-NoProfile','-NonInteractive','-Command',command]))

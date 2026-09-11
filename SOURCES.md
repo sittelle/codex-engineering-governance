@@ -27,9 +27,9 @@ Security/tool implementation candidates in v0.1 are defaults, not policy require
 Current OpenAI material describes user instructions as including `AGENTS.override.md` / `AGENTS.md` from `$CODEX_HOME`, followed by project-root-to-working-directory instruction files subject to the configured size limit. v0.1.2 therefore keeps the global kernel small and uses an explicit locator for detailed governance rather than trying to inject the entire governance repository into AGENTS.md.
 
 
-## Project updater
+## Unified project lifecycle manager
 
-The project updater is deliberately a local file migration utility. It does not interpret or approve project security/business decisions; version-specific migrations requiring such decisions remain workflow-driven.
+`governance.py` is the single local management entry point for host setup/update/uninstall and governed-project New/Adopt/Status/Update/Verify operations. Project migration remains bounded to governance-owned fields/blocks and does not interpret or approve project security/business decisions; semantic migrations requiring such decisions remain workflow-driven.
 ## GitHub Actions baseline references (v0.3.1)
 
 Checked 2026-08-27 against the official GitHub action repositories:
@@ -68,6 +68,16 @@ References checked 2026-08-28:
 - https://learn.microsoft.com/en-us/powershell/utility-modules/psscriptanalyzer/rules/avoidusingwritehost?view=ps-modules
 - https://learn.microsoft.com/en-us/powershell/utility-modules/psscriptanalyzer/rules/avoidusinginvokeexpression?view=ps-modules
 
+
+
+## PSScriptAnalyzer policy simplification (2.0)
+
+The 2.0 management/tooling refactor removes the standalone
+`PSScriptAnalyzerSettings.psd1` file. The production scanner adapter now
+passes the same single exclusion, `PSAvoidUsingWriteHost`, directly to
+`Invoke-ScriptAnalyzer`. No other PSScriptAnalyzer rule is suppressed.
+The scanner regression continues to require intentional `Write-Host`
+display usage to pass and security-relevant `Invoke-Expression` usage to fail.
 
 ## Release-history continuity (v0.5.3)
 
@@ -164,3 +174,16 @@ The v0.5.24 freeze/activation sequence showed that candidate preflight/applicati
 v0.5.25 adds `activate-frozen-baseline.py` as a narrow C3 orchestration layer over the existing governed-project updater and Codex-home installer. It does not define new governance or assurance semantics. Dry-run is non-mutating; apply requires a clean fixture, reconciles the evaluation fixture's baseline assertion, validates managed-block equivalence, runs fixture quick/full and whitespace checks, constrains the commit-ready diff, installs/verifies the global kernel, and rolls back wrapper-owned state on failure. Publication/tag/release creation remains outside this tool.
 
 This is intentionally the final ergonomics closure before the v1.0 readiness review. Further pre-1.0 work should address only material readiness defects/gaps.
+
+## Claude Code host adapter references (2026-09-11)
+
+Official Claude Code documentation checked for the native host adapter:
+
+- Claude Code loads user instructions from `~/.claude/CLAUDE.md` and project instructions from `./CLAUDE.md` or `./.claude/CLAUDE.md`.
+- When a repository already uses `AGENTS.md`, Claude's documentation explicitly recommends a `CLAUDE.md` containing `@AGENTS.md`; this also avoids Windows symlink privilege requirements.
+- File permission rules support exact `Read(path)` allow rules. Absolute rules use the `//` filesystem-root form; Windows paths are normalized to POSIX form (for example `C:\\Users\\alice` -> `/c/Users/alice`).
+- Reads outside the working directories require approval unless an allow rule covers them. `additionalDirectories` makes the directory part of the working set and edit permissions then follow the active permission mode, so the governance adapter intentionally uses a narrower `Read(...)` allow rule for the central governance root.
+
+Official references:
+- https://code.claude.com/docs/en/memory
+- https://code.claude.com/docs/en/permissions

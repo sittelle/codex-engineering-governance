@@ -1,9 +1,17 @@
-STABLE_CANDIDATE
+RELEASE_CANDIDATE
 
-Version `1.0.0` is the final 1.0 release tree promoted from the accepted `1.0.0-rc.3` baseline.
+Version `2.0.0-rc.1` is the first 2.0 release-candidate development baseline.
 
-The required fresh behavioral campaign completed 30/30 scenarios with 60/60 points, no critical 0s, and GOV-026..GOV-030 all scoring 2/2. All 116 durable behavioral evaluation records are included.
+The 2.0 line introduces native Codex and Claude Code host adapters, the unified
+Python `governance.py` management interface, host-neutral governed-project
+lifecycle handling, ownership-safe host configuration, and removal of the
+legacy PowerShell/shell management entrypoints.
 
-Post-rc.3 changes are limited to durable evidence integration, final package/version metadata, the Sittelle MIT copyright-holder correction, and release-status wording. No frozen GOV scenario/rubric, governance semantic, assurance semantic, security policy, behavioral threshold, or implementation behavior is changed.
+The frozen GOV-001..030 scenario definitions and scoring rubrics remain
+unchanged. Candidate behavioral acceptance now requires independent complete
+campaigns on both supported agent hosts: Codex and Claude Code.
 
-Release freeze is established externally by an annotated version tag bound to the exact clean commit, deterministic artifact digest, and attributable exact-commit cross-platform verification evidence. Publication remains a separate explicit developer-authorized action.
+Behavioral acceptance and exact-commit cross-platform assurance are not yet
+complete. Version `1.0.0` remains the latest published stable release.
+
+No commit, tag, push, release, or publication is authorized by this status.

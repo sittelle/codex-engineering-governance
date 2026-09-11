@@ -1,7 +1,7 @@
 governance:
-  baseline: "1.0.0"
-  source: "codex-home-locator"
-  locator: "$CODEX_HOME/GOVERNANCE_ROOT"
+  baseline: "2.0.0-rc.1"
+  source: "host-adapter-locator"
+  locator: "GOVERNANCE_ROOT"
 
 project:
   name: "<project-name>"

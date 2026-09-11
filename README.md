@@ -2,9 +2,11 @@
 
 > **Latest stable release: v1.0.0**
 >
+> **Current development candidate: v2.0.0-rc.1 (unpublished)**
+>
 > The `master` branch may contain unreleased documentation or framework-development changes. For normal installation, use a published stable release.
 
-Codex Engineering Governance is a practical engineering-governance framework for people who build software with Codex.
+Codex Engineering Governance is a practical engineering-governance framework for people who build software with Codex or Claude Code.
 
 It is especially useful if you work by describing what you want, letting Codex implement much of it, and iterating from there — often called **vibe coding**.
 
@@ -187,300 +189,174 @@ The principle is:
 
 ## Local setup
 
-The normal setup has three parts:
+> **Unreleased master interface:** the commands below describe the current 2.0 development line on `master` / feature branches. The latest stable release remains v1.0.0; when installing v1.0.0, follow the README bundled with that release.
+
+The current setup has one management entry point:
 
 ```text
 one local copy of the governance framework
         ↓
-a small global Codex instruction file
+python governance.py
+        ↓
+Codex and/or Claude Code host adapters
         ↓
 governance metadata inside each governed project
 ```
 
-You install the global framework once.
-
-After that, each project can use the same central governance installation.
-
 ### Requirements
 
-You should have:
+You need Python 3 to run the management interface.
 
-- Codex;
-- Git;
-- Python 3;
-- PowerShell on Windows, or a POSIX-compatible shell on macOS/Linux.
+Git is needed for Git-backed governed-project operations and for developing
+the framework itself.
 
-You do not need to understand the internal governance architecture before installing it.
+Codex or Claude Code does **not** need to be installed merely to configure
+its governance adapter. A host-adapter operation manages the host's
+conventional configuration location and may create that directory when it
+does not yet exist. The host application is only required when you actually
+use that coding agent.
 
-### 1. Download a stable release
+The management interface itself has no third-party Python dependencies.
 
-For normal use, install a published release rather than an arbitrary snapshot of `master`.
+### 1. Put the framework in a permanent location
 
-Open the repository's **Releases** page and download both the release ZIP and its `.sha256` file.
-
-For v1.0.0 they are:
-
-```text
-codex-engineering-governance-v1.0.0.zip
-codex-engineering-governance-v1.0.0.zip.sha256
-```
-
-### 2. Verify the download
-
-Before extracting the ZIP, verify that its SHA-256 matches the published sidecar.
-
-#### Windows
-
-```powershell
-$zip = ".\codex-engineering-governance-v1.0.0.zip"
-
-$actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-$expected = ((Get-Content "$zip.sha256" -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
-
-if ($actual -ne $expected) {
-    throw "SHA-256 mismatch"
-}
-
-"SHA-256 verified: $actual"
-```
-
-Do not continue if the values differ.
-
-#### Linux
-
-```sh
-sha256sum codex-engineering-governance-v1.0.0.zip
-cat codex-engineering-governance-v1.0.0.zip.sha256
-```
-
-#### macOS
-
-```sh
-shasum -a 256 codex-engineering-governance-v1.0.0.zip
-cat codex-engineering-governance-v1.0.0.zip.sha256
-```
-
-The values must agree.
-
-### 3. Extract the framework to a permanent location
-
-Choose a location you intend to keep.
-
-For example on Windows:
+Choose a location you intend to keep, for example:
 
 ```text
 D:\development\codex-engineering-governance
 ```
 
-or on macOS/Linux:
+or:
 
 ```text
 ~/development/codex-engineering-governance
 ```
 
-Do not install the framework into a temporary download directory.
+Do not manage a host adapter from a temporary download directory. The adapter records the framework location in its `GOVERNANCE_ROOT` locator.
 
-Codex stores the framework location and uses it later.
+### Unified management entry point
 
-### 4. Connect the framework to Codex
-
-Open a terminal in the extracted framework directory.
-
-#### Windows
-
-```powershell
-.\codex-home\install.ps1
-```
-
-#### macOS / Linux
-
-```sh
-./codex-home/install.sh
-```
-
-The installer:
-
-- installs the framework's global Codex `AGENTS.md`;
-- records the framework location in `GOVERNANCE_ROOT`;
-- backs up an existing global `AGENTS.md` before replacing it.
-
-By default these files are stored under:
+Run the same file for setup, updates, uninstall, verification, and governed-project operations:
 
 ```text
-~/.codex
+python governance.py
 ```
 
-The important locator is:
+With no parameters, the tool is interactive and only offers actions applicable to the managed adapter/project state.
+
+The same operations are available with parameters:
 
 ```text
-~/.codex/GOVERNANCE_ROOT
+python governance.py host status
+python governance.py host install --host codex
+python governance.py host install --host claude
+python governance.py host install --host all
+python governance.py host update --host all
+python governance.py host verify --host all
 ```
 
-It contains the absolute path to this governance repository.
+Every mutating command prints a preview first and then asks:
 
-After installation, **start a fresh Codex session**.
-
-### 5. Create a new governed project
-
-The project-management scripts are preview-first.
-
-Running them without `-Apply` / `--apply` shows what will happen without changing the project.
-
-#### Windows — preview
-
-```powershell
-.\scripts\manage-governed-project.ps1 `
-  -Mode New `
-  -ParentRoot "D:\development" `
-  -ProjectName "my-project"
+```text
+Apply these changes? [y/N]:
 ```
 
-Apply after reviewing the preview:
+Use `-y` to answer that confirmation non-interactively:
 
-```powershell
-.\scripts\manage-governed-project.ps1 `
-  -Mode New `
-  -ParentRoot "D:\development" `
-  -ProjectName "my-project" `
-  -Apply
+```text
+python governance.py host update --host all -y
 ```
 
-#### macOS / Linux — preview
+`-y` confirms only the displayed plan. It never bypasses ownership checks, modified-managed-content refusal, dirty-worktree checks, version checks, path validation, or post-operation verification.
 
-```sh
-./scripts/manage-governed-project.sh New \
-  --parent ~/development \
-  --name my-project
+For Codex, the default user adapter location is `~/.codex`. For Claude Code, it is `~/.claude` unless `CLAUDE_CONFIG_DIR` is set.
+
+The Claude adapter uses a user `CLAUDE.md` and an exact `permissions.allow` `Read(...)` rule for the central governance root. It does not add the governance root as a broadly editable additional working directory.
+
+After installing or updating a host adapter, start a fresh coding-agent session.
+
+### 2. Create a new governed project
+
+Preview and confirm interactively:
+
+```text
+python governance.py project new --parent D:\development --name my-project
 ```
 
-Apply:
+or on macOS/Linux:
 
-```sh
-./scripts/manage-governed-project.sh New \
-  --parent ~/development \
-  --name my-project \
-  --apply
+```text
+python governance.py project new --parent ~/development --name my-project
 ```
 
-The command creates the governance/project structure and can initialize Git.
+For unattended confirmation after the same preview:
 
-It does **not** generate your application automatically.
+```text
+python governance.py project new --parent D:\development --name my-project -y
+```
 
-Afterward, open the project in Codex and describe what you want to build.
+The command creates the governance/project structure and can initialize Git. It does **not** generate your application automatically.
 
-### 6. Add governance to an existing project
+### 3. Adopt an existing project
 
-You can also adopt an existing project.
+```text
+python governance.py project adopt --project D:\development\existing-project
+```
 
-The framework deliberately does not pretend that decisions made before governance was installed were already reviewed under this framework.
+or:
 
-An adopted project therefore starts in:
+```text
+python governance.py project adopt --project ~/development/existing-project
+```
+
+An adopted project starts with governance reconciliation required rather than pretending its historical decisions were previously approved:
 
 ```text
 RECONCILIATION_REQUIRED
 ```
 
-That tells Codex to understand and reconcile the project's existing architecture, dependencies, verification, and other relevant state.
+Existing project content and project-specific `AGENTS.md` / `CLAUDE.md` text are preserved. A dirty Git worktree is a hard refusal; `-y` does not override it.
 
-#### Windows — preview
-
-```powershell
-.\scripts\manage-governed-project.ps1 `
-  -Mode Adopt `
-  -ProjectRoot "D:\development\existing-project"
-```
-
-Apply:
-
-```powershell
-.\scripts\manage-governed-project.ps1 `
-  -Mode Adopt `
-  -ProjectRoot "D:\development\existing-project" `
-  -Apply
-```
-
-#### macOS / Linux — preview
-
-```sh
-./scripts/manage-governed-project.sh Adopt \
-  --project ~/development/existing-project
-```
-
-Apply:
-
-```sh
-./scripts/manage-governed-project.sh Adopt \
-  --project ~/development/existing-project \
-  --apply
-```
-
-Existing project content is preserved.
-
-### 7. Use Codex normally
-
-Once governance is installed, you do not need to repeat governance instructions in every prompt.
-
-For example:
+### 4. Inspect or verify a governed project
 
 ```text
-Add password-reset functionality.
+python governance.py project status --project /path/to/project
+python governance.py project verify --project /path/to/project
 ```
+
+### 5. Update an already governed project
 
 ```text
-Review the current authentication design and recommend improvements.
+python governance.py project update --project /path/to/project
 ```
+
+Use `-y` for non-interactive confirmation after the preview:
 
 ```text
-I want to replace SQLite with PostgreSQL. Recommend how we should approach the transition.
+python governance.py project update --project /path/to/project -y
 ```
+
+The updater changes only governance-owned fields/blocks, preserves project-specific instructions and established project-owned Technology Baseline state, and creates backups before changing existing governed files.
+
+### 6. Uninstall a host adapter
+
+Use the same management file:
 
 ```text
-Prepare this project for release.
+python governance.py host uninstall --host codex
+python governance.py host uninstall --host claude
+python governance.py host uninstall --host all
 ```
 
-Codex should:
+Add `-y` for unattended confirmation after the preview.
 
-1. read the project instructions;
-2. find the central governance framework;
-3. load the workflow and specialist guidance relevant to the task;
-4. apply only the amount of process justified by the consequences.
+Uninstall is ownership-aware. It removes only the exact managed instruction block, locator or Claude read-permission entry that this framework instance created, and its own state record. Unrelated user content in `AGENTS.md`, `CLAUDE.md`, and Claude `settings.json` is preserved. If framework-managed content was edited after installation, uninstall refuses to guess or delete it.
 
-You generally do not need to decide whether something is “C0”, “C1”, “C2”, or “C3” yourself.
+Uninstalling a host adapter does not remove governance files from application repositories.
 
-Codex should classify the change and explain the important approval boundary when it matters.
+### 7. Use the coding agent normally
 
-### 8. Updating an already governed project
-
-When you install a newer governance baseline, update governed projects using the project updater instead of manually editing version metadata.
-
-#### Windows — preview
-
-```powershell
-.\scripts\update-governed-project.ps1 `
-  -ProjectRoot "D:\development\my-project"
-```
-
-Apply:
-
-```powershell
-.\scripts\update-governed-project.ps1 `
-  -ProjectRoot "D:\development\my-project" `
-  -Apply
-```
-
-#### macOS / Linux — preview
-
-```sh
-./scripts/update-governed-project.sh /path/to/my-project
-```
-
-Apply:
-
-```sh
-./scripts/update-governed-project.sh /path/to/my-project --apply
-```
-
-The updater preserves project-specific instructions and does not silently accept new risks or architectural changes on your behalf.
+Once the applicable governance host adapter is configured, you do not need to repeat governance instructions in every prompt. Codex or Claude Code should read the project instructions, find the central governance framework, load the relevant workflow/specialist guidance, and apply the amount of process justified by the consequences of the task.
 
 ---
 

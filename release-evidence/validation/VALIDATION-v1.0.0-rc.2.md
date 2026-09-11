@@ -7,7 +7,7 @@ Scope: supersede prepared but unapplied rc.1 solely to correct the approved MIT 
 Correction from rc.1:
 
 - rc.1 was rejected/superseded before application because its MIT license named `Sittelle` as copyright holder;
-- the developer explicitly approved `Copyright (c) 2026 prerelease attribution`;
+- the developer explicitly approved the personal prerelease attribution;
 - rc.2 applies that correction and increments the prepared prerelease rather than silently revising rc.1;
 - rc.1 was not applied, committed, tagged, or published.
 
