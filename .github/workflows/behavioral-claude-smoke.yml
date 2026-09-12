@@ -1,0 +1,42 @@
+name: Behavioral Claude Smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: behavioral-claude-smoke
+  cancel-in-progress: false
+
+jobs:
+  claude-smoke:
+    name: Claude Code / GOV-001 / Ubuntu
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: behavioral-evals
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Install pinned Claude Code CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global @anthropic-ai/claude-code@2.1.268
+          claude --version
+      - name: Capture isolated Claude GOV-001 response
+        shell: bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$ANTHROPIC_API_KEY"
+          python scripts/behavioral-campaign.py run --host claude --claude-model opus --tests GOV-001
+
+# This workflow is a manually approved infrastructure smoke test. It does not
+# upload raw model responses and is not candidate behavioral-acceptance evidence.
