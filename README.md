@@ -147,9 +147,9 @@ Detailed governance rules remain in this central framework repository. They do n
 ### Framework-maintainer behavioral campaigns
 
 The framework's own Codex and Claude Code behavioral evidence is collected
-separately from normal project verification. The protected GitHub-hosted Claude
-Code process, its response-packet retention, and its exact-commit trigger are
-documented in [Behavioral campaign operations](docs/behavioral-campaigns.md).
+separately from normal project verification. The no-credential manual campaign
+kit for disposable VM/IDE testing is documented in
+[Behavioral campaign operations](docs/behavioral-campaigns.md).
 
 ### Technology Baseline in plain language
 

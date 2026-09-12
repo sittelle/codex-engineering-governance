@@ -9,10 +9,10 @@
 - Removes the standalone `PSScriptAnalyzerSettings.psd1`; the single intentional `PSAvoidUsingWriteHost` exclusion is enforced directly by the Python scanner adapter.
 - Preserves all frozen GOV-001..030 scenario definitions and rubrics.
 - Requires fresh independent Codex and Claude Code 30-scenario behavioral campaigns before 2.0 acceptance.
-- Adds a protected GitHub-hosted Ubuntu Claude Code full-campaign path for
-  GOV-001..030. It uses the approved `behavioral-evals` environment, keeps raw
-  responses out of logs, retains the private scoring packet for seven days,
-  and gives Claude its normal native plan-mode read/search context.
+- Replaces the headless model-calling campaign harness with a no-credential
+  manual campaign kit for disposable VM/IDE testing. It creates the global,
+  governed, and framework contexts; generates prompt-only challenge files; and
+  collects local raw responses into an independent scoring packet.
 - Does not authorize commit, tag, push, release, or publication.
 
 ## 1.0.0 — Final 1.0 Evidence Integration

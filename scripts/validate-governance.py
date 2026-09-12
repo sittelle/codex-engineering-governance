@@ -45,7 +45,7 @@ required = [
     "assurance/aggregate-verification.py", "assurance/tool-environment-locks.md", "assurance/architecture.md",
     "assurance/capability-matrix.md", "templates/github/governance-verify.yml", "templates/repository/verification-plan.json",
     "scripts/bootstrap-assurance.py", "scripts/bootstrap-assurance.ps1", "scripts/bootstrap-assurance.sh",
-    "governance.py", "scripts/behavioral-campaign.py", "scripts/test-management.py", "scripts/test-assurance-integration.py", "workflows/refactor/WORKFLOW.md",
+    "governance.py", "scripts/manual-behavioral-campaign.py", "scripts/test-management.py", "scripts/test-assurance-integration.py", "workflows/refactor/WORKFLOW.md",
     "workflows/emergency-fix/WORKFLOW.md", "workflows/dependency-change/WORKFLOW.md", "workflows/data-migration/WORKFLOW.md",
     "codex-home/AGENTS.md", "host-adapters/operating-kernel.md", "CLAUDE.md", "templates/repository/AGENTS.md",
     "templates/repository/CLAUDE.md", "templates/repository/project-governance.yml",

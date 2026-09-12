@@ -120,7 +120,7 @@
     "scripts/bootstrap-assurance.py",
     "scripts/bootstrap-assurance.sh",
     "scripts/bootstrap-framework-tools.py",
-    "scripts/behavioral-campaign.py",
+    "scripts/manual-behavioral-campaign.py",
     "scripts/build-release-package.py",
     "scripts/preflight-candidate-package.py",
     "scripts/run-framework-scanner.py",

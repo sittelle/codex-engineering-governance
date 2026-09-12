@@ -191,17 +191,17 @@
       }
     },
     {
-      "id": "behavioral-campaign-harness",
+      "id": "manual-behavioral-campaign-kit",
       "stages": [
         "quick",
         "full"
       ],
       "command": [
         "python",
-        "scripts/behavioral-campaign.py",
+        "scripts/manual-behavioral-campaign.py",
         "self-test"
       ],
-      "reason": "Offline frozen-scenario capture, assessment parsing, and host-isolation invariants; no live model execution.",
+      "reason": "Offline manual-campaign preparation, prompt non-leakage, bounded context creation, response collection, and scoring-packet invariants; no live model execution.",
       "timeout_seconds": 60,
       "working_directory": null,
       "environment": {},
