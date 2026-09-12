@@ -8,11 +8,15 @@ lifecycle handling, ownership-safe host configuration, and removal of the
 legacy PowerShell/shell management entrypoints.
 
 The frozen GOV-001..030 scenario definitions and scoring rubrics remain
-unchanged. Candidate behavioral acceptance now requires independent complete
-campaigns on both supported agent hosts: Codex and Claude Code. Claude Code
-behavioral testing has not been performed for this release candidate and is
-deferred until an authorized Claude Code license is available; no score or
-passing result is inferred from that deferral.
+unchanged. Candidate behavioral acceptance requires independently scored,
+complete campaigns on both supported agent hosts: Codex and Claude Code.
+
+Claude Code behavioral testing has now been performed: all 30 scenarios were
+captured and independently assessed at 49/60, below the required 58/60
+threshold. This is failed behavioral-evaluation evidence, not acceptance.
+That campaign used an earlier runner context; a fresh independently scored
+30-scenario campaign using the current native host-adapter runner is still
+required before candidate acceptance.
 
 Behavioral acceptance and exact-commit cross-platform assurance are not yet
 complete. Version `1.0.0` remains the latest published stable release.
