@@ -2,6 +2,9 @@ name: Behavioral Claude Smoke
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - ci/behavioral-claude-smoke
 
 permissions:
   contents: read
