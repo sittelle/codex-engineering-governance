@@ -9,7 +9,7 @@ rubrics, acceptance threshold, or release authority.
 `behavioral-claude-full.yml` runs the current candidate in a fresh GitHub
 Ubuntu runner. It installs the pinned Claude Code CLI, creates the harness's
 isolated temporary host home and three context-specific workspaces, and runs
-GOV-001 through GOV-030 using `opus`. The harness records the resolved model,
+GOV-001 through GOV-030 using `sonnet`. The harness records the resolved model,
 CLI binary/version, exact clean commit, scenario hashes, and per-scenario
 capture status in `campaign.json`.
 

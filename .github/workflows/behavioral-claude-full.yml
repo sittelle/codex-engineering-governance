@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
           test -n "$ANTHROPIC_API_KEY"
           set +e
-          python scripts/behavioral-campaign.py run --host claude --claude-model opus --tests all --continue-on-error
+          python scripts/behavioral-campaign.py run --host claude --claude-model sonnet --tests all --continue-on-error
           campaign_rc=$?
           set -e
 
@@ -59,7 +59,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: claude-opus-scoring-packet-${{ github.sha }}
+          name: claude-sonnet-scoring-packet-${{ github.sha }}
           path: scoring-packet
           retention-days: 7
           if-no-files-found: error
