@@ -1,0 +1,70 @@
+name: Behavioral Claude Full Campaign
+
+on:
+  push:
+    branches:
+      - ci/behavioral-claude-full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: behavioral-claude-full
+  cancel-in-progress: false
+
+jobs:
+  claude-full:
+    name: Claude Code / GOV-001..030 / Ubuntu
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: behavioral-evals
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Install pinned Claude Code CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global @anthropic-ai/claude-code@2.1.268
+          claude --version
+      - name: Capture isolated Claude GOV-001..030 responses
+        id: capture
+        shell: bash
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$ANTHROPIC_API_KEY"
+          set +e
+          python scripts/behavioral-campaign.py run --host claude --claude-model opus --tests all --continue-on-error
+          campaign_rc=$?
+          set -e
+
+          shopt -s nullglob
+          campaigns=(.behavioral-campaigns/*)
+          test "${#campaigns[@]}" -eq 1
+          campaign_dir="${campaigns[0]}"
+          test -f "$campaign_dir/campaign.json"
+
+          mkdir scoring-packet
+          python scripts/behavioral-campaign.py export-scoring-packet "$campaign_dir" --output scoring-packet/INDEPENDENT-SCORING-PACKET.md
+          cp "$campaign_dir/campaign.json" scoring-packet/campaign.json
+          printf 'Campaign directory: %s\n' "$campaign_dir" >> "$GITHUB_STEP_SUMMARY"
+          exit "$campaign_rc"
+      - name: Upload independent scoring packet
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: claude-opus-scoring-packet-${{ github.sha }}
+          path: scoring-packet
+          retention-days: 7
+          if-no-files-found: error
+
+# This workflow runs only from the dedicated branch permitted by the protected
+# behavioral-evals environment. It does not write model responses to job logs.
+# The seven-day artifact contains the independent scoring packet and campaign
+# metadata; it is evaluation evidence, not candidate acceptance or a release.

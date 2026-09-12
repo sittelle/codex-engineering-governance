@@ -10,6 +10,7 @@ Scope: the distributed governance package, its normative content, the single `go
 - unified host/project management tooling, ownership state, and managed-file/settings boundaries;
 - verification plans, runners, aggregation logic, and evidence;
 - CI workflow definitions and locked security tooling;
+- approved behavioral-evaluation response packets;
 - release packages, digests, and release-decision records.
 
 ## Actors and trust boundaries
@@ -17,7 +18,8 @@ Scope: the distributed governance package, its normative content, the single `go
 - maintainer/developer approving material governance decisions;
 - local operator running `governance.py` host/project lifecycle commands;
 - governed-project filesystem and Git repository;
-- GitHub-hosted CI runners and pinned third-party Actions;
+- GitHub-hosted CI runners, repository-authorized artifact readers, and pinned
+  third-party Actions;
 - external tool/package registries used only through pinned integrity metadata.
 
 ## Entry points and data flows
@@ -29,7 +31,16 @@ Package acquisition -> local governance root -> `governance.py` -> Codex/Claude 
 1. **Package or update tampering.** Bind release package digest to exact source and verification evidence; pin external automation/tooling; reject hash mismatches.
 2. **Destructive/path-handling mistakes.** Every management mutation previews first and requires `y/N` confirmation (`-y` only supplies that answer); bounded managed-file mutation, target validation, dirty-Git safeguards, backups where project files are replaced, and negative lifecycle tests remain mandatory.
 3. **Incorrect update/uninstall or managed-content overwrite.** Update/remove only content identified by managed markers plus recorded version/hash/ownership state; preserve project/user-specific `AGENTS.md`, `CLAUDE.md`, locator/settings content; refuse ambiguous or modified managed content rather than guessing.
-4. **CI credential or untrusted-PR exposure.** Least-privilege workflow permissions, no `pull_request_target`, no workflow secrets for verification, `persist-credentials: false`, and workflow static analysis.
+4. **CI credential, response-packet, or untrusted-PR exposure.** Routine
+   verification workflows receive no secrets. The separately authorized Claude
+   behavioral campaign runs only from its dedicated environment-permitted
+   branch, requires environment-review approval, has `contents: read`, uses
+   `persist-credentials: false`, and scopes the API key to the capture step.
+   Claude uses native plan mode: it may read/search only its disposable
+   workspace, but cannot edit or execute commands. The workflow has no
+   pull-request trigger, does not emit raw responses to job logs, and retains
+   the scoring-packet artifact for seven days. Workflow static analysis remains
+   required.
 5. **Misleading assurance evidence.** Commit/plan/baseline/runner binding; dirty/mismatched evidence rejection; explicit DID_NOT_EXECUTE; target-aware v3/v5 evidence; fail dominance; bootstrap-precondition evidence.
 6. **Governance self-weakening.** Material control weakening remains C2/C3 and requires explicit approval; no scanner suppression solely to obtain green status.
 7. **Claude adapter over-privilege.** Grant the central governance root through one exact `permissions.allow` `Read(...)` rule. Do not make the central root an additional broadly editable working directory; remove only a rule the framework itself added.

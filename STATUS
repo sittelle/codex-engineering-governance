@@ -18,6 +18,10 @@ That campaign used an earlier runner context; a fresh independently scored
 30-scenario campaign using the current native host-adapter runner is still
 required before candidate acceptance.
 
+A protected GitHub-hosted Ubuntu workflow is prepared to produce that fresh
+Claude Code campaign and its seven-day independent scoring packet. It has not
+yet been executed as full-campaign evidence.
+
 Behavioral acceptance and exact-commit cross-platform assurance are not yet
 complete. Version `1.0.0` remains the latest published stable release.
 

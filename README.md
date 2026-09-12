@@ -144,6 +144,13 @@ The main project files are:
 
 Detailed governance rules remain in this central framework repository. They do not need to be copied into every project.
 
+### Framework-maintainer behavioral campaigns
+
+The framework's own Codex and Claude Code behavioral evidence is collected
+separately from normal project verification. The protected GitHub-hosted Claude
+Code process, its response-packet retention, and its exact-commit trigger are
+documented in [Behavioral campaign operations](docs/behavioral-campaigns.md).
+
 ### Technology Baseline in plain language
 
 For maintained projects, the framework keeps major stack decisions explicit.
