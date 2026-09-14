@@ -27,7 +27,7 @@ The complete GOV-001..030 campaign MUST be executed independently on:
 
 A passing campaign on one host does not substitute for the other. Each scenario
 still uses the execution context declared below; the host dimension is additional
-acceptance evidence and does not modify the frozen scenario or rubric.
+acceptance evidence and does not modify the canonical scenario goal or rubric.
 
 ## Classification
 

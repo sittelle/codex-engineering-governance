@@ -16,13 +16,20 @@ For every fresh-session evaluation:
 
 1. start in the execution context declared by `TEST-CONTEXTS.json` / `TEST-CONTEXTS.md`;
 2. do not add rubric, expected behavior, scoring hints, or chat history;
-3. for files with `## Scenario`, copy the complete contents of that section as the single scenario prompt; for files with `## Scenario prompt`, copy that complete section instead;
+3. use the generated protocol-v2 prompt file for the scenario; it includes the
+   canonical `## Scenario` content plus the shared rule that any necessary
+   clarification question must be written in one self-contained response rather
+   than opened as interactive input;
 4. preserve the raw response unedited; and
 5. record the scenario-definition baseline together with the governance baseline so retries remain attributable when a test definition is deliberately revised.
 
 An evaluator setup mistake is not a scored attempt. If required scenario facts were omitted, the wrong execution context was used, or the session was otherwise not testing the defined scenario, retain any useful diagnostic note outside candidate scoring and rerun correctly. Do not convert an invalid probe into a behavioral failure or pass.
 
-GOV-001..013 were normalized in v0.5.15 from the older implicit "evaluator supplies prerequisites" form to self-contained scenario prompts. Their developer-pressure statements and scoring rubrics remain unchanged, but pre-v0.5.15 attempts do not satisfy a candidate evaluation that uses the revised definitions.
+GOV-001..030 use one canonical challenge-file format: title, criticality,
+execution context, scenario, expected behavior, forbidden behavior, and score.
+Protocol v2 is a deliberate prompt-delivery migration for text-only,
+single-response evaluation. Earlier captures remain historical evidence but do
+not satisfy a protocol-v2 candidate campaign.
 
 Current acceptance target for a complete candidate evaluation set, independently for each supported host declared in `TEST-CONTEXTS.json`:
 - all 30 scenarios GOV-001..030 are evaluated in fresh sessions using the declared execution context;
@@ -36,7 +43,8 @@ Current acceptance target for a complete candidate evaluation set, independently
 - every score used for candidate acceptance has a durable evaluation record under `tests/governance/evaluations/`; and
 - both supported-host campaigns must pass. Evidence from one host cannot satisfy the other.
 
-Use the same scenario wording and evaluation rubric when comparing prompt/policy variants. Change one instruction group at a time where practical.
+Use the same protocol-v2 prompt wording and evaluation rubric when comparing
+prompt/policy variants. Change one instruction group at a time where practical.
 
 GOV-011 is critical. GOV-012 and GOV-013 are important process-evidence tests but not hard security blockers in every environment.
 
@@ -70,12 +78,12 @@ GOV-029 is critical and validates proportional self-governance: applicable frame
 
 GOV-030 is critical and validates Technology Baseline drift prevention, C2/C3 classification/approval, dependency/technology reconciliation, and canonical-verification reconciliation.
 
-## Campaign harness
+## Manual campaign kit
 
-`python scripts/behavioral-campaign.py discover` locates usable Codex and Claude Code CLIs without changing host adapter configuration, including Claude Code installed through VS Code. `python scripts/behavioral-campaign.py guided --allow-dirty` is the development workflow: it discovers hosts, lets the user select each available host, an exact model, Codex reasoning effort, and any currently defined GOV challenge IDs/ranges (or all of them). It shows models previously verified by local captures, then preflights the selected exact model before a campaign; the CLIs do not expose a trustworthy account-entitlement model-list contract, so the tool does not invent one. `run` remains the scriptable equivalent; `--tests GOV-001-GOV-005,GOV-009` selects a subset and omitting `--tests` runs every current GOV definition. Claude is launched with a temporary host home installed through the normal adapter lifecycle, no session persistence, and every built-in tool disabled. The normal native host/project instructions remain active; the runner records hashes of the temporary adapter configuration and assigned workspace governance files. A tool-use transcript is recorded as an execution failure, not a captured answer. For a Claude campaign using a metered account, supply both `--claude-total-budget-usd` and `--claude-per-call-budget-usd`. The harness requests the per-call limit from Claude Code, records the provider-reported cost, and stops starting new calls once recorded spend reaches the campaign limit. The requested CLI limit is not a billing guarantee: provider-reported cost can exceed it, and that fact is recorded in campaign metadata. A dirty capture needs `--allow-dirty` and is development-only, never candidate evidence.
-
-Every capture preserves the frozen scenario definition, scenario-only prompt, raw response, host/CLI/model/runtime metadata, execution context, and content hashes in a gitignored `.behavioral-campaigns/<campaign-id>/` directory. `export-scoring-packet <campaign> --output <new-file>` creates a portable packet containing all selected frozen definitions/rubrics and raw responses, while deliberately excluding prior assessment results so another AI can score independently.
-
-`assess` is a separate AI-assisted phase using an explicitly selected evaluator host/model and constrained JSON output. Cross-host assessment is recorded as such; same-host assessment is not silently represented as independent. `promote --human-confirmed` is the deliberate review boundary for materializing a complete clean capture into a new durable evidence directory. It does not authorize a release.
-
-When a host CLI cannot use the platform trust store, `run --ca-bundle <trusted.pem>` supplies an explicitly selected PEM trust bundle only to the isolated campaign process. The bundle digest is captured; TLS verification is never disabled.
+The headless CLI harness is intentionally retired. Use
+`scripts/manual-behavioral-campaign.py prepare` to create a new, no-overwrite
+protocol-v2 prompt directory and the documented manual IDE procedure to capture
+responses. The tool never calls an AI, uses an API key, uploads responses, or
+initializes Git. `collect` creates the local scoring packet and records the
+host/model/client/settings and protocol version. See
+`docs/behavioral-campaigns.md` for the complete procedure.

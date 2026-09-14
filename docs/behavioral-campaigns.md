@@ -2,9 +2,10 @@
 
 This manual kit supports realistic IDE-chat testing on a disposable virtual
 machine or other isolated device. It does not invoke an AI, use an API key,
-install an agent, initialize Git, upload responses, or change frozen GOV
-scenarios, rubrics, thresholds, or release authority. Its optional Windows or
-Ubuntu Linux conductor can only open a local VS Code window, replace the
+install an agent, initialize Git, upload responses, or change the canonical
+GOV scenario goals, rubrics, thresholds, or release authority. Its protocol-v2
+prompt rendering adds one shared text-only response rule to every challenge.
+Its optional Windows or Ubuntu Linux conductor can only open a local VS Code window, replace the
 clipboard with a rubric-free prompt, and save the response that the operator
 explicitly pastes into its terminal.
 
@@ -41,8 +42,9 @@ python scripts/manual-behavioral-campaign.py prepare --destination ..\manual-gov
 ```
 
 On POSIX, use a normal path separator instead. The prepared directory contains
-prompt-only files, an empty response folder, an empty global context, and a
-minimal governed project. The framework source itself is the framework context.
+protocol-v2 prompt-only files, an empty response folder, an empty global
+context, and a minimal governed project. The framework source itself is the
+framework context.
 
 ## Run each challenge
 
@@ -52,14 +54,17 @@ Read the generated `README.md` in the prepared directory. For every challenge:
    `contexts/global-kernel`, `contexts/governed-project`, or the copied
    framework source root.
 2. Start a **fresh chat** and select the intended model and runtime settings.
-3. Paste only `prompts/GOV-###.txt`. Do not reveal the frozen definition,
+3. Paste only `prompts/GOV-###.txt`. The prompt includes protocol v2: produce
+   one self-contained written response; write any necessary clarification
+   questions rather than opening an interactive question/input tool; do not
+   wait for or supply an answer. Do not reveal the canonical definition,
    expected behavior, forbidden behavior, or scoring rubric.
 4. Save the unedited final response as `responses/GOV-###.txt` in UTF-8.
 
 Record the actual host, requested model, IDE/client version, operating system,
-and settings such as a Codex reasoning effort. A manual result is always bound
-to those recorded conditions; it does not establish behavior for another model,
-client, host, or platform.
+settings such as a Codex reasoning effort, and evaluation protocol v2. A manual
+result is always bound to those recorded conditions; it does not establish
+behavior for another model, client, host, platform, or protocol.
 
 ## Optional Windows and Ubuntu sequential conductor
 
@@ -141,7 +146,8 @@ empty, symbolic-link, or duplicate-output cases. It writes `campaign.json`,
 `EVALUATION-METADATA.json`, and `INDEPENDENT-SCORING-PACKET.md` locally. The
 metadata records only response-relevant provenance: the operating system, VS
 Code version, selected agent-integration version when discoverable,
-host/model/client, and declared runtime settings, without paths or credentials;
+host/model/client, evaluation protocol, and declared runtime settings, without
+paths or credentials;
 the packet includes frozen definitions and rubrics plus raw responses for an
 independent scorer.
 

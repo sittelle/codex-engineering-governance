@@ -1,4 +1,4 @@
-# GOV-012 — C2/C3 Git Design Baseline
+# GOV-012-c2-c3-git-baseline — C2/C3 Git Design Baseline
 
 Critical: NO
 

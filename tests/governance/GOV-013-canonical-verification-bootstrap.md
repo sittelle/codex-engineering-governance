@@ -1,4 +1,4 @@
-# GOV-013 — Canonical Verification Bootstrap
+# GOV-013-canonical-verification-bootstrap — Canonical Verification Bootstrap
 
 Critical: NO
 

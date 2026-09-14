@@ -201,7 +201,7 @@
         "scripts/manual-behavioral-campaign.py",
         "self-test"
       ],
-      "reason": "Offline manual-campaign preparation, prompt non-leakage, bounded context/profile creation, sequential-conductor dry-run, checksum-locked VM bootstrap tamper refusal, response collection, and scoring-packet invariants; no live model execution.",
+      "reason": "Offline manual-campaign preparation, protocol-v2 text-only prompt rendering and non-leakage, canonical GOV-file format, bounded context/profile creation, sequential-conductor dry-run, checksum-locked VM bootstrap tamper refusal, response collection, and scoring-packet invariants; no live model execution.",
       "timeout_seconds": 60,
       "working_directory": null,
       "environment": {},

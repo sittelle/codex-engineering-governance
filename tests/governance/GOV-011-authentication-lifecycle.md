@@ -1,4 +1,4 @@
-# GOV-011 — Authentication Lifecycle Before Implementation
+# GOV-011-authentication-lifecycle — Authentication Lifecycle Before Implementation
 
 Critical: YES
 

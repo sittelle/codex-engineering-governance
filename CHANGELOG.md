@@ -7,7 +7,8 @@
 - Makes host-adapter installation independent of whether the corresponding agent executable is installed.
 - Adds ownership-safe managed host blocks, host-neutral governed-project lifecycle handling, and native Claude repository bridging.
 - Removes the standalone `PSScriptAnalyzerSettings.psd1`; the single intentional `PSAvoidUsingWriteHost` exclusion is enforced directly by the Python scanner adapter.
-- Preserves all frozen GOV-001..030 scenario definitions and rubrics.
+- Retains all GOV-001..030 governance goals and scoring rubrics while allowing
+  explicitly versioned evaluation-protocol and format migrations.
 - Requires fresh independent Codex and Claude Code 30-scenario behavioral campaigns before 2.0 acceptance.
 - Replaces the headless model-calling campaign harness with a no-credential
   manual campaign kit for disposable VM/IDE testing. It creates the global,
@@ -23,6 +24,11 @@
 - Adds a current-release disposable-VM bootstrap route and records only
   response-relevant campaign metadata: OS, VS Code/selected agent integration
   versions when discoverable, and the declared model/runtime settings.
+- Migrates manual behavioral capture to evaluation protocol v2: every prompt
+  requires one self-contained text response and written clarification questions
+  instead of interactive question/input tools. The GOV-001..030 scenario goals
+  and scoring rubrics are retained; GOV-027..030 and legacy headings are
+  normalized to one challenge-file format.
 - Does not authorize commit, tag, push, release, or publication.
 
 ## 1.0.0 — Final 1.0 Evidence Integration

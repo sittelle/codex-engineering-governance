@@ -7,9 +7,12 @@ Python `governance.py` management interface, host-neutral governed-project
 lifecycle handling, ownership-safe host configuration, and removal of the
 legacy PowerShell/shell management entrypoints.
 
-The frozen GOV-001..030 scenario definitions and scoring rubrics remain
-unchanged. Candidate behavioral acceptance requires independently scored,
-complete campaigns on both supported agent hosts: Codex and Claude Code.
+The canonical GOV-001..030 scenario goals and scoring rubrics are retained in a
+uniform challenge-file format. Candidate prompts now use evaluation protocol v2:
+one self-contained text response, with necessary clarification questions
+written rather than invoked as interactive UI tools. Candidate behavioral
+acceptance requires independently scored, complete protocol-v2 campaigns on
+both supported agent hosts: Codex and Claude Code.
 
 Claude Code behavioral testing has now been performed: all 30 scenarios were
 captured and independently assessed at 49/60, below the required 58/60
@@ -27,7 +30,7 @@ kit is paired with a Windows/Ubuntu VM bootstrap utility: its normal
 disposable-VM route obtains current prerequisites and records only
 response-relevant environment metadata, while an optional checksum-locked
 route supports an exact reviewed baseline. Neither tool makes AI calls, and no
-fresh full-campaign evidence has yet been produced.
+fresh protocol-v2 full-campaign evidence has yet been produced.
 
 Behavioral acceptance and exact-commit cross-platform assurance are not yet
 complete. Version `1.0.0` remains the latest published stable release.
