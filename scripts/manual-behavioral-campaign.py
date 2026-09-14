@@ -9,8 +9,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import platform
 import re
+import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -20,6 +23,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 GOV = ROOT / "tests" / "governance"
 HOSTS = ("codex", "claude")
+PROFILE_MARKER = ".manual-vscode-test-profile.json"
+FORCE_CLOSE_CONFIRMATION = "FORCE-CLOSE-TEST-INSTANCE"
 
 
 class Error(RuntimeError):
@@ -110,6 +115,54 @@ def create_governed_context(context_dir: Path) -> None:
         raise Error("could not create governed manual context")
 
 
+def is_within(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def initialize_vscode_profile(destination: Path) -> None:
+    """Create a marker for a dedicated, user-configured VS Code test profile."""
+    destination = destination.expanduser().resolve()
+    if destination.exists() or not destination.parent.is_dir() or is_within(destination, ROOT):
+        raise Error("VS Code test-profile destination must be a new directory outside the framework source")
+    destination.mkdir()
+    write_json(destination / PROFILE_MARKER, {
+        "schema_version": "1",
+        "kind": "MANUAL_VSCODE_TEST_PROFILE",
+        "created_at": utc(),
+        "purpose": "Dedicated profile for force-close manual behavioral evaluations only",
+    })
+    (destination / "README.md").write_text(
+        "# Dedicated VS Code test profile\n\n"
+        "Open this directory with VS Code using `--user-data-dir` and `--extensions-dir`, then install the "
+        "required Codex or Claude extension and sign in normally. Do not copy this "
+        "directory into a campaign, scoring packet, Git repository, or release artifact. "
+        "It can contain local authentication state.\n",
+        encoding="utf-8", newline="\n",
+    )
+    print(f"VS Code test profile initialized: {destination}")
+    print("AI calls, sign-in, extension installation, uploads, and Git initialization: none")
+
+
+def validate_vscode_profile(profile: Path, campaign: Path) -> Path:
+    profile = profile.expanduser().resolve()
+    campaign = campaign.expanduser().resolve()
+    if not profile.is_dir() or not (profile / PROFILE_MARKER).is_file():
+        raise Error("force-close requires a separately initialized VS Code test profile")
+    if is_within(profile, campaign) or is_within(campaign, profile) or is_within(profile, ROOT):
+        raise Error("VS Code test profile must be separate from both the campaign and framework source")
+    try:
+        marker = json.loads((profile / PROFILE_MARKER).read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise Error("VS Code test-profile marker is invalid") from exc
+    if marker.get("kind") != "MANUAL_VSCODE_TEST_PROFILE" or marker.get("schema_version") != "1":
+        raise Error("VS Code test-profile marker is not recognized")
+    return profile
+
+
 def manual_readme(rows: list[dict]) -> str:
     cases = "\n".join(f"- `{row['test_id']}` — `{row['context']}` — `prompts/{row['test_id']}.txt`" for row in rows)
     return f"""# Manual governance campaign
@@ -142,6 +195,42 @@ model/settings, and paste only the matching prompt file. Do not show the AI a
 scenario definition, expected behavior, forbidden behavior, or scoring rubric.
 Save its unedited raw final response as `responses/GOV-###.txt` using UTF-8.
 
+### Optional VS Code conductor (Windows or Ubuntu Linux)
+
+Instead of manually opening folders and saving response files, a Windows or
+Ubuntu Linux operator may run `conduct` from the framework source. It copies
+one rubric-free prompt, opens exactly one VS Code test window for the required
+context, waits for the operator to paste the raw final response into the
+terminal, and then proceeds to the next challenge. It does not inspect or
+automate an AI chat UI.
+
+`manual-close` is the default: close the dedicated test window yourself before
+submitting the raw response. A separately initialized VS Code profile is
+recommended even in this mode, so the tested integration remains isolated and
+its version can be recorded accurately. `force-close-test-instance` is
+optional and requires that separate profile; it terminates that dedicated test
+instance after each captured response. Never provide the normal VS Code
+profile to force-close mode.
+
+Run the conductor from the copied framework source root:
+
+```text
+python scripts/manual-behavioral-campaign.py conduct <this-directory> --host <codex|claude> --model <selected-model> --client <IDE-or-client-version> --setting <name=value> --vscode-user-data-dir <separate-test-profile>
+```
+
+It asks the operator to choose `manual-close` or
+`force-close-test-instance` before any VS Code window opens. For force-close,
+first initialize and configure a separate profile outside this campaign:
+
+```text
+python scripts/manual-behavioral-campaign.py vscode-profile-init --destination <separate-test-profile>
+```
+
+Then run `conduct` with `--close-mode force-close-test-instance`,
+`--vscode-executable <path-to-Code.exe>`, and
+`--vscode-user-data-dir <separate-test-profile>`. That profile may contain
+credentials and must never be copied into this campaign or a scoring packet.
+
 {cases}
 
 ## Collection
@@ -150,12 +239,15 @@ After every response exists, run this command from the copied framework source
 root:
 
 ```text
-python scripts/manual-behavioral-campaign.py collect <this-directory> --host <codex|claude> --model <selected-model> --client <IDE-or-client-version> --setting <name=value>
+python scripts/manual-behavioral-campaign.py collect <this-directory> --host <codex|claude> --model <selected-model> --client <IDE-or-client-version> --setting <name=value> --vscode-user-data-dir <separate-test-profile>
 ```
 
 `collect` refuses missing/empty responses and creates one local independent
-scoring packet. It never uploads it. The packet is evidence only and does not
-authorize release acceptance.
+scoring packet plus `EVALUATION-METADATA.json`. The metadata records only the
+operating system, VS Code version, selected agent-integration version when
+discoverable, selected host/model/client, and declared runtime settings; it
+does not record local paths or credentials. It never uploads either file. The
+packet is evidence only and does not authorize release acceptance.
 """
 
 
@@ -202,15 +294,77 @@ def parse_settings(values: list[str]) -> dict[str, str]:
     return settings
 
 
-def collect(directory: Path, host: str, model: str, client: str, runtime_settings: dict[str, str]) -> None:
+def tool_probe(argv: list[str]) -> dict[str, str]:
+    try:
+        result = run(argv)
+    except OSError:
+        return {"state": "NOT_FOUND"}
+    output = (result.stdout + "\n" + result.stderr).strip()
+    first_line = next((line.strip() for line in output.splitlines() if line.strip()), "")
+    if result.returncode:
+        return {"state": "ERROR", "detail": first_line[:300]}
+    return {"state": "AVAILABLE", "version": first_line[:300]}
+
+
+def vscode_extension_probe(extension_id: str, vscode_profile: Path | None) -> dict[str, str]:
+    command = ["code"]
+    if vscode_profile is not None:
+        command.extend(["--user-data-dir", str(vscode_profile), "--extensions-dir", str(vscode_profile / "extensions")])
+    command.extend(["--list-extensions", "--show-versions"])
+    try:
+        result = run(command)
+    except OSError:
+        return {"state": "NOT_FOUND"}
+    if result.returncode:
+        return {"state": "ERROR", "detail": (result.stderr or result.stdout).strip()[:300]}
+    for line in result.stdout.splitlines():
+        name, separator, version = line.strip().partition("@")
+        if name.casefold() == extension_id and separator and version:
+            return {"state": "AVAILABLE", "version": version[:300]}
+    return {"state": "NOT_FOUND"}
+
+
+def collected_metadata(manifest: dict, vscode_profile: Path | None = None) -> dict:
+    host = manifest["session"]["host"]
+    extension_id = {"codex": "openai.chatgpt", "claude": "anthropic.claude-code"}[host]
+    return {
+        "schema_version": "1",
+        "kind": "MANUAL_BEHAVIORAL_EVALUATION_METADATA",
+        "framework_version": manifest["framework_version"],
+        "capture_result": manifest["result"],
+        "campaign_source_binding": manifest["source"]["binding"],
+        "campaign_source_commit": manifest["source"]["git_commit"],
+        "response_environment": {
+            "operating_system": {
+                "system": platform.system(),
+                "release": platform.release(),
+                "machine": platform.machine(),
+            },
+            "editor": {"vs_code": tool_probe(["code", "--version"])},
+            "agent_integration": {extension_id: vscode_extension_probe(extension_id, vscode_profile)},
+        },
+        "agent_session": manifest["session"],
+    }
+
+
+def collect(
+    directory: Path,
+    host: str,
+    model: str,
+    client: str,
+    runtime_settings: dict[str, str],
+    vscode_profile: Path | None = None,
+) -> None:
     directory = directory.expanduser().resolve()
     manifest_path = directory / "campaign.json"
     if not manifest_path.is_file():
         raise Error("manual campaign manifest not found")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     packet = directory / "INDEPENDENT-SCORING-PACKET.md"
-    if manifest.get("kind") != "MANUAL_BEHAVIORAL_CAMPAIGN" or manifest.get("result") != "PREPARED" or packet.exists():
+    metadata_path = directory / "EVALUATION-METADATA.json"
+    if manifest.get("kind") != "MANUAL_BEHAVIORAL_CAMPAIGN" or manifest.get("result") != "PREPARED" or packet.exists() or metadata_path.exists():
         raise Error("campaign is not collectable or scoring packet already exists")
+    profile = validate_vscode_profile(vscode_profile, directory) if vscode_profile is not None else None
     records = []
     for item in manifest["records"]:
         response_path = directory / "responses" / f"{item['test_id']}.txt"
@@ -231,6 +385,7 @@ def collect(directory: Path, host: str, model: str, client: str, runtime_setting
     manifest["records"] = records
     manifest["result"] = "MANUAL_CAPTURE_COMPLETE"
     write_json(manifest_path, manifest)
+    write_json(metadata_path, collected_metadata(manifest, profile))
     heading = "# Independent scoring packet: manual campaign\n\n"
     notes = (
         "This packet contains frozen GOV definitions (including scoring rubrics) and unmodified manually captured responses. "
@@ -249,7 +404,274 @@ def collect(directory: Path, host: str, model: str, client: str, runtime_setting
         )
     packet.write_text("\n".join(sections), encoding="utf-8", newline="\n")
     print(f"Independent scoring packet: {packet}")
+    print(f"Evaluation metadata: {metadata_path}")
     print("AI calls: none")
+
+
+def load_prepared_campaign(directory: Path) -> tuple[Path, dict]:
+    directory = directory.expanduser().resolve()
+    manifest_path = directory / "campaign.json"
+    if not manifest_path.is_file():
+        raise Error("manual campaign manifest not found")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("kind") != "MANUAL_BEHAVIORAL_CAMPAIGN" or manifest.get("result") != "PREPARED":
+        raise Error("campaign is not prepared for manual conduction")
+    if (directory / "INDEPENDENT-SCORING-PACKET.md").exists():
+        raise Error("campaign scoring packet already exists")
+    return directory, manifest
+
+
+def response_path(directory: Path, test_id: str) -> Path:
+    return directory / "responses" / f"{test_id}.txt"
+
+
+def pending_records(directory: Path, manifest: dict) -> list[dict]:
+    pending = []
+    for item in manifest["records"]:
+        path = response_path(directory, item["test_id"])
+        if path.exists() or path.is_symlink():
+            if not path.is_file() or path.is_symlink():
+                raise Error(f"response target is not a regular file: {path.name}")
+            if not path.read_text(encoding="utf-8").strip():
+                raise Error(f"existing response is empty: {path.name}")
+            continue
+        pending.append(item)
+    return pending
+
+
+def context_path(directory: Path, item: dict) -> Path:
+    context = item["context"]
+    if context == "GLOBAL_KERNEL":
+        target = directory / "contexts" / "global-kernel"
+    elif context == "GOVERNED_REPOSITORY":
+        target = directory / "contexts" / "governed-project"
+    elif context == "GOVERNANCE_FRAMEWORK_REPOSITORY":
+        target = ROOT
+    else:
+        raise Error(f"unrecognized challenge context: {context}")
+    if not target.is_dir():
+        raise Error(f"required challenge context is unavailable: {context}")
+    return target
+
+
+def choose_close_mode(value: str | None, dry_run: bool) -> str:
+    if value:
+        return value
+    if dry_run:
+        return "manual-close"
+    print("Choose VS Code window handling for this entire campaign:")
+    print("  [M] manual-close (default): you close each dedicated test window.")
+    print("  [F] force-close-test-instance: terminate only a separately configured test profile.")
+    while True:
+        answer = input("Mode [M/F]: ").strip().lower() or "m"
+        if answer in ("m", "manual", "manual-close"):
+            return "manual-close"
+        if answer in ("f", "force", "force-close-test-instance"):
+            print("Force-close affects only the dedicated test instance, never ordinary VS Code.")
+            if input(f"Type {FORCE_CLOSE_CONFIRMATION} to confirm: ").strip() == FORCE_CLOSE_CONFIRMATION:
+                return "force-close-test-instance"
+            print("Force-close confirmation did not match; choose a mode again.")
+        else:
+            print("Enter M or F.")
+
+
+def resolve_vscode_command(value: str) -> str:
+    resolved = shutil.which(value)
+    if not resolved:
+        candidate = Path(value).expanduser()
+        if candidate.is_file():
+            resolved = str(candidate.resolve())
+    if not resolved:
+        raise Error("VS Code command was not found; provide --vscode-command with an executable name or path")
+    return resolved
+
+
+def resolve_vscode_executable(value: Path | None) -> Path:
+    if value is None:
+        raise Error("force-close requires --vscode-executable pointing to the VS Code executable")
+    executable = value.expanduser().resolve()
+    if not executable.is_file():
+        raise Error("force-close VS Code executable must be an existing file")
+    if platform.system() == "Windows" and executable.suffix.lower() != ".exe":
+        raise Error("force-close on Windows requires the actual VS Code .exe file")
+    if platform.system() == "Linux" and not os.access(executable, os.X_OK):
+        raise Error("force-close on Linux requires an executable VS Code file")
+    return executable
+
+
+def copy_prompt_to_clipboard(prompt: str) -> subprocess.Popen[str] | None:
+    system = platform.system()
+    if system == "Windows":
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", "$input | Set-Clipboard"],
+            input=prompt,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode:
+            raise Error("could not place the challenge prompt on the Windows clipboard")
+        return None
+    if system == "Linux" and shutil.which("wl-copy"):
+        result = subprocess.run(
+            ["wl-copy"], input=prompt, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False,
+        )
+        if result.returncode:
+            raise Error("wl-copy could not place the challenge prompt on the clipboard")
+        return None
+    if system == "Linux" and shutil.which("xclip"):
+        try:
+            owner = subprocess.Popen(
+                ["xclip", "-selection", "clipboard", "-in", "-loops", "1"],
+                stdin=subprocess.PIPE, text=True, encoding="utf-8",
+            )
+            assert owner.stdin is not None
+            owner.stdin.write(prompt)
+            owner.stdin.close()
+            return owner
+        except OSError as exc:
+            raise Error("xclip could not place the challenge prompt on the clipboard") from exc
+    if system == "Linux":
+        raise Error("Ubuntu clipboard support requires wl-copy (Wayland) or xclip (X11); install one before conducting")
+    raise Error("interactive VS Code conduction is supported only on Windows and Ubuntu Linux")
+
+
+def release_clipboard_owner(owner: subprocess.Popen[str] | None) -> None:
+    if owner is not None and owner.poll() is None:
+        owner.terminate()
+
+
+def launch_vscode(command: str, target: Path, profile: Path | None) -> subprocess.Popen[str]:
+    argv = [command, "--new-window", "--skip-add-to-recently-opened"]
+    if profile is not None:
+        argv.extend(["--user-data-dir", str(profile), "--extensions-dir", str(profile / "extensions")])
+    argv.append(str(target))
+    try:
+        return subprocess.Popen(
+            argv,
+            cwd=target,
+            text=True,
+            start_new_session=profile is not None and platform.system() == "Linux",
+        )
+    except OSError as exc:
+        raise Error("could not start the requested VS Code executable") from exc
+
+
+def terminate_test_instance(process: subprocess.Popen[str]) -> None:
+    if process.poll() is not None:
+        raise Error("dedicated VS Code test instance exited before it could be closed")
+    print("Force-closing only the dedicated VS Code test-instance process tree...")
+    if platform.system() == "Windows":
+        result = run(["taskkill", "/PID", str(process.pid), "/T", "/F"])
+        if result.returncode:
+            raise Error("dedicated VS Code test instance did not close")
+        return
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+        process.wait(timeout=15)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError as exc:
+        raise Error("dedicated VS Code test instance exited before it could be closed") from exc
+
+
+def wait_ready(close_mode: str, test_id: str) -> None:
+    if close_mode == "manual-close":
+        message = f"{test_id}: copy the final response, close the dedicated test window, then type READY: "
+    else:
+        message = f"{test_id}: copy the final response, return here, then type READY: "
+    while True:
+        answer = input(message).strip()
+        if answer == "READY":
+            return
+        if answer == "QUIT":
+            raise Error("manual conduction stopped by operator; existing captured responses were preserved")
+        print("Type READY after copying the final response, or QUIT to stop without overwriting anything.")
+
+
+def capture_response(directory: Path, test_id: str) -> None:
+    target = response_path(directory, test_id)
+    if target.exists() or target.is_symlink():
+        raise Error(f"response target already exists: {target.name}")
+    print(f"Paste the unedited raw final response for {test_id}. Finish with a line containing only <<<END>>>.")
+    lines: list[str] = []
+    while True:
+        try:
+            line = input()
+        except EOFError as exc:
+            raise Error("response input ended before <<<END>>>") from exc
+        if line == "<<<END>>>":
+            break
+        lines.append(line)
+    response = "\n".join(lines).strip() + "\n"
+    if not response.strip():
+        raise Error("empty response was not saved")
+    with target.open("x", encoding="utf-8", newline="\n") as handle:
+        handle.write(response)
+
+
+def conduct(
+    directory: Path,
+    host: str,
+    model: str,
+    client: str,
+    runtime_settings: dict[str, str],
+    close_mode_argument: str | None,
+    vscode_command: str,
+    vscode_executable: Path | None,
+    vscode_profile: Path | None,
+    dry_run: bool,
+) -> None:
+    campaign, manifest = load_prepared_campaign(directory)
+    mode = choose_close_mode(close_mode_argument, dry_run)
+    profile = validate_vscode_profile(vscode_profile, campaign) if vscode_profile is not None else None
+    pending = pending_records(campaign, manifest)
+    if not pending:
+        collect(campaign, host, model, client, runtime_settings, profile)
+        return
+    conductor_settings = dict(runtime_settings)
+    reserved = {"evaluation_workflow", "window_close_mode", "response_capture"}
+    if reserved.intersection(conductor_settings):
+        raise Error("runtime settings may not replace conductor-recorded metadata")
+    conductor_settings.update({
+        "evaluation_workflow": "single-window-sequential",
+        "window_close_mode": mode,
+        "response_capture": "terminal-paste",
+    })
+    if dry_run:
+        print(f"Conductor dry run: {len(pending)} pending challenge(s), mode={mode}")
+        for item in pending:
+            print(f"- {item['test_id']} -> {item['context']} -> {context_path(campaign, item)}")
+        print("VS Code launch, clipboard writes, response capture, AI calls, uploads, Git, and file changes: NOT USED")
+        return
+    if platform.system() not in ("Windows", "Linux"):
+        raise Error("interactive VS Code conduction is currently supported on Windows and Ubuntu Linux")
+    if mode == "force-close-test-instance":
+        if profile is None:
+            raise Error("force-close requires --vscode-user-data-dir")
+        command = str(resolve_vscode_executable(vscode_executable))
+    else:
+        command = resolve_vscode_command(vscode_command)
+    for index, item in enumerate(pending, start=1):
+        test_id = item["test_id"]
+        prompt = (campaign / "prompts" / f"{test_id}.txt").read_text(encoding="utf-8")
+        target = context_path(campaign, item)
+        print(f"[{index:02d}/{len(pending):02d}] {test_id} ({item['context']})")
+        print("The clipboard will now be replaced with this rubric-free challenge prompt.")
+        clipboard_owner = copy_prompt_to_clipboard(prompt)
+        process = launch_vscode(command, target, profile)
+        try:
+            wait_ready(mode, test_id)
+            capture_response(campaign, test_id)
+        finally:
+            release_clipboard_owner(clipboard_owner)
+            if mode == "force-close-test-instance":
+                terminate_test_instance(process)
+        if index < len(pending):
+            input("Response saved. Press Enter to continue to the next challenge (or Ctrl+C to stop): ")
+    collect(campaign, host, model, client, conductor_settings, profile)
 
 
 def self_test() -> int:
@@ -257,7 +679,26 @@ def self_test() -> int:
         rows = scenario_rows()
         with tempfile.TemporaryDirectory() as temp:
             destination = Path(temp) / "manual-campaign"
+            profile = Path(temp) / "vscode-test-profile"
             prepare(destination, selected_rows(rows, "GOV-001-GOV-002"))
+            initialize_vscode_profile(profile)
+            if validate_vscode_profile(profile, destination) != profile.resolve():
+                raise Error("separate VS Code test-profile validation failed")
+            conduct(
+                destination,
+                "claude",
+                "test-model",
+                "test-client",
+                {"mode": "plan"},
+                "manual-close",
+                "not-used-in-dry-run",
+                None,
+                profile,
+                True,
+            )
+            bootstrap = run([sys.executable, str(ROOT / "scripts" / "bootstrap-evaluation-vm.py"), "self-test"], ROOT)
+            if bootstrap.returncode:
+                raise Error("evaluation VM bootstrap self-test failed")
             refused = False
             try:
                 prepare(destination, rows)
@@ -267,9 +708,12 @@ def self_test() -> int:
                 raise Error("no-overwrite refusal failed")
             for test_id in ("GOV-001", "GOV-002"):
                 (destination / "responses" / f"{test_id}.txt").write_text("manual response\n", encoding="utf-8")
-            collect(destination, "claude", "test-model", "test-client", {"mode": "plan"})
+            collect(destination, "claude", "test-model", "test-client", {"mode": "plan"}, profile)
             if not (destination / "INDEPENDENT-SCORING-PACKET.md").is_file():
                 raise Error("scoring packet was not created")
+            metadata = json.loads((destination / "EVALUATION-METADATA.json").read_text(encoding="utf-8"))
+            if metadata["agent_session"]["requested_model"] != "test-model" or metadata["agent_session"]["runtime_settings"] != {"mode": "plan"}:
+                raise Error("response-relevant metadata was not recorded")
     except Error as exc:
         print(f"Manual behavioral campaign self-test: FAIL\n- {exc}")
         return 1
@@ -277,7 +721,9 @@ def self_test() -> int:
     print("- frozen prompt extraction without rubric leakage: PASS")
     print("- bounded new-directory preparation and no-overwrite refusal: PASS")
     print("- generated global/governed/framework context instructions: PASS")
-    print("- manual response collection and scoring-packet generation: PASS")
+    print("- manual response collection, scoring packet, and response-relevant metadata: PASS")
+    print("- sequential-conductor profile isolation and no-overwrite boundaries: PASS")
+    print("- evaluation VM bootstrap lock/tamper boundaries: PASS")
     print("- AI calls, API keys, uploads, and Git initialization: NOT USED")
     return 0
 
@@ -294,6 +740,20 @@ def main() -> int:
     collect_parser.add_argument("--model", required=True)
     collect_parser.add_argument("--client", required=True)
     collect_parser.add_argument("--setting", action="append", default=[], help="runtime setting as name=value; repeat as needed")
+    collect_parser.add_argument("--vscode-user-data-dir", type=Path, help="dedicated test profile used for the responses; records its selected agent-integration version")
+    profile_parser = commands.add_parser("vscode-profile-init", help="initialize a dedicated VS Code profile marker for force-close mode")
+    profile_parser.add_argument("--destination", required=True, type=Path)
+    conduct_parser = commands.add_parser("conduct", help="Windows/Ubuntu sequential VS Code conductor; never automates a chat UI")
+    conduct_parser.add_argument("campaign", type=Path)
+    conduct_parser.add_argument("--host", required=True, choices=HOSTS)
+    conduct_parser.add_argument("--model", required=True)
+    conduct_parser.add_argument("--client", required=True)
+    conduct_parser.add_argument("--setting", action="append", default=[], help="runtime setting as name=value; repeat as needed")
+    conduct_parser.add_argument("--close-mode", choices=("manual-close", "force-close-test-instance"))
+    conduct_parser.add_argument("--vscode-command", default="code", help="VS Code command or executable for manual-close mode")
+    conduct_parser.add_argument("--vscode-executable", type=Path, help="actual VS Code executable for force-close mode")
+    conduct_parser.add_argument("--vscode-user-data-dir", type=Path, help="separately initialized test profile; required for force-close mode and used to record the selected integration version")
+    conduct_parser.add_argument("--dry-run", action="store_true", help="validate the campaign workflow without opening VS Code or changing the clipboard")
     commands.add_parser("self-test")
     args = parser.parse_args()
     if args.command == "self-test":
@@ -301,7 +761,24 @@ def main() -> int:
     if args.command == "prepare":
         prepare(args.destination, selected_rows(scenario_rows(), args.tests))
         return 0
-    collect(args.campaign, args.host, args.model, args.client, parse_settings(args.setting))
+    if args.command == "vscode-profile-init":
+        initialize_vscode_profile(args.destination)
+        return 0
+    if args.command == "conduct":
+        conduct(
+            args.campaign,
+            args.host,
+            args.model,
+            args.client,
+            parse_settings(args.setting),
+            args.close_mode,
+            args.vscode_command,
+            args.vscode_executable,
+            args.vscode_user_data_dir,
+            args.dry_run,
+        )
+        return 0
+    collect(args.campaign, args.host, args.model, args.client, parse_settings(args.setting), args.vscode_user_data_dir)
     return 0
 
 

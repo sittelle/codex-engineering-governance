@@ -20,8 +20,14 @@ required before candidate acceptance.
 
 A local manual-campaign kit is prepared for disposable VM/IDE testing. It
 creates the correct global, governed, and framework contexts, then collects
-manually saved responses into a local independent scoring packet. It makes no
-AI calls and has not yet produced fresh full-campaign evidence.
+manually saved responses into a local independent scoring packet. An optional
+Windows/Ubuntu sequential VS Code conductor can guide one fresh context window
+per challenge; its force-close mode requires a separate local test profile. The
+kit is paired with a Windows/Ubuntu VM bootstrap utility: its normal
+disposable-VM route obtains current prerequisites and records only
+response-relevant environment metadata, while an optional checksum-locked
+route supports an exact reviewed baseline. Neither tool makes AI calls, and no
+fresh full-campaign evidence has yet been produced.
 
 Behavioral acceptance and exact-commit cross-platform assurance are not yet
 complete. Version `1.0.0` remains the latest published stable release.

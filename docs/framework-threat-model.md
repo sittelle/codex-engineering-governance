@@ -11,6 +11,9 @@ Scope: the distributed governance package, its normative content, the single `go
 - verification plans, runners, aggregation logic, and evidence;
 - CI workflow definitions and locked security tooling;
 - locally retained manual behavioral-evaluation response packets;
+- dedicated local VS Code test profiles, which can contain agent authentication
+  state but are never campaign/package artifacts;
+- local checksum-locked VM bootstrap artifacts and their installer cache;
 - release packages, digests, and release-decision records.
 
 ## Actors and trust boundaries
@@ -33,12 +36,26 @@ Package acquisition -> local governance root -> `governance.py` -> Codex/Claude 
 4. **CI credential, manual-response, or untrusted-PR exposure.** Routine
    verification workflows receive no secrets. The manual behavioral kit does
    not invoke an AI, accept an API key, initialize Git, upload responses, or
-   overwrite an existing campaign directory. It creates only a new bounded
-   destination and leaves raw responses under the tester's local control.
-   Workflow static analysis remains required.
-5. **Misleading assurance evidence.** Commit/plan/baseline/runner binding; dirty/mismatched evidence rejection; explicit DID_NOT_EXECUTE; target-aware v3/v5 evidence; fail dominance; bootstrap-precondition evidence.
-6. **Governance self-weakening.** Material control weakening remains C2/C3 and requires explicit approval; no scanner suppression solely to obtain green status.
-7. **Claude adapter over-privilege.** Grant the central governance root through one exact `permissions.allow` `Read(...)` rule. Do not make the central root an additional broadly editable working directory; remove only a rule the framework itself added.
+   overwrite an existing campaign directory. Its optional Windows/Ubuntu
+   conductor only copies a rubric-free prompt to the local clipboard, opens the
+   declared local context, and records an operator-pasted response. Force-close
+   is unavailable without a separately marked VS Code test profile outside both
+   the framework source and campaign; it never targets the normal profile.
+   Test profiles and raw responses remain under the tester's local control and
+   are excluded from campaign/scoring/package content. Workflow static analysis
+   remains required.
+5. **Unreviewed VM bootstrap or installer substitution.** The optional exact
+   route accepts only a reviewed lock with HTTPS source URLs and SHA-256 pins,
+   re-verifies cached/downloaded artifacts before install, refuses mismatches
+   and existing partial artifacts, and requires a separate explicit install
+   confirmation. The current-release route deliberately obtains vendor
+   `latest` packages only for disposable VMs; its results are never claimed
+   bit-for-bit reproducible, and the response-relevant installed environment
+   is captured with the campaign. Neither route accepts licence terms or signs
+   in on behalf of an operator.
+6. **Misleading assurance evidence.** Commit/plan/baseline/runner binding; dirty/mismatched evidence rejection; explicit DID_NOT_EXECUTE; target-aware v3/v5 evidence; fail dominance; bootstrap-precondition evidence.
+7. **Governance self-weakening.** Material control weakening remains C2/C3 and requires explicit approval; no scanner suppression solely to obtain green status.
+8. **Claude adapter over-privilege.** Grant the central governance root through one exact `permissions.allow` `Read(...)` rule. Do not make the central root an additional broadly editable working directory; remove only a rule the framework itself added.
 
 ## Residual/conditional risks
 

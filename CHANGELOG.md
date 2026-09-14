@@ -13,6 +13,16 @@
   manual campaign kit for disposable VM/IDE testing. It creates the global,
   governed, and framework contexts; generates prompt-only challenge files; and
   collects local raw responses into an independent scoring packet.
+- Adds an optional Windows/Ubuntu sequential VS Code conductor for that manual
+  kit. It opens one declared context at a time and captures operator-pasted raw
+  responses; its explicit force-close mode is limited to a separately marked
+  VS Code test profile and never targets the normal user profile.
+- Adds a separate checksum-locked Windows/Ubuntu VM bootstrap utility. It
+  fetches and installs only explicitly reviewed artifacts, re-verifies every
+  hash, and leaves licence acceptance and account sign-in interactive.
+- Adds a current-release disposable-VM bootstrap route and records only
+  response-relevant campaign metadata: OS, VS Code/selected agent integration
+  versions when discoverable, and the declared model/runtime settings.
 - Does not authorize commit, tag, push, release, or publication.
 
 ## 1.0.0 — Final 1.0 Evidence Integration

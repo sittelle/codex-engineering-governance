@@ -53,9 +53,9 @@ required = [
     "tests/governance/evaluations/README.md", "global/operating-contract.md", "global/engineering-constitution.md",
     "global/secure-development-standard.md", "global/governance-standard.md",
     "AGENTS.md", "framework-governance.yml", "framework-verification-plan.json", ".github/workflows/framework-verify.yml",
-    "docs/framework-threat-model.md", "docs/release-policy.md", "LICENSE", "SECURITY.md", "release-evidence/README.md", "release-evidence/RELEASE-RECORD-TEMPLATE.md", "release-evidence/validation/README.md", "release-evidence/0.5.13/release-record.md", "release-evidence/1.0.0-rc.1/publication-redaction.json", "release-evidence/1.0.0-rc.2/publication-redaction.json",
+    "docs/framework-threat-model.md", "docs/evaluation-vm-bootstrap.md", "docs/release-policy.md", "LICENSE", "SECURITY.md", "release-evidence/README.md", "release-evidence/RELEASE-RECORD-TEMPLATE.md", "release-evidence/validation/README.md", "release-evidence/0.5.13/release-record.md", "release-evidence/1.0.0-rc.1/publication-redaction.json", "release-evidence/1.0.0-rc.2/publication-redaction.json",
     "scripts/verify-framework.py", "scripts/build-release-package.py", "scripts/preflight-candidate-package.py", "scripts/apply-candidate-package.py", "scripts/activate-frozen-baseline.py", "scripts/validate-candidate.py", "scripts/test-candidate-validation.py", "scripts/test-framework-lifecycle.py", "scripts/test-framework-scanners.py",
-    "scripts/bootstrap-framework-tools.py", "scripts/run-framework-scanner.py", "tools/framework-tools.lock.json",
+    "scripts/bootstrap-framework-tools.py", "scripts/bootstrap-evaluation-vm.py", "scripts/bootstrap-evaluation-vm.ps1", "scripts/run-framework-scanner.py", "tools/framework-tools.lock.json",
     "semgrep/framework.yml", ".gitleaks.toml", "tests/governance/GOV-029-framework-self-governance-applicability.md", "tests/governance/GOV-030-technology-baseline-drift.md"
 ]
 for rel in required:
