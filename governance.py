@@ -40,7 +40,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-FRAMEWORK_ID = "codex-engineering-governance"
+FRAMEWORK_ID = "sittelle-engineering-governance"
+LEGACY_FRAMEWORK_IDS = {"codex-engineering-governance"}
 STATE_NAME = ".sittelle-engineering-governance.json"
 
 HOST_BEGIN = "<!-- BEGIN SITTELLE-ENGINEERING-GOVERNANCE -->"
@@ -254,13 +255,12 @@ def load_host_state(path: Path, host: Host) -> dict | None:
         data = json.loads(read_text(path))
     except Exception as exc:
         fail(f"Cannot parse installer state {path}: {exc}")
-    for key, expected in (
-        ("schema_version", 1),
-        ("framework", FRAMEWORK_ID),
-        ("host", host.key),
-    ):
+    for key, expected in (("schema_version", 1), ("host", host.key)):
         if data.get(key) != expected:
             fail(f"Unrecognized installer state in {path}: {key}")
+    framework = data.get("framework")
+    if framework != FRAMEWORK_ID and framework not in LEGACY_FRAMEWORK_IDS:
+        fail(f"Unrecognized installer state in {path}: framework")
     return data
 
 

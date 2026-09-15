@@ -49,8 +49,8 @@ def test_deterministic_builder(base: Path) -> None:
             print(proc.stderr, file=sys.stderr)
             raise SystemExit('deterministic builder rejected clean Git HEAD fixture')
 
-    a = out1 / 'codex-engineering-governance-v1.2.3.zip'
-    b = out2 / 'codex-engineering-governance-v1.2.3.zip'
+    a = out1 / 'sittelle-engineering-governance-v1.2.3.zip'
+    b = out2 / 'sittelle-engineering-governance-v1.2.3.zip'
     if a.read_bytes() != b.read_bytes():
         raise SystemExit('deterministic builder produced different archives across independent runs')
     digest = hashlib.sha256(a.read_bytes()).hexdigest()
@@ -58,7 +58,7 @@ def test_deterministic_builder(base: Path) -> None:
         raise SystemExit('deterministic builder SHA-256 sidecar mismatch')
     with zipfile.ZipFile(a) as zf:
         names = zf.namelist()
-        prefix = 'codex-engineering-governance-v1.2.3/'
+        prefix = 'sittelle-engineering-governance-v1.2.3/'
         if names != [prefix + x for x in sorted(files)]:
             raise SystemExit('deterministic builder inventory/order mismatch')
         for name in names:
@@ -96,7 +96,7 @@ def main():
             raise SystemExit('source validation incorrectly rejected non-distribution files')
 
         good=td/'good.zip'
-        prefix=f'codex-engineering-governance-v{manifest["version"]}/'
+        prefix=f'sittelle-engineering-governance-v{manifest["version"]}/'
         with zipfile.ZipFile(good,'w',compression=zipfile.ZIP_DEFLATED) as zf:
             for rel in listed:
                 zf.write(ROOT/rel, prefix+rel)

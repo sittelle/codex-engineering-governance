@@ -16,10 +16,17 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
+CURRENT_DISTRIBUTION_ID = 'sittelle-engineering-governance'
+LEGACY_DISTRIBUTION_ID = 'codex-engineering-governance'
 
 
 class CandidateApplyError(RuntimeError):
     pass
+
+
+def package_root(version: str) -> str:
+    distribution_id = LEGACY_DISTRIBUTION_ID if version.startswith('1.') else CURRENT_DISTRIBUTION_ID
+    return f'{distribution_id}-v{version}'
 
 
 @dataclass(frozen=True)
@@ -123,7 +130,7 @@ def _read_candidate_archive(zip_path: Path) -> CandidateArchive:
         if 'VERSION' not in infos or 'MANIFEST.json' not in infos:
             raise CandidateApplyError('candidate ZIP must contain VERSION and MANIFEST.json')
         version = zf.read(infos['VERSION']).decode('utf-8-sig').strip()
-        if root != f'codex-engineering-governance-v{version}':
+        if root != package_root(version):
             raise CandidateApplyError(
                 f'package root {root!r} does not match internal VERSION {version!r}'
             )

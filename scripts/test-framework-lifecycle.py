@@ -41,6 +41,8 @@ PROPAGATION_MARKERS = (
     "committed identities of the verification plan, managed assurance baseline, and runner",
     "byte hashes are diagnostics, not aggregation identity",
     "canonical precondition-failure/report path",
+    "answer concrete assurance facts with the governing conclusion",
+    "regardless of release intent",
 )
 
 GLOBAL_KERNEL_MARKERS = (
@@ -49,6 +51,8 @@ GLOBAL_KERNEL_MARKERS = (
     "Any attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS",
     "### Emergency-response completeness",
     "Mentioning only deferred verification is incomplete",
+    "### Assurance-answer precision",
+    "Do not offer working-tree normalization",
 )
 
 WORKFLOW_COMPLETENESS_MARKERS = {

@@ -1,6 +1,6 @@
 # Framework authoring instructions
 
-This repository is the source package for the Codex Engineering Governance Framework. It is governed as distributed governance/tooling, not as an application or hosted service.
+This repository is the source package for the Sittelle Engineering Governance Framework. It is governed as distributed governance/tooling, not as an application or hosted service.
 
 ## Authority and routing
 

@@ -189,6 +189,7 @@ def host_cycle(failures: list[str]) -> None:
         codex_state_path = codex / ".sittelle-engineering-governance.json"
         codex_state = json.loads(codex_state_path.read_text(encoding="utf-8"))
         codex_state["version"] = "0.0.0-test"
+        codex_state["framework"] = "codex-engineering-governance"
         codex_state_path.write_text(json.dumps(codex_state, indent=2) + "\n", encoding="utf-8", newline="\n")
         updated_host = run(
             [
@@ -199,6 +200,7 @@ def host_cycle(failures: list[str]) -> None:
         if require_ok(updated_host, "host update failed", failures):
             updated_state = json.loads(codex_state_path.read_text(encoding="utf-8"))
             check(updated_state.get("version") == VERSION, "host update did not restore current version state", failures)
+            check(updated_state.get("framework") == "sittelle-engineering-governance", "host update did not migrate the legacy framework identifier", failures)
 
         # User changes outside the managed blocks after install.
         with (codex / "AGENTS.md").open("a", encoding="utf-8", newline="\n") as f:

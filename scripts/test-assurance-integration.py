@@ -297,6 +297,16 @@ def main():
             if not (project/rel).exists(): failures.append('bootstrap missing '+rel)
         wf=project/'.github/workflows/governance-verify.yml'
         if wf.exists() and '.governance/run-ci-verification.py' not in wf.read_text(): failures.append('workflow lacks managed CI verification orchestrator')
+        if wf.exists():
+            legacy = wf.read_text(encoding='utf-8').replace(
+                '# SITTELLE-ENGINEERING-GOVERNANCE-MANAGED-WORKFLOW v1',
+                '# CODEX-GOVERNANCE-MANAGED-WORKFLOW v1',
+                1,
+            )
+            wf.write_text(legacy, encoding='utf-8')
+            migrated = run([sys.executable,str(BOOTSTRAP),'--project-root',str(project),'--apply'])
+            if migrated.returncode != 0 or '# SITTELLE-ENGINEERING-GOVERNANCE-MANAGED-WORKFLOW v1' not in wf.read_text(encoding='utf-8'):
+                failures.append('legacy managed CI workflow was not migrated to the neutral marker')
 
     # CI orchestrator must emit incomplete-assurance evidence even when bootstrap fails.
     with tempfile.TemporaryDirectory() as td:

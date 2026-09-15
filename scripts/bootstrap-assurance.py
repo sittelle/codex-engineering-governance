@@ -3,17 +3,24 @@ from __future__ import annotations
 import argparse, hashlib, json, re, shutil, sys
 from pathlib import Path
 
-WORKFLOW_MARKER="# CODEX-GOVERNANCE-MANAGED-WORKFLOW v1"
-RUNNER_MARKER="# CODEX-GOVERNANCE-MANAGED-RUNNER v1"
-AGGREGATOR_MARKER="# CODEX-GOVERNANCE-MANAGED-AGGREGATOR v1"
-CI_RUNNER_MARKER="# CODEX-GOVERNANCE-MANAGED-CI-RUNNER v1"
+WORKFLOW_MARKER="# SITTELLE-ENGINEERING-GOVERNANCE-MANAGED-WORKFLOW v1"
+RUNNER_MARKER="# SITTELLE-ENGINEERING-GOVERNANCE-MANAGED-RUNNER v1"
+AGGREGATOR_MARKER="# SITTELLE-ENGINEERING-GOVERNANCE-MANAGED-AGGREGATOR v1"
+CI_RUNNER_MARKER="# SITTELLE-ENGINEERING-GOVERNANCE-MANAGED-CI-RUNNER v1"
+LEGACY_WORKFLOW_MARKER="# CODEX-GOVERNANCE-MANAGED-WORKFLOW v1"
+LEGACY_RUNNER_MARKER="# CODEX-GOVERNANCE-MANAGED-RUNNER v1"
+LEGACY_AGGREGATOR_MARKER="# CODEX-GOVERNANCE-MANAGED-AGGREGATOR v1"
+LEGACY_CI_RUNNER_MARKER="# CODEX-GOVERNANCE-MANAGED-CI-RUNNER v1"
 BASELINE_MARKER="managed assurance baseline"
-GI_BEGIN="# BEGIN CODEX-GOVERNANCE-ASSURANCE"
-GI_END="# END CODEX-GOVERNANCE-ASSURANCE"
+GI_BEGIN="# BEGIN SITTELLE-ENGINEERING-GOVERNANCE-ASSURANCE"
+GI_END="# END SITTELLE-ENGINEERING-GOVERNANCE-ASSURANCE"
+LEGACY_GI_BEGIN="# BEGIN CODEX-GOVERNANCE-ASSURANCE"
+LEGACY_GI_END="# END CODEX-GOVERNANCE-ASSURANCE"
 
 def fail(msg, code=1):
     print(f"ERROR: {msg}", file=sys.stderr); raise SystemExit(code)
 def sha(data: bytes) -> str: return hashlib.sha256(data).hexdigest()
+def managed(text: str, current: str, legacy: str) -> bool: return current in text or legacy in text
 def baseline_version(path: Path) -> str:
     m=re.search(r'(?m)^\s*baseline:\s*["\']?([^"\']+)["\']?\s*$',path.read_text(encoding="utf-8"))
     if not m: fail("project-governance.yml has no governance baseline")
@@ -51,6 +58,8 @@ def gitignore_text(existing: str) -> str:
     block=f"{GI_BEGIN}\n.governance/evidence/\n{GI_END}"
     if GI_BEGIN in existing:
         return re.sub(re.escape(GI_BEGIN)+r".*?"+re.escape(GI_END),block,existing,flags=re.S).rstrip()+"\n"
+    if LEGACY_GI_BEGIN in existing:
+        return re.sub(re.escape(LEGACY_GI_BEGIN)+r".*?"+re.escape(LEGACY_GI_END),block,existing,flags=re.S).rstrip()+"\n"
     return existing.rstrip()+("\n\n" if existing.strip() else "")+block+"\n"
 def add_manifest_metadata(text: str) -> str:
     if not re.search(r'(?m)^verification:\s*$',text): fail("project manifest has no verification block")
@@ -75,17 +84,17 @@ def main():
     plan_version,configured=plan_state(effective)
     if plan_version!='2': configured=False
     runner_target=project/'.governance/run-verification.py'; runner_bytes=managed_runner(root/'assurance/run-verification.py',version)
-    if runner_target.exists() and RUNNER_MARKER not in runner_target.read_text(encoding='utf-8',errors='replace'):
+    if runner_target.exists() and not managed(runner_target.read_text(encoding='utf-8',errors='replace'), RUNNER_MARKER, LEGACY_RUNNER_MARKER):
         print('NOTE: preserving project-owned .governance/run-verification.py'); runner_bytes=None
     baseline_target=project/'.governance/assurance-baseline.json'; baseline_source=root/'assurance/capability-baseline.json'
     aggregator_target=project/'.governance/aggregate-verification.py'; aggregator_bytes=managed_aggregator(root/'assurance/aggregate-verification.py',version)
     ci_runner_target=project/'.governance/run-ci-verification.py'; ci_runner_bytes=managed_ci_runner(root/'assurance/run-ci-verification.py',version)
-    if aggregator_target.exists() and AGGREGATOR_MARKER not in aggregator_target.read_text(encoding='utf-8',errors='replace'):
+    if aggregator_target.exists() and not managed(aggregator_target.read_text(encoding='utf-8',errors='replace'), AGGREGATOR_MARKER, LEGACY_AGGREGATOR_MARKER):
         print('NOTE: preserving project-owned .governance/aggregate-verification.py'); aggregator_bytes=None
-    if ci_runner_target.exists() and CI_RUNNER_MARKER not in ci_runner_target.read_text(encoding='utf-8',errors='replace'):
+    if ci_runner_target.exists() and not managed(ci_runner_target.read_text(encoding='utf-8',errors='replace'), CI_RUNNER_MARKER, LEGACY_CI_RUNNER_MARKER):
         print('NOTE: preserving project-owned .governance/run-ci-verification.py'); ci_runner_bytes=None
     workflow_target=project/'.github/workflows/governance-verify.yml'; install_ci=(not args.skip_ci) and (configured or args.allow_unconfigured_ci)
-    if workflow_target.exists() and install_ci and WORKFLOW_MARKER not in workflow_target.read_text(encoding='utf-8',errors='replace'):
+    if workflow_target.exists() and install_ci and not managed(workflow_target.read_text(encoding='utf-8',errors='replace'), WORKFLOW_MARKER, LEGACY_WORKFLOW_MARKER):
         fail('existing governance-verify.yml is not governance-managed; refusing overwrite')
     print('Governed assurance bootstrap preview'); print(f'Project: {project}'); print(f'Governance baseline: {version}'); print(f'Plan schema: {plan_version}'); print(f'Plan configured: {configured}'); print(f'Install CI workflow: {install_ci}')
     if plan_version!='2': print('CI deferred: schema-v1 verification plan requires reconciliation to v2.')

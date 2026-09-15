@@ -42,7 +42,7 @@ def write_fake_repo(root: Path) -> None:
 
 def make_candidate(repo: Path, zip_path: Path, *, record_bytes: bytes = b'record\n', approved_redaction: bool = False) -> str:
     version = '9.9.9'
-    root = f'codex-engineering-governance-v{version}'
+    root = f'sittelle-engineering-governance-v{version}'
     record_path = 'tests/governance/evaluations/2026-09-04/GOV-001-attempt-1.md'
     files = {
         'VERSION': (version + '\n').encode(),

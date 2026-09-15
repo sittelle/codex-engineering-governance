@@ -2,7 +2,7 @@ RELEASE_CANDIDATE
 
 Version `2.0.0-rc.1` is the first 2.0 release-candidate development baseline.
 
-The 2.0 line introduces native Codex and Claude Code host adapters, the unified
+The Sittelle Engineering Governance 2.0 line introduces native Codex and Claude Code host adapters, the unified
 Python `governance.py` management interface, host-neutral governed-project
 lifecycle handling, ownership-safe host configuration, and removal of the
 legacy PowerShell/shell management entrypoints.

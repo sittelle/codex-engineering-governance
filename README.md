@@ -1,4 +1,4 @@
-# Codex Engineering Governance
+# Sittelle Engineering Governance
 
 > **Latest stable release: v1.0.0**
 >
@@ -6,17 +6,17 @@
 >
 > The `master` branch may contain unreleased documentation or framework-development changes. For normal installation, use a published stable release.
 
-Codex Engineering Governance is a practical engineering-governance framework for people who build software with Codex or Claude Code.
+Sittelle Engineering Governance is a practical engineering-governance framework for people who build software with coding agents such as Codex and Claude Code.
 
-It is especially useful if you work by describing what you want, letting Codex implement much of it, and iterating from there — often called **vibe coding**.
+It is especially useful if you work by describing what you want, letting an agent implement much of it, and iterating from there — often called **vibe coding**.
 
 The framework is designed around a simple problem:
 
 **AI can produce software very quickly, but speed does not remove the need for good engineering decisions.**
 
-Codex can write a lot of code before requirements are clear. It can choose technologies without discussing the consequences, change security-sensitive behavior while solving an unrelated problem, or treat “the code runs” as equivalent to “the change is ready.”
+An agent can write a lot of code before requirements are clear. It can choose technologies without discussing the consequences, change security-sensitive behavior while solving an unrelated problem, or treat “the code runs” as equivalent to “the change is ready.”
 
-This framework adds a lightweight engineering process around Codex so you can keep the speed of AI-assisted development while making important decisions, risks, verification, and release actions explicit.
+This framework adds a lightweight engineering process around supported coding agents so you can keep the speed of AI-assisted development while making important decisions, risks, verification, and release actions explicit.
 
 ---
 
@@ -24,7 +24,7 @@ This framework adds a lightweight engineering process around Codex so you can ke
 
 ### What problem does this solve?
 
-When you ask Codex to build something, there are two different kinds of work happening.
+When you ask a coding agent to build something, there are two different kinds of work happening.
 
 One is easy to see:
 
@@ -48,7 +48,7 @@ This framework tries to prevent that.
 
 ### What should change when the framework is installed?
 
-You should still be able to talk to Codex normally.
+You should still be able to talk to your selected coding agent normally.
 
 For example:
 
@@ -70,7 +70,7 @@ Prepare this project for its first public release.
 
 You do not need to translate those requests into formal engineering documents yourself.
 
-Instead, Codex should apply more or less engineering rigor depending on the consequences of the task.
+Instead, the agent should apply more or less engineering rigor depending on the consequences of the task.
 
 A typo or harmless cleanup should stay lightweight.
 
@@ -89,7 +89,7 @@ You decide:
 - whether an exception to normal policy is justified;
 - whether something should be released or published.
 
-Codex is expected to do the engineering due diligence around those decisions.
+The agent is expected to do the engineering due diligence around those decisions.
 
 It should:
 
@@ -110,17 +110,17 @@ For material changes, the intended pattern is:
 ```text
 Your goal
     ↓
-Codex investigates the project
+The agent investigates the project
     ↓
-Codex explains the important choices
+The agent explains the important choices
     ↓
-Codex recommends an approach
+The agent recommends an approach
     ↓
 You approve or change the direction
     ↓
-Codex implements it
+The agent implements it
     ↓
-Codex verifies the result
+The agent verifies the result
 ```
 
 The framework is not intended to force this ceremony onto trivial work.
@@ -137,7 +137,7 @@ The main project files are:
 
 | File | Purpose |
 | --- | --- |
-| `AGENTS.md` | Tells Codex how to load the governance framework for this repository. |
+| `AGENTS.md` | Tells supported coding agents how to load the governance framework for this repository. |
 | `project-governance.yml` | Records the project's governance baseline and important governance state. |
 | `verification-plan.json` | Describes the checks used to verify the project. |
 | `docs/design.md` | A place for important architecture and Technology Baseline decisions. |
@@ -231,13 +231,13 @@ The management interface itself has no third-party Python dependencies.
 Choose a location you intend to keep, for example:
 
 ```text
-D:\development\codex-engineering-governance
+D:\development\sittelle-engineering-governance
 ```
 
 or:
 
 ```text
-~/development/codex-engineering-governance
+~/development/sittelle-engineering-governance
 ```
 
 Do not manage a host adapter from a temporary download directory. The adapter records the framework location in its `GOVERNANCE_ROOT` locator.
@@ -469,11 +469,11 @@ The scenarios under:
 tests/governance/
 ```
 
-test whether Codex actually follows the intended governance behavior.
+test whether the selected coding agent follows the intended governance behavior.
 
 They are decision probes, not ordinary unit tests.
 
-Behavioral evaluations use fresh Codex sessions and declared execution contexts.
+Behavioral evaluations use fresh sessions on a declared supported host and declared execution contexts.
 
 The raw response is preserved as evidence.
 
@@ -492,8 +492,8 @@ python scripts/build-release-package.py
 The builder reads package content from exact Git `HEAD`, verifies deterministic reproduction, and produces:
 
 ```text
-codex-engineering-governance-v<version>.zip
-codex-engineering-governance-v<version>.zip.sha256
+sittelle-engineering-governance-v<version>.zip
+sittelle-engineering-governance-v<version>.zip.sha256
 ```
 
 Building the archive does not authorize:

@@ -13,6 +13,7 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 EPOCH = (1980, 1, 1, 0, 0, 0)
+DISTRIBUTION_ID = 'sittelle-engineering-governance'
 
 
 class PackageBuildError(RuntimeError):
@@ -85,7 +86,7 @@ def _load_distribution(repo: Path) -> tuple[str, list[str], dict[str, str]]:
 
 
 def _build_once(repo: Path, target: Path, version: str, files: list[str], modes: dict[str, str]) -> None:
-    prefix = f'codex-engineering-governance-v{version}/'
+    prefix = f'{DISTRIBUTION_ID}-v{version}/'
     with zipfile.ZipFile(target, 'w', compression=zipfile.ZIP_STORED) as zf:
         for rel in files:
             info = zipfile.ZipInfo(prefix + rel, date_time=EPOCH)
@@ -111,7 +112,7 @@ def build(repo: Path, output_dir: Path) -> tuple[Path, Path, str, str]:
     head = _require_clean_head(repo)
     version, files, modes = _load_distribution(repo)
     output_dir.mkdir(parents=True, exist_ok=True)
-    final = output_dir / f'codex-engineering-governance-v{version}.zip'
+    final = output_dir / f'{DISTRIBUTION_ID}-v{version}.zip'
     sidecar = Path(str(final) + '.sha256')
     with tempfile.TemporaryDirectory(prefix='gov-release-build-') as td:
         td = Path(td)

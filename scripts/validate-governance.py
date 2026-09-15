@@ -20,11 +20,11 @@ for name in ("operating-contract.md", "engineering-constitution.md", "secure-dev
 
 readme = (root / "README.md").read_text(encoding="utf-8")
 stable_match = re.search(r"Latest stable release:\s*v([0-9A-Za-z.+-]+)", readme)
-expected_stable_archive = (
-    f"codex-engineering-governance-v{stable_match.group(1)}.zip"
-    if stable_match
-    else None
-)
+expected_stable_archive = None
+if stable_match:
+    stable_version = stable_match.group(1)
+    stable_distribution = "codex-engineering-governance" if stable_version.startswith("1.") else "sittelle-engineering-governance"
+    expected_stable_archive = f"{stable_distribution}-v{stable_version}.zip"
 trust_section = re.search(r"(?ms)^## Windows downloaded-package trust\s*$\n(.*?)(?=^## |\Z)", readme)
 if not stable_match:
     errors.append("README does not declare a latest stable release")
@@ -329,6 +329,13 @@ else:
 project_claude = (root / "templates/repository/CLAUDE.md").read_text(encoding="utf-8")
 root_claude = (root / "CLAUDE.md").read_text(encoding="utf-8")
 management_source = (root / "governance.py").read_text(encoding="utf-8")
+framework_governance = (root / "framework-governance.yml").read_text(encoding="utf-8")
+if 'name: "sittelle-engineering-governance"' not in framework_governance:
+    errors.append("framework governance does not declare the neutral v2 framework identifier")
+if 'FRAMEWORK_ID = "sittelle-engineering-governance"' not in management_source:
+    errors.append("management entry point does not use the neutral v2 framework identifier")
+if 'sittelle-engineering-governance-v<version>.zip' not in readme:
+    errors.append("README does not declare the neutral v2 package artifact name")
 for label, claude_text in (("project", project_claude), ("framework", root_claude)):
     if "@AGENTS.md" not in claude_text:
         errors.append(f"{label} CLAUDE.md does not import AGENTS.md")
@@ -362,6 +369,8 @@ managed_propagation_markers = (
     "committed identities of the verification plan, managed assurance baseline, and runner",
     "byte hashes are diagnostics, not aggregation identity",
     "canonical precondition-failure/report path",
+    "answer concrete assurance facts with the governing conclusion",
+    "regardless of release intent",
     "An attributable executed `FAIL` remains fail-dominant",
     "Service restoration is not governance completion",
     "after stabilization, run deferred verification",
@@ -386,6 +395,8 @@ for expected in (
     "committed identities of the verification plan, managed assurance baseline, and runner",
     "byte hashes are diagnostics, not aggregation identity",
     "canonical precondition-failure/report path",
+    "For a concrete assurance scenario, state the governing conclusion",
+    "This is required regardless of release intent",
 ):
     if expected not in kernel_agents:
         errors.append(f"global kernel response-completeness guidance missing: {expected}")

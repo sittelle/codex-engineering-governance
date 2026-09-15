@@ -15,7 +15,7 @@ The compatibility promise covers documented normative governance behavior and in
 
 ## Release artifact
 
-The public distribution artifact is one MANIFEST-bounded ZIP named `codex-engineering-governance-v<version>.zip`, accompanied by its SHA-256 digest and bound to an exact Git commit and annotated version tag.
+The public distribution artifact for the v2 line is one MANIFEST-bounded ZIP named `sittelle-engineering-governance-v<version>.zip`, accompanied by its SHA-256 digest and bound to an exact Git commit and annotated version tag. Historical v1 artifacts retain their published `codex-engineering-governance-v<version>.zip` names.
 
 The repository-owned `scripts/build-release-package.py` is the canonical package-production path. It:
 

@@ -1,6 +1,6 @@
 schema_version: "1"
 framework:
-  name: "codex-engineering-governance"
+  name: "sittelle-engineering-governance"
   kind: "distributed-governance-tooling-package"
 authority:
   global_governance_root: "."

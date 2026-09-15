@@ -35,6 +35,10 @@
   and machine-readable CI bootstrap-failure evidence. This does not change the
   capability matrix, canonical runner behavior, release thresholds, or scoring
   rubrics.
+- Renames the active v2 framework identity to Sittelle Engineering Governance
+  (`sittelle-engineering-governance`). Codex and Claude Code remain supported
+  hosts; legacy v1 package names, installer-state identifiers, and managed
+  assurance markers remain accepted only for migration and historical evidence.
 - Does not authorize commit, tag, push, release, or publication.
 
 ## 1.0.0 — Final 1.0 Evidence Integration

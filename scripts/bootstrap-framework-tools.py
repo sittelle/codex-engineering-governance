@@ -23,7 +23,7 @@ def norm_machine(v):
 def sha256(data): return hashlib.sha256(data).hexdigest()
 
 def download(url):
-    req=urllib.request.Request(url,headers={'User-Agent':'codex-engineering-governance-tool-bootstrap/1.0.0'})
+    req=urllib.request.Request(url,headers={'User-Agent':'sittelle-engineering-governance-tool-bootstrap/2.0.0'})
     with urllib.request.urlopen(req,timeout=90) as r: return r.read()
 
 def target_tools(lock):

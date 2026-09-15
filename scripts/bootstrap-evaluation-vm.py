@@ -150,7 +150,7 @@ def fetch(cache: Path, artifacts: list[dict]) -> None:
         if temporary.exists() or temporary.is_symlink():
             raise Error(f"refusing existing partial artifact: {temporary.name}")
         print(f"Downloading {item['id']} {item['version']}...")
-        request = urllib.request.Request(item["url"], headers={"User-Agent": "codex-engineering-governance-vm-bootstrap/1"})
+        request = urllib.request.Request(item["url"], headers={"User-Agent": "sittelle-engineering-governance-vm-bootstrap/2"})
         try:
             with urllib.request.urlopen(request, timeout=120) as response, temporary.open("xb") as output:
                 shutil.copyfileobj(response, output)

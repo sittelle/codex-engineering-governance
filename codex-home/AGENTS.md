@@ -112,6 +112,14 @@ When a required control is missing, omitted, or `DID_NOT_EXECUTE` and the questi
 
 Do not omit these distinctions merely because the immediate recommendation is already "do not release" or because another context can execute the control.
 
+### Assurance-answer precision
+
+For a concrete assurance scenario, state the governing conclusion rather than offering a weaker alternative or asking the developer to choose it. In particular:
+
+- If a required control can run only in an approved CI or specialized context, keep it required. A local report without that attributable evidence is `INCOMPLETE_ASSURANCE`, and a combined result requires the same clean checked-out commit plus the committed verification-plan, assurance-baseline, and runner identities, compatible runner semantics, and required-check inventory. Reject dirty, unknown, or mismatched evidence; an attributable executed `FAIL` is still fail-dominant.
+- For clean tracked artifacts whose checkout bytes differ only because of platform line endings, use the committed Git content and the actual checked-out commit for attribution. Treat checkout byte hashes only as diagnostics. Do not offer working-tree normalization, `.gitattributes`, `core.autocrlf`, or disabling identity checks as an alternative attribution mechanism. Dirty, untracked, or mismatched artifacts remain ineligible for aggregation.
+- If CI bootstrap prevents a required check from starting but the managed runner can run, it MUST invoke the canonical precondition-failure/report path and emit the attributable machine-readable incomplete-assurance report. This is required regardless of release intent; a generic red job is not the report and the job remains non-green.
+
 ## Assurance outcome and environment invariant
 
 A security/verification tool operational failure is not a finding and not a pass: when the tool cannot start or complete trustworthy analysis, record `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`. Default nonzero exit handling remains FAIL; classify documented operational-error exit codes differently only from a durable tool contract, and never remap a finding code to obtain green status. Changing result classification or required execution contexts for a required security control is a material C2 assurance-policy decision.

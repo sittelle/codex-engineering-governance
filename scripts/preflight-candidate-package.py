@@ -9,6 +9,13 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
+CURRENT_DISTRIBUTION_ID = 'sittelle-engineering-governance'
+LEGACY_DISTRIBUTION_ID = 'codex-engineering-governance'
+
+
+def package_root(version: str) -> str:
+    distribution_id = LEGACY_DISTRIBUTION_ID if version.startswith('1.') else CURRENT_DISTRIBUTION_ID
+    return f'{distribution_id}-v{version}'
 
 
 def sha256_file(path: Path) -> str:
@@ -102,7 +109,7 @@ def preflight(repo: Path, zip_path: Path, expected_sha256: str) -> dict:
                 raise ValueError(f'candidate ZIP missing {required}')
 
         version = zf.read(prefix + 'VERSION').decode('utf-8-sig').strip()
-        if root != f'codex-engineering-governance-v{version}':
+        if root != package_root(version):
             raise ValueError(f'package root {root!r} does not match internal VERSION {version!r}')
 
         manifest = json.loads(zf.read(prefix + 'MANIFEST.json').decode('utf-8'))
