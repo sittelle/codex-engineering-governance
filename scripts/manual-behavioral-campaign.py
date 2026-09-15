@@ -264,7 +264,9 @@ same challenge prompt again, for example after opening a fresh chat. A
 separately initialized VS Code profile is recommended so the tested
 integration remains isolated and its version can be recorded accurately; it
 uses VS Code's built-in `Light 2026` theme without installing a theme
-extension.
+extension. Wait until the announced context folder is visible before pasting
+the prompt; the first dedicated-profile launch can take a moment. Once a
+response is saved, the conductor proceeds automatically to the next challenge.
 
 `manual-close` remains available when the operator wants to close the test
 window after each challenge. `force-close-test-instance` is optional and
@@ -626,14 +628,15 @@ def launch_vscode(command: str, target: Path, profile: Path | None, reuse_window
     argv = [command, "--reuse-window" if reuse_window else "--new-window", "--skip-add-to-recently-opened"]
     if profile is not None:
         argv.extend(["--user-data-dir", str(profile), "--extensions-dir", str(profile / "extensions")])
-    argv.append(str(target))
+    argv.extend(["--folder-uri", target.resolve().as_uri()])
     try:
         environment = os.environ.copy()
         # A conductor started from VS Code inherits this IPC hook. Removing it
         # makes the explicit command launch the isolated test profile instead
         # of being redirected through the editor that started the conductor.
         environment.pop("VSCODE_IPC_HOOK_CLI", None)
-        print(f"Opening VS Code for {target.name or target}...")
+        print(f"Requesting VS Code to open or switch to: {target.name or target}")
+        print("Waiting for VS Code to become visible. The first dedicated-profile launch can take a moment.")
         return subprocess.Popen(
             argv,
             cwd=target,
@@ -793,7 +796,7 @@ def conduct(
             if mode == "force-close-test-instance":
                 terminate_test_instance(process)
         if index < len(pending):
-            input("Response saved. Press Enter to continue to the next challenge (or Ctrl+C to stop): ")
+            print("Response saved. Continuing automatically to the next challenge.")
     collect(campaign, host, model, client, conductor_settings, profile)
 
 

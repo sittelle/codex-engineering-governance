@@ -5,6 +5,9 @@
 - Makes `-Apply` / `--apply` the sole explicit authorization for the
   current-release disposable-VM bootstrap route. The separate checksum-locked
   artifact-install route retains its additional typed confirmation.
+- Makes the manual conductor announce VS Code startup/workspace switching,
+  use explicit folder URIs for cross-platform workspace selection, and advance
+  immediately after a clipboard-confirmed response is saved.
 
 - Introduces native governance adapters for Codex and Claude Code.
 - Replaces the legacy host/project PowerShell and shell management entrypoints with the single Python `governance.py` interface.

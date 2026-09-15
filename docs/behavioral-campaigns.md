@@ -83,13 +83,18 @@ The default `shared-window` workflow is sequential and does not close VS Code.
 For each challenge it does exactly this:
 
 1. Replaces the clipboard with the rubric-free prompt and opens or reuses the
-   dedicated VS Code window in the required context.
+   dedicated VS Code window in the required context. Wait until the required
+   folder is visible before using the prompt; the first dedicated-profile
+   launch can take a moment.
 2. The operator starts a fresh chat, pastes the prompt, and copies the
    unedited final response from that chat to the clipboard.
 3. The operator presses Enter in the conductor. It saves that clipboard text
    as the response. Typing `1` instead re-copies the same prompt; `QUIT`
    stops without overwriting any existing response.
 4. It switches the same window to the next required context.
+
+After a response is saved, the conductor continues directly to the next
+challenge; it does not require a second Enter keypress.
 
 Use a separately initialized test profile so the tested integration is
 isolated and the result metadata can query that profile's selected integration
