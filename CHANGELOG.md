@@ -29,6 +29,12 @@
   instead of interactive question/input tools. The GOV-001..030 scenario goals
   and scoring rubrics are retained; GOV-027..030 and legacy headings are
   normalized to one challenge-file format.
+- Strengthens host and propagated managed-project guidance for four existing
+  assurance invariants: known baseline-required capability omissions, exact
+  committed cross-context evidence identity, checkout-line-ending diagnostics,
+  and machine-readable CI bootstrap-failure evidence. This does not change the
+  capability matrix, canonical runner behavior, release thresholds, or scoring
+  rubrics.
 - Does not authorize commit, tag, push, release, or publication.
 
 ## 1.0.0 — Final 1.0 Evidence Integration

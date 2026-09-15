@@ -98,7 +98,7 @@ For governed M1+ work after verification bootstrap, use the project's canonical 
 
 ## Assurance completeness invariant
 
-A green set of configured checks is not enough for full assurance. Required capabilities omitted from the verification plan, unresolved conditional capabilities, or required capabilities without full-stage evidence make `full` `INCOMPLETE_ASSURANCE`. Do not infer `NOT_APPLICABLE` from absence.
+A green set of configured checks is not enough for full assurance. Required capabilities omitted from the verification plan, unresolved conditional capabilities, or required capabilities without full-stage evidence make `full` `INCOMPLETE_ASSURANCE`. Do not infer `NOT_APPLICABLE` from absence. When the stated facts already establish a baseline-required capability (for example, SAST for an M1/SA1 application), treat its missing plan entry as an omitted required control; do not turn known baseline applicability into a conditional question merely because repository files have not yet been inspected.
 
 ## Required-control response completeness
 
@@ -108,7 +108,7 @@ When a required control is missing, omitted, or `DID_NOT_EXECUTE` and the questi
 2. the evidence state and readiness consequence (`DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`, or omitted required capability);
 3. accepting risk from a known vulnerability/finding is distinct from a governance/policy exception to proceed without the required control, and finding-risk acceptance cannot substitute for that missing-control exception;
 4. if policy permits proceeding without the control, it requires a separate explicit governance/policy exception, while the missing control itself remains non-PASS;
-5. when multiple approved execution contexts are involved, completion evidence must bind to the same clean commit, verification plan, managed assurance baseline, runner semantics, and required-check inventory, and any attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS.
+5. when multiple approved execution contexts are involved, completion evidence must bind to the same clean checked-out commit, committed identities of the verification plan, managed assurance baseline, and runner, compatible runner semantics, and the required-check inventory. Do not combine evidence from a dirty/unknown tree or any mismatched identity. Any attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS.
 
 Do not omit these distinctions merely because the immediate recommendation is already "do not release" or because another context can execute the control.
 
@@ -116,11 +116,11 @@ Do not omit these distinctions merely because the immediate recommendation is al
 
 A security/verification tool operational failure is not a finding and not a pass: when the tool cannot start or complete trustworthy analysis, record `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`. Default nonzero exit handling remains FAIL; classify documented operational-error exit codes differently only from a durable tool contract, and never remap a finding code to obtain green status. Changing result classification or required execution contexts for a required security control is a material C2 assurance-policy decision.
 
-A required capability may be evidenced in an approved CI or specialized environment without becoming `NOT_APPLICABLE` locally. Cross-environment completion evidence must bind to the same clean commit, verification plan, assurance baseline, and runner semantics. For clean tracked artifacts, cross-environment identity is derived from committed Git content rather than checkout-specific line endings; dirty or untracked assurance artifacts are not aggregatable.
+A required capability may be evidenced in an approved CI or specialized environment without becoming `NOT_APPLICABLE` locally. The single local report remains `INCOMPLETE_ASSURANCE` until attributable external evidence is combined. Cross-environment completion evidence must bind to the same clean commit, verification plan, assurance baseline, and runner semantics. For clean tracked artifacts, cross-environment identity is derived only from committed Git content rather than checkout-specific line endings; working-tree byte hashes are diagnostics, not aggregation identity. Do not propose checkout normalization, `.gitattributes`, or `core.autocrlf` changes as a substitute for committed-content attribution. Dirty or untracked assurance artifacts are not aggregatable.
 
 ## Assurance tool bootstrap invariant
 
-Assurance tool locks are environment-bound unless demonstrated universal. A lock resolved for one OS/runtime must not be silently reused for an incompatible environment. Missing/incompatible lock or bootstrap failure is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`; never remove integrity hashes, float versions, or mark a required capability N/A merely to make CI green. When the managed runner is available, CI bootstrap failure must still produce attributable incomplete-assurance evidence.
+Assurance tool locks are environment-bound unless demonstrated universal. A lock resolved for one OS/runtime must not be silently reused for an incompatible environment. Missing/incompatible lock or bootstrap failure is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`; never remove integrity hashes, float versions, or mark a required capability N/A merely to make CI green. When the managed runner is available, CI bootstrap failure must invoke its canonical precondition-failure/report path and produce an attributable machine-readable incomplete-assurance report for the same commit/plan/baseline/runner state. The CI job remains non-green; a generic red job is not a substitute for that evidence.
 
 ## Repository context
 

@@ -25,7 +25,10 @@ PROPAGATION_MARKERS = (
     "separate explicit governance/policy exception",
     "Reassess a `NOT_APPLICABLE` decision when its factual trigger changes",
     "Changing result classification for a required security control is a material C2 assurance-policy change",
-    "same clean commit, verification plan, managed assurance baseline, runner semantics, and required-check inventory",
+    "When the stated facts already establish a baseline-required capability",
+    "committed identities of the verification plan, managed assurance baseline, and runner",
+    "byte hashes are diagnostics, not aggregation identity",
+    "canonical precondition-failure/report path",
     "An attributable executed `FAIL` remains fail-dominant",
     "Service restoration is not governance completion",
     "after stabilization, run deferred verification",
@@ -34,12 +37,16 @@ PROPAGATION_MARKERS = (
     "any attributable executed `FAIL` remains fail-dominant even when another approved context passes",
     "A complete emergency answer explicitly states both post-stabilization duties",
     "Mentioning only deferred verification is incomplete",
+    "When the stated facts already establish a baseline-required capability",
+    "committed identities of the verification plan, managed assurance baseline, and runner",
+    "byte hashes are diagnostics, not aggregation identity",
+    "canonical precondition-failure/report path",
 )
 
 GLOBAL_KERNEL_MARKERS = (
     "## Required-control response completeness",
     "finding-risk acceptance cannot substitute for that missing-control exception",
-    "any attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS",
+    "Any attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS",
     "### Emergency-response completeness",
     "Mentioning only deferred verification is incomplete",
 )
