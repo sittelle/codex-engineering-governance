@@ -20,6 +20,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+VSCODE_TEST_THEME = "Light 2026"
 
 class Error(RuntimeError):
     pass
@@ -190,17 +191,35 @@ def run_install(item: dict, artifact: Path, vscode: str | None, profile: Path | 
         raise Error(f"installer failed: {item['id']} (exit {result.returncode})")
 
 
+def configure_latest_profile_theme(profile: Path) -> None:
+    settings = profile / "User" / "settings.json"
+    settings.parent.mkdir(exist_ok=True)
+    if settings.exists():
+        try:
+            value = json.loads(settings.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise Error("dedicated VS Code profile settings are not valid JSON") from exc
+        if not isinstance(value, dict):
+            raise Error("dedicated VS Code profile settings must be a JSON object")
+    else:
+        value = {}
+    value["workbench.colorTheme"] = VSCODE_TEST_THEME
+    settings.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+
+
 def initialize_latest_profile(profile: Path) -> Path:
     profile = profile.expanduser().resolve()
     marker = profile / ".manual-vscode-test-profile.json"
     if profile.exists():
         if not profile.is_dir() or not marker.is_file():
             raise Error("latest bootstrap profile must be new or an initialized dedicated test profile")
+        configure_latest_profile_theme(profile)
         return profile
     if not profile.parent.is_dir() or profile == ROOT or ROOT in profile.parents:
         raise Error("latest bootstrap profile must be a new directory outside the framework source")
     profile.mkdir()
     marker.write_text(json.dumps({"schema_version": "1", "kind": "MANUAL_VSCODE_TEST_PROFILE"}) + "\n", encoding="utf-8")
+    configure_latest_profile_theme(profile)
     return profile
 
 
@@ -272,12 +291,17 @@ def self_test() -> int:
                 pass
             else:
                 raise Error("tampered artifact was accepted")
+            profile = initialize_latest_profile(root / "test-profile")
+            settings = json.loads((profile / "User" / "settings.json").read_text(encoding="utf-8"))
+            if settings.get("workbench.colorTheme") != VSCODE_TEST_THEME:
+                raise Error("latest test profile theme was not configured")
     except Error as exc:
         print(f"Evaluation VM bootstrap self-test: FAIL\n- {exc}")
         return 1
     print("Evaluation VM bootstrap self-test: PASS")
     print("- lock schema/platform selection: PASS")
     print("- checksum verification and tamper refusal: PASS")
+    print("- dedicated VS Code profile theme initialization: PASS")
     print("- installer, downloads, credentials, Git, and system changes: NOT USED")
     return 0
 

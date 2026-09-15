@@ -6,8 +6,8 @@ install an agent, initialize Git, upload responses, or change the canonical
 GOV scenario goals, rubrics, thresholds, or release authority. Its protocol-v2
 prompt rendering adds one shared text-only response rule to every challenge.
 Its optional Windows or Ubuntu Linux conductor can only open a local VS Code window, replace the
-clipboard with a rubric-free prompt, and save the response that the operator
-explicitly pastes into its terminal.
+clipboard with a rubric-free prompt, and save a response that the operator
+explicitly copies to the clipboard and confirms in its terminal.
 
 ## Prepare a testing machine
 
@@ -69,42 +69,57 @@ behavior for another model, client, host, platform, or protocol.
 ## Optional Windows and Ubuntu sequential conductor
 
 The conductor is for a realistic IDE-chat evaluation where the human, not this
-framework, operates the Codex or Claude chat. It opens one fresh VS Code test
-window per challenge in the appropriate context, places the rubric-free prompt
-on the clipboard, captures a raw response that the operator pastes into the
-terminal, and produces the scoring packet after the final challenge.
+framework, operates the Codex or Claude chat. By default it reuses one
+dedicated VS Code test window, switches it to the appropriate challenge
+context, places the rubric-free prompt on the clipboard, captures a final
+response that the operator explicitly copies to the clipboard, and produces
+the scoring packet after the final challenge.
 
 It does **not** read, inspect, submit to, or scrape an IDE chat. It does not
 call an AI API. The operator must select the intended host/model/settings and
 submit each prompt in a fresh chat.
 
-The default mode is `manual-close`: after copying the raw final response, close
-the dedicated test window and type `READY` in the conductor. This protects any
-other VS Code work from the conductor.
+The default `shared-window` workflow is sequential and does not close VS Code.
+For each challenge it does exactly this:
+
+1. Replaces the clipboard with the rubric-free prompt and opens or reuses the
+   dedicated VS Code window in the required context.
+2. The operator starts a fresh chat, pastes the prompt, and copies the
+   unedited final response from that chat to the clipboard.
+3. The operator presses Enter in the conductor. It saves that clipboard text
+   as the response. Typing `1` instead re-copies the same prompt; `QUIT`
+   stops without overwriting any existing response.
+4. It switches the same window to the next required context.
+
+Use a separately initialized test profile so the tested integration is
+isolated and the result metadata can query that profile's selected integration
+version. The profile uses VS Code's built-in `Light 2026` theme; no theme
+extension is installed.
 
 ```text
-python scripts/manual-behavioral-campaign.py conduct ..\manual-governance-evaluation --host claude --model <selected-model> --client <IDE-and-version> --setting mode=plan --close-mode manual-close --vscode-user-data-dir ..\governance-vscode-test-profile
+python scripts/manual-behavioral-campaign.py conduct ..\manual-governance-evaluation --host claude --model <selected-model> --client <IDE-and-version> --setting mode=plan --vscode-user-data-dir ..\governance-vscode-test-profile
 ```
 
-The test profile is optional in `manual-close` mode but recommended: it keeps
-the tested integration isolated and lets the result metadata query precisely
-that profile's selected integration version. It must first be initialized as
-shown below. The platform's `code` command must be available on `PATH`. Use
-`--vscode-command <executable>` when it is not named `code`. On Ubuntu, the
-conductor requires one local clipboard utility: install `wl-clipboard` for a
+Initialize the profile once before the command above. The platform's `code`
+command must be available on `PATH`; use `--vscode-command <executable>` when
+it is not named `code`. The conductor removes VS Code's inherited terminal IPC
+variable when launching so an explicit test-profile command is not redirected
+through the editor that started it. On Ubuntu, it requires `wl-clipboard` for a
 Wayland desktop or `xclip` for an X11 desktop. It never installs either package
 itself. Ubuntu LTS publishes `wl-clipboard` as the command-line interface for
 the Wayland clipboard. [Ubuntu package information](https://packages.ubuntu.com/noble/wl-clipboard)
 
-### Optional force-close mode
-
-At the beginning of a campaign, the operator may instead choose
-`force-close-test-instance`. It is deliberately restricted to a dedicated VS
-Code profile created outside both the framework source and campaign directory:
-
 ```text
 python scripts/manual-behavioral-campaign.py vscode-profile-init --destination ..\governance-vscode-test-profile
 ```
+
+### Optional close-after-each-challenge modes
+
+`manual-close` retains the earlier workflow: close the dedicated test window
+and type `READY` before pasting the raw response into the conductor. The
+optional `force-close-test-instance` workflow terminates only the separately
+configured test-profile instance after each response. It never targets the
+ordinary VS Code profile.
 
 Open VS Code once with that profile's `--user-data-dir` and `--extensions-dir`
 options, install the
@@ -119,18 +134,17 @@ profile directory:
 python scripts/manual-behavioral-campaign.py conduct ..\manual-governance-evaluation --host claude --model <selected-model> --client <IDE-and-version> --setting mode=plan --close-mode force-close-test-instance --vscode-executable <path-to-Code-executable> --vscode-user-data-dir ..\governance-vscode-test-profile
 ```
 
-After each response is pasted into the conductor, force-close mode terminates
+After each terminal-pasted response, force-close mode terminates
 only the VS Code process tree it started with that dedicated profile. On Linux,
 it starts the test instance in its own process group before terminating it. It
-first asks for the exact confirmation phrase `FORCE-CLOSE-TEST-INSTANCE`. Do
-not use this mode for an ordinary VS Code profile or while another window using
-the test profile is open.
+does not use this mode for an ordinary VS Code profile or while another window
+using the test profile is open.
 
 You can validate the selected campaign/context sequence without starting VS
 Code or changing the clipboard:
 
 ```text
-python scripts/manual-behavioral-campaign.py conduct ..\manual-governance-evaluation --host claude --model <selected-model> --client <IDE-and-version> --close-mode manual-close --dry-run
+python scripts/manual-behavioral-campaign.py conduct ..\manual-governance-evaluation --host claude --model <selected-model> --client <IDE-and-version> --dry-run
 ```
 
 ## Produce a scoring packet

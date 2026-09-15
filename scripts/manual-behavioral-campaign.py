@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 GOV = ROOT / "tests" / "governance"
 HOSTS = ("codex", "claude")
 PROFILE_MARKER = ".manual-vscode-test-profile.json"
-FORCE_CLOSE_CONFIRMATION = "FORCE-CLOSE-TEST-INSTANCE"
+VSCODE_TEST_THEME = "Light 2026"
 EVALUATION_PROTOCOL = {
     "id": "TEXT_ONLY_SINGLE_RESPONSE",
     "version": "2",
@@ -153,6 +153,22 @@ def is_within(path: Path, parent: Path) -> bool:
         return False
 
 
+def configure_vscode_profile_theme(profile: Path) -> None:
+    settings = profile / "User" / "settings.json"
+    settings.parent.mkdir(exist_ok=True)
+    if settings.exists():
+        try:
+            value = json.loads(settings.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise Error("dedicated VS Code profile settings are not valid JSON") from exc
+        if not isinstance(value, dict):
+            raise Error("dedicated VS Code profile settings must be a JSON object")
+    else:
+        value = {}
+    value["workbench.colorTheme"] = VSCODE_TEST_THEME
+    write_json(settings, value)
+
+
 def initialize_vscode_profile(destination: Path) -> None:
     """Create a marker for a dedicated, user-configured VS Code test profile."""
     destination = destination.expanduser().resolve()
@@ -163,14 +179,16 @@ def initialize_vscode_profile(destination: Path) -> None:
         "schema_version": "1",
         "kind": "MANUAL_VSCODE_TEST_PROFILE",
         "created_at": utc(),
-        "purpose": "Dedicated profile for force-close manual behavioral evaluations only",
+        "purpose": "Dedicated profile for manual behavioral evaluations only",
     })
+    configure_vscode_profile_theme(destination)
     (destination / "README.md").write_text(
         "# Dedicated VS Code test profile\n\n"
         "Open this directory with VS Code using `--user-data-dir` and `--extensions-dir`, then install the "
         "required Codex or Claude extension and sign in normally. Do not copy this "
         "directory into a campaign, scoring packet, Git repository, or release artifact. "
-        "It can contain local authentication state.\n",
+        "It can contain local authentication state. This profile sets VS Code's built-in "
+        f"`{VSCODE_TEST_THEME}` theme.\n",
         encoding="utf-8", newline="\n",
     )
     print(f"VS Code test profile initialized: {destination}")
@@ -181,7 +199,7 @@ def validate_vscode_profile(profile: Path, campaign: Path) -> Path:
     profile = profile.expanduser().resolve()
     campaign = campaign.expanduser().resolve()
     if not profile.is_dir() or not (profile / PROFILE_MARKER).is_file():
-        raise Error("force-close requires a separately initialized VS Code test profile")
+        raise Error("a dedicated VS Code test profile must be initialized with vscode-profile-init")
     if is_within(profile, campaign) or is_within(campaign, profile) or is_within(profile, ROOT):
         raise Error("VS Code test profile must be separate from both the campaign and framework source")
     try:
@@ -232,19 +250,27 @@ final response as `responses/GOV-###.txt` using UTF-8.
 ### Optional VS Code conductor (Windows or Ubuntu Linux)
 
 Instead of manually opening folders and saving response files, a Windows or
-Ubuntu Linux operator may run `conduct` from the framework source. It copies
-one rubric-free prompt, opens exactly one VS Code test window for the required
-context, waits for the operator to paste the raw final response into the
-terminal, and then proceeds to the next challenge. It does not inspect or
+Ubuntu Linux operator may run `conduct` from the framework source. By default,
+it reuses one dedicated VS Code test window for the required context, copies a
+rubric-free prompt, waits for the operator to copy the raw final response to
+the clipboard, and then proceeds to the next challenge. It does not inspect or
 automate an AI chat UI.
 
-`manual-close` is the default: close the dedicated test window yourself before
-submitting the raw response. A separately initialized VS Code profile is
-recommended even in this mode, so the tested integration remains isolated and
-its version can be recorded accurately. `force-close-test-instance` is
-optional and requires that separate profile; it terminates that dedicated test
-instance after each captured response. Never provide the normal VS Code
-profile to force-close mode.
+`shared-window` is the default: it reuses one dedicated VS Code window and
+switches that window to the required context for each challenge. Copy the
+unedited final response from the chat to the clipboard, then press Enter in
+the conductor to save that clipboard content. Enter `1` instead to copy the
+same challenge prompt again, for example after opening a fresh chat. A
+separately initialized VS Code profile is recommended so the tested
+integration remains isolated and its version can be recorded accurately; it
+uses VS Code's built-in `Light 2026` theme without installing a theme
+extension.
+
+`manual-close` remains available when the operator wants to close the test
+window after each challenge. `force-close-test-instance` is optional and
+requires the separate profile; it terminates that dedicated test instance
+after each captured response. Never provide the normal VS Code profile to
+force-close mode.
 
 Run the conductor from the copied framework source root:
 
@@ -252,15 +278,15 @@ Run the conductor from the copied framework source root:
 python scripts/manual-behavioral-campaign.py conduct <this-directory> --host <codex|claude> --model <selected-model> --client <IDE-or-client-version> --setting <name=value> --vscode-user-data-dir <separate-test-profile>
 ```
 
-It asks the operator to choose `manual-close` or
-`force-close-test-instance` before any VS Code window opens. For force-close,
-first initialize and configure a separate profile outside this campaign:
+The default does not require a window-handling prompt. To initialize and
+configure a separate profile outside this campaign:
 
 ```text
 python scripts/manual-behavioral-campaign.py vscode-profile-init --destination <separate-test-profile>
 ```
 
-Then run `conduct` with `--close-mode force-close-test-instance`,
+For the optional force-close workflow, run `conduct` with
+`--close-mode force-close-test-instance`,
 `--vscode-executable <path-to-Code.exe>`, and
 `--vscode-user-data-dir <separate-test-profile>`. That profile may contain
 credentials and must never be copied into this campaign or a scoring packet.
@@ -507,22 +533,7 @@ def context_path(directory: Path, item: dict) -> Path:
 def choose_close_mode(value: str | None, dry_run: bool) -> str:
     if value:
         return value
-    if dry_run:
-        return "manual-close"
-    print("Choose VS Code window handling for this entire campaign:")
-    print("  [M] manual-close (default): you close each dedicated test window.")
-    print("  [F] force-close-test-instance: terminate only a separately configured test profile.")
-    while True:
-        answer = input("Mode [M/F]: ").strip().lower() or "m"
-        if answer in ("m", "manual", "manual-close"):
-            return "manual-close"
-        if answer in ("f", "force", "force-close-test-instance"):
-            print("Force-close affects only the dedicated test instance, never ordinary VS Code.")
-            if input(f"Type {FORCE_CLOSE_CONFIRMATION} to confirm: ").strip() == FORCE_CLOSE_CONFIRMATION:
-                return "force-close-test-instance"
-            print("Force-close confirmation did not match; choose a mode again.")
-        else:
-            print("Enter M or F.")
+    return "shared-window"
 
 
 def resolve_vscode_command(value: str) -> str:
@@ -588,22 +599,47 @@ def copy_prompt_to_clipboard(prompt: str) -> subprocess.Popen[str] | None:
     raise Error("interactive VS Code conduction is supported only on Windows and Ubuntu Linux")
 
 
+def read_response_from_clipboard() -> str:
+    system = platform.system()
+    if system == "Windows":
+        command = ["powershell", "-NoProfile", "-NonInteractive", "-Command", "Get-Clipboard -Raw"]
+    elif system == "Linux" and shutil.which("wl-paste"):
+        command = ["wl-paste", "--no-newline"]
+    elif system == "Linux" and shutil.which("xclip"):
+        command = ["xclip", "-selection", "clipboard", "-o"]
+    elif system == "Linux":
+        raise Error("Ubuntu clipboard support requires wl-clipboard (including wl-paste) or xclip; install one before conducting")
+    else:
+        raise Error("interactive VS Code conduction is supported only on Windows and Ubuntu Linux")
+    result = subprocess.run(command, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False)
+    if result.returncode:
+        raise Error("could not read the response from the system clipboard")
+    return result.stdout
+
+
 def release_clipboard_owner(owner: subprocess.Popen[str] | None) -> None:
     if owner is not None and owner.poll() is None:
         owner.terminate()
 
 
-def launch_vscode(command: str, target: Path, profile: Path | None) -> subprocess.Popen[str]:
-    argv = [command, "--new-window", "--skip-add-to-recently-opened"]
+def launch_vscode(command: str, target: Path, profile: Path | None, reuse_window: bool) -> subprocess.Popen[str]:
+    argv = [command, "--reuse-window" if reuse_window else "--new-window", "--skip-add-to-recently-opened"]
     if profile is not None:
         argv.extend(["--user-data-dir", str(profile), "--extensions-dir", str(profile / "extensions")])
     argv.append(str(target))
     try:
+        environment = os.environ.copy()
+        # A conductor started from VS Code inherits this IPC hook. Removing it
+        # makes the explicit command launch the isolated test profile instead
+        # of being redirected through the editor that started the conductor.
+        environment.pop("VSCODE_IPC_HOOK_CLI", None)
+        print(f"Opening VS Code for {target.name or target}...")
         return subprocess.Popen(
             argv,
             cwd=target,
             text=True,
-            start_new_session=profile is not None and platform.system() == "Linux",
+            env=environment,
+            start_new_session=not reuse_window and profile is not None and platform.system() == "Linux",
         )
     except OSError as exc:
         raise Error("could not start the requested VS Code executable") from exc
@@ -662,6 +698,35 @@ def capture_response(directory: Path, test_id: str) -> None:
         handle.write(response)
 
 
+def capture_response_from_clipboard(directory: Path, test_id: str, prompt: str) -> bool:
+    """Save a copied final response, or return True to repeat the prompt copy."""
+    target = response_path(directory, test_id)
+    if target.exists() or target.is_symlink():
+        raise Error(f"response target already exists: {target.name}")
+    while True:
+        answer = input(
+            f"{test_id}: copy the unedited final response from the chat, then press Enter "
+            "to save it [1 = copy this challenge again; QUIT = stop]: "
+        ).strip()
+        if answer == "1":
+            return True
+        if answer == "QUIT":
+            raise Error("manual conduction stopped by operator; existing captured responses were preserved")
+        if answer:
+            print("Press Enter to save the current clipboard, enter 1 to copy the prompt again, or QUIT to stop.")
+            continue
+        response = read_response_from_clipboard()
+        if not response.strip():
+            print("The clipboard is empty. Copy the final response first, then press Enter.")
+            continue
+        if response.strip() == prompt.strip():
+            print("The clipboard still contains the challenge prompt. Copy the final response first.")
+            continue
+        with target.open("x", encoding="utf-8", newline="\n") as handle:
+            handle.write(response if response.endswith(("\n", "\r")) else response + "\n")
+        return False
+
+
 def conduct(
     directory: Path,
     host: str,
@@ -677,6 +742,8 @@ def conduct(
     campaign, manifest = load_prepared_campaign(directory)
     mode = choose_close_mode(close_mode_argument, dry_run)
     profile = validate_vscode_profile(vscode_profile, campaign) if vscode_profile is not None else None
+    if profile is not None and not dry_run:
+        configure_vscode_profile_theme(profile)
     pending = pending_records(campaign, manifest)
     if not pending:
         collect(campaign, host, model, client, runtime_settings, profile)
@@ -686,9 +753,9 @@ def conduct(
     if reserved.intersection(conductor_settings):
         raise Error("runtime settings may not replace conductor-recorded metadata")
     conductor_settings.update({
-        "evaluation_workflow": "single-window-sequential",
+        "evaluation_workflow": "shared-window-sequential" if mode == "shared-window" else "single-window-sequential",
         "window_close_mode": mode,
-        "response_capture": "terminal-paste",
+        "response_capture": "clipboard-confirmed" if mode == "shared-window" else "terminal-paste",
     })
     if dry_run:
         print(f"Conductor dry run: {len(pending)} pending challenge(s), mode={mode}")
@@ -711,10 +778,16 @@ def conduct(
         print(f"[{index:02d}/{len(pending):02d}] {test_id} ({item['context']})")
         print("The clipboard will now be replaced with this rubric-free challenge prompt.")
         clipboard_owner = copy_prompt_to_clipboard(prompt)
-        process = launch_vscode(command, target, profile)
+        process = launch_vscode(command, target, profile, reuse_window=mode == "shared-window")
         try:
-            wait_ready(mode, test_id)
-            capture_response(campaign, test_id)
+            if mode == "shared-window":
+                while capture_response_from_clipboard(campaign, test_id, prompt):
+                    release_clipboard_owner(clipboard_owner)
+                    print("The clipboard will now be replaced with this rubric-free challenge prompt.")
+                    clipboard_owner = copy_prompt_to_clipboard(prompt)
+            else:
+                wait_ready(mode, test_id)
+                capture_response(campaign, test_id)
         finally:
             release_clipboard_owner(clipboard_owner)
             if mode == "force-close-test-instance":
@@ -736,13 +809,16 @@ def self_test() -> int:
             initialize_vscode_profile(profile)
             if validate_vscode_profile(profile, destination) != profile.resolve():
                 raise Error("separate VS Code test-profile validation failed")
+            settings = json.loads((profile / "User" / "settings.json").read_text(encoding="utf-8"))
+            if settings.get("workbench.colorTheme") != VSCODE_TEST_THEME:
+                raise Error("VS Code test profile theme was not configured")
             conduct(
                 destination,
                 "claude",
                 "test-model",
                 "test-client",
                 {"mode": "plan"},
-                "manual-close",
+                "shared-window",
                 "not-used-in-dry-run",
                 None,
                 profile,
@@ -793,7 +869,7 @@ def main() -> int:
     collect_parser.add_argument("--client", required=True)
     collect_parser.add_argument("--setting", action="append", default=[], help="runtime setting as name=value; repeat as needed")
     collect_parser.add_argument("--vscode-user-data-dir", type=Path, help="dedicated test profile used for the responses; records its selected agent-integration version")
-    profile_parser = commands.add_parser("vscode-profile-init", help="initialize a dedicated VS Code profile marker for force-close mode")
+    profile_parser = commands.add_parser("vscode-profile-init", help="initialize a dedicated VS Code profile for manual evaluation")
     profile_parser.add_argument("--destination", required=True, type=Path)
     conduct_parser = commands.add_parser("conduct", help="Windows/Ubuntu sequential VS Code conductor; never automates a chat UI")
     conduct_parser.add_argument("campaign", type=Path)
@@ -801,10 +877,10 @@ def main() -> int:
     conduct_parser.add_argument("--model", required=True)
     conduct_parser.add_argument("--client", required=True)
     conduct_parser.add_argument("--setting", action="append", default=[], help="runtime setting as name=value; repeat as needed")
-    conduct_parser.add_argument("--close-mode", choices=("manual-close", "force-close-test-instance"))
-    conduct_parser.add_argument("--vscode-command", default="code", help="VS Code command or executable for manual-close mode")
+    conduct_parser.add_argument("--close-mode", choices=("shared-window", "manual-close", "force-close-test-instance"), help="window workflow; default is shared-window")
+    conduct_parser.add_argument("--vscode-command", default="code", help="VS Code command or executable for shared-window or manual-close mode")
     conduct_parser.add_argument("--vscode-executable", type=Path, help="actual VS Code executable for force-close mode")
-    conduct_parser.add_argument("--vscode-user-data-dir", type=Path, help="separately initialized test profile; required for force-close mode and used to record the selected integration version")
+    conduct_parser.add_argument("--vscode-user-data-dir", type=Path, help="separately initialized test profile; required for force-close mode and recommended for shared-window isolation and integration metadata")
     conduct_parser.add_argument("--dry-run", action="store_true", help="validate the campaign workflow without opening VS Code or changing the clipboard")
     commands.add_parser("self-test")
     args = parser.parse_args()

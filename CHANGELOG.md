@@ -15,9 +15,12 @@
   governed, and framework contexts; generates prompt-only challenge files; and
   collects local raw responses into an independent scoring packet.
 - Adds an optional Windows/Ubuntu sequential VS Code conductor for that manual
-  kit. It opens one declared context at a time and captures operator-pasted raw
-  responses; its explicit force-close mode is limited to a separately marked
-  VS Code test profile and never targets the normal user profile.
+  kit. Its default shared-window workflow switches one dedicated profile
+  between declared contexts, copies prompts, and saves only operator-confirmed
+  clipboard responses; `1` repeats the current prompt. Its explicit
+  force-close mode remains limited to a separately marked VS Code test profile
+  and never targets the normal user profile. Dedicated test profiles select
+  VS Code's built-in `Light 2026` theme without adding a theme dependency.
 - Adds a separate checksum-locked Windows/Ubuntu VM bootstrap utility. It
   fetches and installs only explicitly reviewed artifacts, re-verifies every
   hash, and leaves licence acceptance and account sign-in interactive.

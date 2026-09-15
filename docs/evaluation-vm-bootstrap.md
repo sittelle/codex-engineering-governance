@@ -31,7 +31,8 @@ once with both `--user-data-dir <profile>` and
 `--extensions-dir <profile>/extensions`, then sign in to the selected Codex or
 Claude extension and choose the model/settings to test. The helper records no
 credentials; the campaign metadata records only the response-relevant client
-versions and declared settings.
+versions and declared settings. The dedicated profile selects VS Code's
+built-in `Light 2026` theme; no theme extension is installed.
 
 It deliberately separates three phases:
 

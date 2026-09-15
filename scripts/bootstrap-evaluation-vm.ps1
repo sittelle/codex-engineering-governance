@@ -15,6 +15,19 @@ $ErrorActionPreference = 'Stop'
 
 function Fail([string]$Message) { throw "Evaluation VM bootstrap: FAIL - $Message" }
 function Get-Sha256([string]$Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() }
+function Set-TestProfileTheme([string]$ProfilePath) {
+    $userPath = Join-Path $ProfilePath 'User'
+    $settingsPath = Join-Path $userPath 'settings.json'
+    New-Item -ItemType Directory -Path $userPath -Force | Out-Null
+    $settings = [ordered]@{}
+    if (Test-Path -LiteralPath $settingsPath) {
+        try { $existing = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json } catch { Fail 'dedicated VS Code profile settings are not valid JSON' }
+        if ($existing -isnot [pscustomobject]) { Fail 'dedicated VS Code profile settings must be a JSON object' }
+        foreach ($property in $existing.PSObject.Properties) { $settings[$property.Name] = $property.Value }
+    }
+    $settings['workbench.colorTheme'] = 'Light 2026'
+    $settings | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $settingsPath -Encoding utf8
+}
 
 if ($Latest) {
     $winget = Get-Command winget -ErrorAction SilentlyContinue
@@ -41,6 +54,7 @@ if ($Latest) {
         New-Item -ItemType Directory -Path $profilePath | Out-Null
         @{ schema_version = '1'; kind = 'MANUAL_VSCODE_TEST_PROFILE' } | ConvertTo-Json | Set-Content -LiteralPath $marker -Encoding utf8
     }
+    Set-TestProfileTheme $profilePath
     $codeCandidates = @(
         (Get-Command code -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue),
         (Join-Path $env:LOCALAPPDATA 'Programs\Microsoft VS Code\bin\code.cmd'),

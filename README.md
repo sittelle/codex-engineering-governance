@@ -148,8 +148,9 @@ Detailed governance rules remain in this central framework repository. They do n
 
 The framework's own Codex and Claude Code behavioral evidence is collected
 separately from normal project verification. The no-credential manual campaign
-kit for disposable VM/IDE testing, including an optional Windows/Ubuntu
-sequential VS Code conductor with an isolated force-close mode, is documented in
+kit for disposable VM/IDE testing, including a Windows/Ubuntu sequential VS
+Code conductor that reuses a dedicated test window by default and retains an
+isolated force-close mode, is documented in
 [Behavioral campaign operations](docs/behavioral-campaigns.md).
 
 ### Technology Baseline in plain language
