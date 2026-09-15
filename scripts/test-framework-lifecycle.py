@@ -53,6 +53,8 @@ GLOBAL_KERNEL_MARKERS = (
     "Mentioning only deferred verification is incomplete",
     "### Assurance-answer precision",
     "Do not offer working-tree normalization",
+    "### Required local/CI split response checklist",
+    "Do not compress this checklist into a generic statement",
 )
 
 WORKFLOW_COMPLETENESS_MARKERS = {

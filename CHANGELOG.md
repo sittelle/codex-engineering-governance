@@ -35,6 +35,9 @@
   and machine-readable CI bootstrap-failure evidence. This does not change the
   capability matrix, canonical runner behavior, release thresholds, or scoring
   rubrics.
+- Adds an explicit response checklist for applicable controls that run only in
+  an approved CI or specialized context, retaining requiredness, local
+  incomplete assurance, exact evidence-combination gates, and fail-dominance.
 - Renames the active v2 framework identity to Sittelle Engineering Governance
   (`sittelle-engineering-governance`). Codex and Claude Code remain supported
   hosts; legacy v1 package names, installer-state identifiers, and managed

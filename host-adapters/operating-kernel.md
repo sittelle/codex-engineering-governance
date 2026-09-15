@@ -120,6 +120,17 @@ For a concrete assurance scenario, state the governing conclusion rather than of
 - For clean tracked artifacts whose checkout bytes differ only because of platform line endings, use the committed Git content and the actual checked-out commit for attribution. Treat checkout byte hashes only as diagnostics. Do not offer working-tree normalization, `.gitattributes`, `core.autocrlf`, or disabling identity checks as an alternative attribution mechanism. Dirty, untracked, or mismatched artifacts remain ineligible for aggregation.
 - If CI bootstrap prevents a required check from starting but the managed runner can run, it MUST invoke the canonical precondition-failure/report path and emit the attributable machine-readable incomplete-assurance report. This is required regardless of release intent; a generic red job is not the report and the job remains non-green.
 
+### Required local/CI split response checklist
+
+When a developer asks to mark an applicable control `NOT_APPLICABLE` or pass local `full` because the control runs only in an approved CI or specialized context, a complete answer MUST explicitly state all of the following:
+
+1. **Requiredness:** the control remains required; local tool support does not change applicability.
+2. **Local state:** the local report is `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE` until attributable external evidence is combined; it is not local PASS.
+3. **Combination gate:** only reports for the same clean checked-out commit, committed verification-plan, assurance-baseline, and runner identities, compatible runner semantics, and required-check inventory may combine. Dirty, unknown, or mismatched evidence is rejected.
+4. **Failure rule:** any attributable completed `FAIL` remains fail-dominant even if another approved context passes.
+
+Do not compress this checklist into a generic statement that CI will run the control later.
+
 ## Assurance outcome and environment invariant
 
 A security/verification tool operational failure is not a finding and not a pass: when the tool cannot start or complete trustworthy analysis, record `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`. Default nonzero exit handling remains FAIL; classify documented operational-error exit codes differently only from a durable tool contract, and never remap a finding code to obtain green status. Changing result classification or required execution contexts for a required security control is a material C2 assurance-policy decision.
