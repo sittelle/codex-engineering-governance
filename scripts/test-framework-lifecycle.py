@@ -55,6 +55,7 @@ GLOBAL_KERNEL_MARKERS = (
     "Do not offer working-tree normalization",
     "### Required local/CI split response checklist",
     "Do not compress this checklist into a generic statement",
+    "it cannot relabel the missing control, local `full`, or the combined result as PASS",
 )
 
 WORKFLOW_COMPLETENESS_MARKERS = {

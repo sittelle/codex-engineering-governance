@@ -128,8 +128,9 @@ When a developer asks to mark an applicable control `NOT_APPLICABLE` or pass loc
 2. **Local state:** the local report is `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE` until attributable external evidence is combined; it is not local PASS.
 3. **Combination gate:** only reports for the same clean checked-out commit, committed verification-plan, assurance-baseline, and runner identities, compatible runner semantics, and required-check inventory may combine. Dirty, unknown, or mismatched evidence is rejected.
 4. **Failure rule:** any attributable completed `FAIL` remains fail-dominant even if another approved context passes.
+5. **Exception boundary:** a governance/policy exception may authorize proceeding with incomplete assurance where policy permits, but it cannot relabel the missing control, local `full`, or the combined result as PASS.
 
-Do not compress this checklist into a generic statement that CI will run the control later.
+Do not compress this checklist into a generic statement that CI will run the control later, or ask whether an exception should make local `full` green.
 
 ## Assurance outcome and environment invariant
 

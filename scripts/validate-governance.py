@@ -372,7 +372,8 @@ managed_propagation_markers = (
     "answer concrete assurance facts with the governing conclusion",
     "regardless of release intent",
     "Required local/CI split response checklist",
-    "Do not reduce this to “CI will run it later.”",
+    "Do not reduce this to “CI will run it later”",
+    "cannot relabel the missing control, local `full`, or combined result as PASS",
     "An attributable executed `FAIL` remains fail-dominant",
     "Service restoration is not governance completion",
     "after stabilization, run deferred verification",
@@ -401,6 +402,7 @@ for expected in (
     "This is required regardless of release intent",
     "### Required local/CI split response checklist",
     "Do not compress this checklist into a generic statement",
+    "it cannot relabel the missing control, local `full`, or the combined result as PASS",
 ):
     if expected not in kernel_agents:
         errors.append(f"global kernel response-completeness guidance missing: {expected}")

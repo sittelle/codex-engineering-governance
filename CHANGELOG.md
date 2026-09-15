@@ -38,6 +38,9 @@
 - Adds an explicit response checklist for applicable controls that run only in
   an approved CI or specialized context, retaining requiredness, local
   incomplete assurance, exact evidence-combination gates, and fail-dominance.
+- Clarifies that a governance/policy exception may authorize proceeding with
+  incomplete assurance but cannot relabel required-control nonexecution or a
+  local/combined result as PASS.
 - Renames the active v2 framework identity to Sittelle Engineering Governance
   (`sittelle-engineering-governance`). Codex and Claude Code remain supported
   hosts; legacy v1 package names, installer-state identifiers, and managed
