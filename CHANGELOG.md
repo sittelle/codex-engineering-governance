@@ -8,6 +8,9 @@
 - Makes the manual conductor announce VS Code startup/workspace switching,
   use explicit folder URIs for cross-platform workspace selection, and advance
   immediately after a clipboard-confirmed response is saved.
+- Fixes Wayland prompt copying so `wl-copy` owns the prompt asynchronously
+  instead of blocking the conductor before a workspace switch; Ctrl+C now
+  reports a clean preserved-response stop rather than a Python traceback.
 
 - Introduces native governance adapters for Codex and Claude Code.
 - Replaces the legacy host/project PowerShell and shell management entrypoints with the single Python `governance.py` interface.

@@ -578,12 +578,19 @@ def copy_prompt_to_clipboard(prompt: str) -> subprocess.Popen[str] | None:
             raise Error("could not place the challenge prompt on the Windows clipboard")
         return None
     if system == "Linux" and shutil.which("wl-copy"):
-        result = subprocess.run(
-            ["wl-copy"], input=prompt, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False,
-        )
-        if result.returncode:
-            raise Error("wl-copy could not place the challenge prompt on the clipboard")
-        return None
+        try:
+            owner = subprocess.Popen(
+                ["wl-copy", "--paste-once"],
+                stdin=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+            )
+            assert owner.stdin is not None
+            owner.stdin.write(prompt)
+            owner.stdin.close()
+            return owner
+        except OSError as exc:
+            raise Error("wl-copy could not place the challenge prompt on the clipboard") from exc
     if system == "Linux" and shutil.which("xclip"):
         try:
             owner = subprocess.Popen(
@@ -919,3 +926,6 @@ if __name__ == "__main__":
     except Error as exc:
         print(f"Manual behavioral campaign: FAIL - {exc}", file=sys.stderr)
         raise SystemExit(1)
+    except KeyboardInterrupt:
+        print("Manual conduction stopped by operator; existing captured responses were preserved.", file=sys.stderr)
+        raise SystemExit(130)
