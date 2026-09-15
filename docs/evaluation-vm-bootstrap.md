@@ -14,9 +14,9 @@ discoverable, and the declared Codex/Claude model and runtime settings.
 ## Latest disposable-VM route
 
 On a clean Windows 11 VM, run the PowerShell helper. On an Ubuntu Desktop VM,
-run the Python helper. Both commands first display the plan and require the
-exact `APPLY-LATEST-VM-BOOTSTRAP` confirmation before changing the VM. They
-install current Python/VS Code prerequisites, current selected VS Code
+run the Python helper. Both commands first display the plan; re-running with
+`-Apply` or `--apply` is the explicit authorization to change the disposable
+VM. They install current Python/VS Code prerequisites, the selected VS Code
 extensions, local clipboard support on Ubuntu, and the selected framework host
 adapter. They do not sign in to either AI service.
 

@@ -257,13 +257,14 @@ def latest_linux(host: str, profile: Path) -> None:
 
 def latest_plan(host: str) -> None:
     target = current_platform()
+    selected_host = "Codex and Claude" if host == "all" else host.capitalize()
     print(f"Latest evaluation VM plan: {target}; host={host}")
     if target == "Windows":
-        print("- install latest Python and VS Code through Windows winget")
+        print("- ensure current Python and VS Code are available through Windows winget")
     else:
-        print("- install current Ubuntu packages: python3, python3-venv, wl-clipboard, xclip")
-        print("- install latest VS Code through snap")
-    print("- install latest selected Codex/Claude VS Code extension into a dedicated test profile")
+        print("- ensure current Ubuntu packages: python3, python3-venv, wl-clipboard, xclip")
+        print("- install latest VS Code through snap only when it is unavailable")
+    print(f"- install the selected {selected_host} VS Code extension into a dedicated test profile")
     print("- configure the selected framework host adapter")
     print("- account sign-in, model selection, and licence acceptance remain interactive")
 
@@ -333,8 +334,6 @@ def main() -> int:
             return 0
         if current_platform() == "Windows":
             raise Error("run scripts/bootstrap-evaluation-vm.ps1 -Latest -Apply on Windows so Python can be installed first")
-        if input("Type APPLY-LATEST-VM-BOOTSTRAP to install current VM prerequisites: ").strip() != "APPLY-LATEST-VM-BOOTSTRAP":
-            raise Error("installation confirmation did not match")
         latest_linux(args.host, args.vscode_user_data_dir)
         return 0
     target = current_platform()

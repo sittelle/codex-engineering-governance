@@ -2,6 +2,10 @@
 
 ## 2.0.0-rc.1 ? Native Multi-Host Governance Candidate
 
+- Makes `-Apply` / `--apply` the sole explicit authorization for the
+  current-release disposable-VM bootstrap route. The separate checksum-locked
+  artifact-install route retains its additional typed confirmation.
+
 - Introduces native governance adapters for Codex and Claude Code.
 - Replaces the legacy host/project PowerShell and shell management entrypoints with the single Python `governance.py` interface.
 - Makes host-adapter installation independent of whether the corresponding agent executable is installed.

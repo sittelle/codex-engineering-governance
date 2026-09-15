@@ -33,12 +33,12 @@ if ($Latest) {
     $winget = Get-Command winget -ErrorAction SilentlyContinue
     if (-not $winget) { Fail 'latest Windows bootstrap requires winget' }
     Write-Host "Latest Windows evaluation VM plan; host=$AgentHost"
-    Write-Host '- install current Python and VS Code through winget'
-    Write-Host '- install current selected Codex/Claude VS Code extensions into a dedicated test profile'
+    Write-Host '- ensure current Python and VS Code are available through winget'
+    $selectedHost = if ($AgentHost -eq 'all') { 'Codex and Claude' } elseif ($AgentHost -eq 'codex') { 'Codex' } else { 'Claude' }
+    Write-Host "- install the selected $selectedHost VS Code extension into a dedicated test profile"
     Write-Host '- configure the selected framework host adapter'
     Write-Host '- account sign-in, model choice, and licence acceptance remain interactive'
     if (-not $Apply) { Write-Host 'DRY RUN ONLY. Re-run with -Apply after reviewing the plan.'; exit 0 }
-    if ((Read-Host 'Type APPLY-LATEST-VM-BOOTSTRAP to install current VM prerequisites') -ne 'APPLY-LATEST-VM-BOOTSTRAP') { Fail 'installation confirmation did not match' }
     & $winget.Source install --exact --id Python.Python.3.14
     if ($LASTEXITCODE -ne 0) { Fail 'latest Python installation failed' }
     & $winget.Source install --exact --id Microsoft.VisualStudioCode
