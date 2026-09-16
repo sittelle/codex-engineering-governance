@@ -41,8 +41,10 @@
   they must be reassessed if the distribution channel or factual triggers
   change. Provenance is supplied by the exact commit, deterministic artifact
   digest, and attributable cross-platform canonical evidence above.
-- Decision: `READY` for release preparation.
+- Decision: `READY`.
 - Decision authority/reference: developer-approved RC7 release-readiness
-  evaluation on 2026-09-16. Git tag creation, artifact upload, and public
-  publication remain separate consequential actions requiring explicit
-  authorization.
+  evaluation and explicit prerelease-publication authorization on 2026-09-16.
+- Publication: GitHub prerelease
+  [`v2.0.0-rc.7`](https://github.com/sittelle/codex-engineering-governance/releases/tag/v2.0.0-rc.7)
+  published with the ZIP and SHA-256 sidecar above. The annotated tag derefers
+  to the exact source commit recorded in this document.
