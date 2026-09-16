@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.0 — Stable Release Preparation
+
+- Promotes the accepted 2.0.0-rc.7 source to the stable-version candidate.
+- Changes only framework, template, managed-adapter lifecycle, and evaluation
+  metadata version identifiers; no behavioral instruction, prompt, scoring,
+  context-generation, profile-setup, or selected-integration behavior changes.
+
 ## 2.0.0-rc.7 — Windows VS Code Metadata Probe Correction
 
 - Stops Windows evaluation metadata and preflight from invoking the VS Code

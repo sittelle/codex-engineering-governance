@@ -1,6 +1,6 @@
 # Operating Contract
 
-Version 2.0.0-rc.7.
+Version 2.0.0.
 
 ## Roles
 
