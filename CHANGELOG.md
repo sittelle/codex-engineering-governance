@@ -6,6 +6,9 @@
 - Changes only framework, template, managed-adapter lifecycle, and evaluation
   metadata version identifiers; no behavioral instruction, prompt, scoring,
   context-generation, profile-setup, or selected-integration behavior changes.
+- Updates user-facing v2 installation, v1-to-v2 migration, package-trust,
+  supported-version, and stable-release-policy wording. These documentation
+  changes do not alter framework behavior or the behavioral-evaluation surface.
 
 ## 2.0.0-rc.7 — Windows VS Code Metadata Probe Correction
 

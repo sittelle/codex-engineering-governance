@@ -1,10 +1,12 @@
 # Sittelle Engineering Governance
 
-> **Latest stable release: v1.0.0**
+> **Latest stable release: v2.0.0**
 >
-> **Current development candidate: v2.0.0-rc.1 (unpublished)**
+> **Publication status: stable-release candidate; public tag and package are pending.**
 >
-> The `master` branch may contain unreleased documentation or framework-development changes. For normal installation, use a published stable release.
+> Until v2.0.0 is published, use the currently published v1.0.0 release for
+> ordinary installation. The `master` branch may contain unreleased
+> framework-development changes.
 
 Sittelle Engineering Governance is a practical engineering-governance framework for people who build software with coding agents such as Codex and Claude Code.
 
@@ -198,7 +200,9 @@ The principle is:
 
 ## Local setup
 
-> **Unreleased master interface:** the commands below describe the current 2.0 development line on `master` / feature branches. The latest stable release remains v1.0.0; when installing v1.0.0, follow the README bundled with that release.
+> **v2.0 interface:** the commands below describe v2.0.0. Until its public
+> release is published, use the README bundled with the published v1.0.0
+> package for ordinary v1 installation.
 
 The current setup has one management entry point:
 
@@ -283,6 +287,53 @@ For Codex, the default user adapter location is `~/.codex`. For Claude Code, it 
 The Claude adapter uses a user `CLAUDE.md` and an exact `permissions.allow` `Read(...)` rule for the central governance root. It does not add the governance root as a broadly editable additional working directory.
 
 After installing or updating a host adapter, start a fresh coding-agent session.
+
+### Upgrading an existing v1 installation to v2
+
+Use a clean copy of the v2 framework in its intended permanent location. Do
+not overwrite the old framework directory in place: the host adapter records
+the absolute path of the framework it should load.
+
+First inspect the existing adapter state:
+
+```text
+python governance.py host status
+```
+
+For a provable legacy Codex installation, update the managed adapter from the
+new v2 framework root:
+
+```text
+python governance.py host update --host codex
+python governance.py host verify --host codex
+```
+
+`host update` recognizes the byte-identical legacy Codex adapter and migrates
+it to the v2 ownership model. It replaces only the framework-managed content
+and locator. If it reports an untracked, modified, or otherwise ambiguous
+managed block, stop for manual review; do not delete the file merely to make
+the command succeed.
+
+Claude Code is a native v2 adapter. Install it when you want Claude Code to
+use the framework:
+
+```text
+python governance.py host install --host claude
+python governance.py host verify --host claude
+```
+
+Then update each existing governed project from the same v2 framework root:
+
+```text
+python governance.py project update --project /path/to/project
+python governance.py project verify --project /path/to/project
+```
+
+The project updater requires a clean Git worktree, creates backups before it
+changes governance-owned files, preserves project-specific instructions and
+established Technology Baseline state, and marks missing historical baseline
+state for reconciliation instead of inventing an approval. Start a fresh
+Codex or Claude Code session after the upgrade.
 
 ### 2. Create a new governed project
 
@@ -375,10 +426,13 @@ Windows may attach Internet-zone metadata (Mark-of-the-Web) to a downloaded ZIP 
 
 Treat this as a package-trust decision, not as permission to bypass PowerShell policy.
 
-For the current v1.0.0 release, first verify `codex-engineering-governance-v1.0.0.zip` against its published SHA-256 as described above. After that verification, unblock the **verified archive before extraction**:
+For v2.0.0, first verify
+`sittelle-engineering-governance-v2.0.0.zip` against its published SHA-256 as
+described above. After that verification, unblock the **verified archive
+before extraction**:
 
 ```powershell
-Unblock-File .\codex-engineering-governance-v1.0.0.zip
+Unblock-File .\sittelle-engineering-governance-v2.0.0.zip
 ```
 
 Then extract it normally and run the framework scripts without an execution-policy bypass.

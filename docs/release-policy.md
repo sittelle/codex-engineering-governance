@@ -1,6 +1,7 @@
 # Stable Release and Compatibility Policy
 
-This policy applies to the public stable release line beginning with `1.0.0`.
+This policy applies to every public stable release line, beginning with
+`1.0.0` and continuing through the v2 distribution line.
 
 ## Versioning and compatibility
 
@@ -34,13 +35,15 @@ Package validation/application remains the responsibility of the existing reposi
 For the current framework facts and ZIP publication model:
 
 - **SBOM:** not required while the distributed artifact contains no committed third-party runtime/build/development dependency graph or distributable third-party components. Reassess before release if that fact changes.
-- **Cryptographic release signing:** not required for the 1.0 baseline.
+- **Cryptographic release signing:** not currently required for the documented
+  ZIP publication model. Reassess before release if the channel, artifact
+  contents, or risk profile changes.
 - **Provenance:** exact Git commit/tag identity, deterministic package production, retained SHA-256, and attributable exact-commit verification evidence are required. Stronger signed provenance must be reassessed if the publication channel or risk profile later requires it.
 
 These are applicability decisions, not permission to mark a required control PASS when it did not execute.
 
 ## Release topology and publication authority
 
-Stable release tags must identify an evidence-bearing commit reachable from the repository's canonical/default branch. The public 1.0 lineage may begin from the accepted sanitized 1.0 baseline; the private pre-1.0 development history is not part of the public compatibility contract.
+Stable release tags must identify an evidence-bearing commit reachable from the repository's canonical/default branch. The public history begins from the accepted sanitized 1.0 baseline; the private pre-1.0 development history is not part of the public compatibility contract. Later stable lines, including v2, retain the same source, evidence, artifact-binding, and explicit-publication requirements.
 
 Technical readiness, tagging, and publication are separate decisions. No GitHub Release, visibility change, artifact upload, deployment, or other consequential publication occurs without explicit developer authorization.

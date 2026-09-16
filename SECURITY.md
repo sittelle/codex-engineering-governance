@@ -8,11 +8,14 @@ Do not place exploit details, real credentials, private keys, tokens, or sensiti
 
 ## Supported versions
 
-Before `1.0.0` is released, only the latest `1.0.0-rc.*` candidate under active evaluation is considered for security corrections.
+The latest published stable release is the supported public baseline. Older
+stable releases may receive fixes at maintainer discretion; this project does
+not promise a fixed support window or response-time SLA.
 
-After `1.0.0`, the latest stable release is the supported public baseline. Older releases may receive fixes at maintainer discretion; this project does not promise a fixed support window or response-time SLA.
-
-The private pre-1.0 development line is not a supported public release line.
+An actively evaluated release candidate may receive security corrections, but
+does not carry the stable compatibility guarantee until it is published as a
+stable release. Development branches and historical pre-release candidates are
+not supported public release lines.
 
 ## Scope
 
