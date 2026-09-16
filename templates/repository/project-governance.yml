@@ -1,5 +1,5 @@
 governance:
-  baseline: "2.0.0-rc.3"
+  baseline: "2.0.0-rc.4"
   source: "host-adapter-locator"
   locator: "GOVERNANCE_ROOT"
 

@@ -31,7 +31,9 @@ The collector records only the following response-relevant facts.
 ### Source and campaign
 
 - framework version, clean Git commit and tree when Git is available, or a
-  portable byte-for-byte source binding when it is not;
+  deterministic portable source-tree fingerprint when it is not. The portable
+  fingerprint includes every source file supplied to the host and excludes
+  Git administration and interpreter bytecode only;
 - evaluation protocol and rendered-prompt/scenario identities;
 - response capture method, campaign timestamp, response checksums, and a
   fresh-chat-per-challenge operator declaration when supplied;
@@ -80,12 +82,14 @@ applicable source and must never be reported as clean.
 The detector directly examines the managed host adapter, host-home
 instruction/rule/skill/plugin/settings locations, the dedicated VS Code
 test-profile settings, and the generated global/governed/framework contexts.
-For Codex it also traverses the applicable `AGENTS.md` ancestor chain and
-checks the documented local project surfaces for configuration, rules, skills,
-plugins, MCP, hooks, and commands. Codex categories with no local evaluation
-surface are `NOT_APPLICABLE`, not `UNKNOWN`. A filesystem read/parse failure is
-`UNKNOWN`. This makes a clean isolated Codex home observable rather than
-mistaking missing detector coverage for a host influence.
+For Codex it traverses the applicable `AGENTS.md` ancestor chain and checks the
+documented local project surfaces for configuration, rules, skills, plugins,
+MCP, hooks, and commands. For Claude Code it traverses the applicable
+`CLAUDE.md` and `CLAUDE.local.md` ancestor chain; checks project `.claude` and
+`.mcp.json` surfaces; and checks user agents, commands, output styles, MCP,
+auto-memory, and managed-policy surfaces. A filesystem read/parse failure is
+`UNKNOWN`. This makes a clean isolated host observable rather than mistaking
+missing detector coverage for a host influence.
 
 For example, Claude Code can load user, project, local, ancestor, rules, and
 automatic-memory material. The v2 detector therefore audits those categories

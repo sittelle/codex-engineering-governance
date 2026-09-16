@@ -62,18 +62,48 @@ def run(argv: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess
     return subprocess.run(argv, cwd=cwd, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False)
 
 
-def source_state() -> dict:
-    head = run(["git", "rev-parse", "HEAD"], ROOT)
-    tree = run(["git", "rev-parse", "HEAD^{tree}"], ROOT)
-    status = run(["git", "status", "--porcelain=v1", "--untracked-files=all"], ROOT)
+def portable_source_fingerprint(directory: Path) -> str:
+    """Bind a transferred source tree without retaining its local location.
+
+    Python bytecode and Git administration are execution artifacts, not source
+    supplied to the evaluated host. Everything else is included so an unpacked
+    release source has a stable byte-level identity on a no-Git VM.
+    """
+    entries: list[bytes] = []
+    for path in sorted(directory.rglob("*"), key=lambda item: item.as_posix()):
+        relative_path = path.relative_to(directory)
+        if ".git" in relative_path.parts or "__pycache__" in relative_path.parts:
+            continue
+        if path.is_dir():
+            continue
+        if path.suffix in {".pyc", ".pyo"}:
+            continue
+        if path.is_symlink() or not path.is_file():
+            raise Error("framework source contains a non-regular file")
+        relative = relative_path.as_posix().encode("utf-8")
+        entries.append(relative + b"\0" + file_sha(path).encode("ascii") + b"\n")
+    return sha(b"".join(entries))
+
+
+def source_state(root: Path = ROOT) -> dict:
+    head = run(["git", "rev-parse", "HEAD"], root)
+    tree = run(["git", "rev-parse", "HEAD^{tree}"], root)
+    status = run(["git", "status", "--porcelain=v1", "--untracked-files=all"], root)
     if head.returncode or tree.returncode or status.returncode:
-        return {"binding": "UNBOUND_MANUAL", "git_commit": None, "git_tree": None, "git_clean": None}
+        return {
+            "binding": "PORTABLE_TREE_BOUND",
+            "git_commit": None,
+            "git_tree": None,
+            "git_clean": None,
+            "portable_tree_sha256": portable_source_fingerprint(root),
+        }
     clean = not status.stdout.strip()
     return {
         "binding": "COMMIT_BOUND" if clean else "DIRTY_MANUAL_ONLY",
         "git_commit": head.stdout.strip(),
         "git_tree": tree.stdout.strip(),
         "git_clean": clean,
+        "portable_tree_sha256": None,
     }
 
 
@@ -98,9 +128,26 @@ def context_identities(contexts: Path, source: dict) -> dict[str, dict[str, str 
         "GOVERNED_REPOSITORY": {"kind": "GENERATED_GOVERNED_CONTEXT", "content_sha256": directory_fingerprint(governed_context)},
         "GOVERNANCE_FRAMEWORK_REPOSITORY": {
             "kind": "FRAMEWORK_SOURCE",
-            "content_sha256": source.get("git_tree"),
+            "content_sha256": source.get("git_tree") or source.get("portable_tree_sha256"),
         },
     }
+
+
+def source_identity_check(source: dict, current_source: dict) -> tuple[str, str]:
+    git_bound = source.get("binding") == "COMMIT_BOUND" and current_source.get("binding") == "COMMIT_BOUND"
+    portable_bound = source.get("binding") == "PORTABLE_TREE_BOUND" and current_source.get("binding") == "PORTABLE_TREE_BOUND"
+    source_same = (
+        (git_bound and source.get("git_commit") == current_source.get("git_commit") and source.get("git_tree") == current_source.get("git_tree"))
+        or (portable_bound and source.get("portable_tree_sha256") == current_source.get("portable_tree_sha256"))
+    )
+    result = "PASS" if source_same else ("INCOMPLETE" if source.get("binding") == "UNBOUND_MANUAL" else "FAIL")
+    detail = (
+        "prepared clean Git source identity matches the current clean framework source" if git_bound and source_same
+        else "prepared portable source-tree identity matches the current framework source" if portable_bound and source_same
+        else "prepared and current source identities match but are not a verifiable source binding" if result == "INCOMPLETE"
+        else "prepared source identity does not match the current framework source"
+    )
+    return result, detail
 
 
 def rendered_prompt(scenario: str) -> str:
@@ -425,8 +472,32 @@ def tool_probe(argv: list[str]) -> dict[str, object]:
     return {"state": "AVAILABLE", "version": first_line[:300], "lines": lines[:10]}
 
 
+def vscode_cli_command() -> str | None:
+    """Find the VS Code CLI without persisting its machine-local location."""
+    resolved = shutil.which("code")
+    if resolved:
+        return resolved
+    if platform.system() != "Windows":
+        return None
+    roots = [os.environ.get("LOCALAPPDATA"), os.environ.get("ProgramFiles"), os.environ.get("ProgramW6432")]
+    candidates = [
+        Path(root) / "Programs" / "Microsoft VS Code" / "bin" / "code.cmd"
+        for root in roots if root
+    ] + [
+        Path(root) / "Microsoft VS Code" / "bin" / "code.cmd"
+        for root in roots if root
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
 def vscode_extensions_probe(vscode_profile: Path | None) -> dict[str, object]:
-    command = ["code"]
+    executable = vscode_cli_command()
+    if executable is None:
+        return {"state": "NOT_FOUND"}
+    command = [executable]
     if vscode_profile is not None:
         command.extend(["--user-data-dir", str(vscode_profile), "--extensions-dir", str(vscode_profile / "extensions")])
     command.extend(["--list-extensions", "--show-versions"])
@@ -450,6 +521,13 @@ def safe_state(path: Path) -> str:
         return "ABSENT"
     if path.is_symlink() or not (path.is_file() or path.is_dir()):
         return "UNKNOWN"
+    if path.is_dir():
+        try:
+            for child in path.rglob("*"):
+                if child.is_symlink() or not (child.is_file() or child.is_dir()):
+                    return "UNKNOWN"
+        except OSError:
+            return "UNKNOWN"
     return "DECLARED_INFLUENCE"
 
 
@@ -500,43 +578,71 @@ def context_influence_audit(campaign: Path, host: str) -> dict[str, str]:
     framework_context = ROOT
     if host == "codex":
         return codex_context_influence_audit(campaign, global_context, governed_context, framework_context)
+    return claude_context_influence_audit(global_context, governed_context, framework_context)
 
-    instruction_names = ("AGENTS.md", "CLAUDE.md", "CLAUDE.local.md")
-    host_dirs = (".claude", ".codex", ".agents")
 
-    global_entries = [global_context / name for name in instruction_names + host_dirs]
-    global_state = "DECLARED_INFLUENCE" if any(safe_state(path) != "ABSENT" for path in global_entries) else "ABSENT"
+def aggregate_influence_state(paths: tuple[Path, ...]) -> str:
+    states = [safe_state(path) for path in paths]
+    if "UNKNOWN" in states:
+        return "UNKNOWN"
+    return "DECLARED_INFLUENCE" if "DECLARED_INFLUENCE" in states else "ABSENT"
 
-    governed_expected = {
-        "AGENTS.md", "CLAUDE.md", "project-governance.yml", "verification-plan.json",
-        ".editorconfig", ".gitignore", "docs", "src", "tests",
-    }
-    governed_extra = [path for path in governed_context.iterdir() if path.name not in governed_expected]
-    governed_state = "DECLARED_INFLUENCE" if any(safe_state(path) != "ABSENT" for path in governed_extra) else "EXPECTED_MANAGED"
 
-    framework_extra = [framework_context / name for name in ("CLAUDE.local.md", ".claude", ".codex", ".agents")]
-    framework_state = "DECLARED_INFLUENCE" if any(safe_state(path) != "ABSENT" for path in framework_extra) else "EXPECTED_MANAGED"
+def claude_context_influence_audit(
+    global_context: Path,
+    governed_context: Path,
+    framework_context: Path,
+) -> dict[str, str]:
+    """Audit documented Claude local/ancestor context surfaces for a clean VM."""
+    instruction_names = ("CLAUDE.md", "CLAUDE.local.md")
+    project_surface = (".claude", ".mcp.json")
+    contexts = (
+        (global_context, False),
+        (governed_context, True),
+        (framework_context, True),
+    )
 
-    # Ancestor instruction discovery differs between hosts and editor releases.
-    # We detect known files, but do not claim a clean baseline if traversal is
-    # not covered by this detector.
-    known_ancestor = False
-    for start in (global_context, governed_context):
-        for parent in start.parents:
-            if parent == ROOT.parent:
+    global_state = aggregate_influence_state(tuple(global_context / name for name in instruction_names + project_surface))
+    governed_state = (
+        "EXPECTED_MANAGED"
+        if (governed_context / "CLAUDE.md").is_file()
+        else "UNKNOWN"
+    )
+    framework_state = (
+        "EXPECTED_MANAGED"
+        if (framework_context / "CLAUDE.md").is_file()
+        else "UNKNOWN"
+    )
+
+    ancestor_states: list[str] = []
+    for context, has_expected_root_instruction in contexts:
+        current = context
+        first = True
+        while True:
+            for name in instruction_names:
+                path = current / name
+                expected = first and has_expected_root_instruction and name in {"AGENTS.md", "CLAUDE.md"}
+                if expected:
+                    continue
+                ancestor_states.append(safe_state(path))
+            if current.parent == current:
                 break
-            if any((parent / name).is_file() for name in instruction_names):
-                known_ancestor = True
-                break
-        if known_ancestor:
-            break
+            current = current.parent
+            first = False
 
+    project_state = aggregate_influence_state(tuple(
+        context / relative for context, _ in contexts for relative in project_surface
+    ))
     return {
         "global_context_instruction": global_state,
         "governed_context_managed_files": governed_state,
         "framework_context_managed_files": framework_state,
-        "known_ancestor_instruction": "DECLARED_INFLUENCE" if known_ancestor else "UNKNOWN",
-        "project_rules_workflows_skills_hooks_commands_mcp": "UNKNOWN",
+        "known_ancestor_instruction": (
+            "UNKNOWN" if "UNKNOWN" in ancestor_states
+            else "DECLARED_INFLUENCE" if "DECLARED_INFLUENCE" in ancestor_states
+            else "ABSENT"
+        ),
+        "project_rules_workflows_skills_hooks_commands_mcp": project_state,
     }
 
 
@@ -593,6 +699,24 @@ def codex_context_influence_audit(
     }
 
 
+def claude_memory_state(home: Path) -> str:
+    """Report only persisted Claude auto-memory, not unrelated local history."""
+    projects = home / "projects"
+    if not projects.exists():
+        return "ABSENT"
+    if projects.is_symlink() or not projects.is_dir():
+        return "UNKNOWN"
+    try:
+        for child in projects.rglob("*"):
+            if child.is_symlink() or not (child.is_file() or child.is_dir()):
+                return "UNKNOWN"
+            if child.is_file() and "memory" in child.relative_to(projects).parts:
+                return "DECLARED_INFLUENCE"
+    except OSError:
+        return "UNKNOWN"
+    return "ABSENT"
+
+
 def host_influence_audit(host: str, campaign: Path, vscode_profile: Path | None) -> dict[str, object]:
     """Report response-influence categories, never settings or rule contents."""
     home = Path(os.environ.get("CODEX_HOME" if host == "codex" else "CLAUDE_CONFIG_DIR", Path.home() / (".codex" if host == "codex" else ".claude")))
@@ -616,11 +740,21 @@ def host_influence_audit(host: str, campaign: Path, vscode_profile: Path | None)
         "editor_profile_settings": clean_test_profile_state(vscode_profile),
     }
     if host == "claude":
-        categories["automatic_memory"] = safe_state(home / "projects")
+        categories["automatic_memory"] = claude_memory_state(home)
+        categories["user_agents_commands_output_styles"] = aggregate_influence_state((
+            home / "agents", home / "commands", home / "output-styles",
+        ))
+        categories["user_mcp"] = safe_state(Path.home() / ".claude.json")
         if platform.system() == "Windows":
-            categories["organization_instruction_or_policy"] = safe_state(Path(os.environ.get("ProgramData", "C:/ProgramData")) / "ClaudeCode" / "CLAUDE.md")
+            program_files = os.environ.get("ProgramW6432") or os.environ.get("ProgramFiles", "C:/Program Files")
+            categories["organization_instruction_or_policy"] = aggregate_influence_state((
+                Path(program_files) / "ClaudeCode" / "CLAUDE.md",
+                Path(os.environ.get("ProgramData", "C:/ProgramData")) / "ClaudeCode" / "managed-settings.json",
+            ))
         else:
-            categories["organization_instruction_or_policy"] = safe_state(Path("/etc/claude-code/CLAUDE.md"))
+            categories["organization_instruction_or_policy"] = aggregate_influence_state((
+                Path("/etc/claude-code/CLAUDE.md"), Path("/etc/claude-code/managed-settings.json"),
+            ))
     else:
         categories["user_plugins"] = safe_state(home / "plugins")
         categories["automatic_memory"] = "NOT_APPLICABLE"
@@ -727,27 +861,21 @@ def preflight_report(
     actual_contexts = context_identities(campaign / "contexts", current_source)
     contexts_match = expected_contexts == actual_contexts
     host_verify = run([sys.executable, str(ROOT / "governance.py"), "host", "verify", "--host", host], ROOT)
-    editor = tool_probe(["code", "--version"])
+    vscode = vscode_cli_command()
+    editor = tool_probe([vscode, "--version"]) if vscode else {"state": "NOT_FOUND"}
     extensions = vscode_extensions_probe(profile)
     extension_id = {"codex": "openai.chatgpt", "claude": "anthropic.claude-code"}[host]
     integrations = [
         item for item in extensions.get("extensions", [])
         if item["id"] == extension_id
     ] if extensions.get("state") == "AVAILABLE" else []
-    source_same = (
-        source.get("git_commit") == current_source.get("git_commit")
-        and source.get("git_tree") == current_source.get("git_tree")
-    )
-    source_result = (
-        "PASS" if source_same and source.get("binding") == "COMMIT_BOUND" and current_source.get("binding") == "COMMIT_BOUND"
-        else ("INCOMPLETE" if source_same else "FAIL")
-    )
+    source_result, source_detail = source_identity_check(source, current_source)
     audit = host_influence_audit(host, campaign, profile)
     checks = [
         {
             "id": "campaign_source_identity",
             "result": source_result,
-            "detail": "prepared clean source identity matches the current clean framework source" if source_result == "PASS" else ("prepared and current source identities match but are not clean Git-bound evidence" if source_result == "INCOMPLETE" else "prepared source identity does not match the current framework source"),
+            "detail": source_detail,
         },
         {
             "id": "campaign_context_identity",
@@ -994,6 +1122,8 @@ def choose_close_mode(value: str | None, dry_run: bool) -> str:
 
 def resolve_vscode_command(value: str) -> str:
     resolved = shutil.which(value)
+    if not resolved and value == "code":
+        resolved = vscode_cli_command()
     if not resolved:
         candidate = Path(value).expanduser()
         if candidate.is_file():
@@ -1271,6 +1401,14 @@ def self_test() -> int:
         if any(EVALUATION_PROTOCOL["prompt_rule"] not in row["prompt"] for row in rows):
             raise Error("protocol-v2 prompt rule is missing")
         with tempfile.TemporaryDirectory() as temp:
+            portable_source = Path(temp) / "portable-source"
+            portable_source.mkdir()
+            (portable_source / "VERSION").write_text("test\n", encoding="utf-8")
+            portable_state = source_state(portable_source)
+            if portable_state.get("binding") != "PORTABLE_TREE_BOUND" or not portable_state.get("portable_tree_sha256"):
+                raise Error("portable no-Git source binding was not created")
+            if source_identity_check(portable_state, source_state(portable_source))[0] != "PASS":
+                raise Error("portable no-Git source identity did not verify")
             audit_campaign = Path(temp) / "audit-campaign"
             audit_global = audit_campaign / "contexts" / "global-kernel"
             audit_governed = audit_campaign / "contexts" / "governed-project"
@@ -1279,7 +1417,9 @@ def self_test() -> int:
             audit_governed.mkdir(parents=True)
             audit_framework.mkdir()
             (audit_governed / "AGENTS.md").write_text("managed\n", encoding="utf-8")
+            (audit_governed / "CLAUDE.md").write_text("managed\n", encoding="utf-8")
             (audit_framework / "AGENTS.md").write_text("managed\n", encoding="utf-8")
+            (audit_framework / "CLAUDE.md").write_text("managed\n", encoding="utf-8")
             clean_audit = codex_context_influence_audit(
                 audit_campaign, audit_global, audit_governed, audit_framework,
             )
@@ -1292,6 +1432,18 @@ def self_test() -> int:
             )
             if changed_audit["project_rules_workflows_skills_hooks_commands_mcp"] != "DECLARED_INFLUENCE":
                 raise Error("Codex project configuration influence was not detected")
+            clean_claude_audit = claude_context_influence_audit(
+                audit_global, audit_governed, audit_framework,
+            )
+            if any(value not in {"ABSENT", "EXPECTED_MANAGED"} for value in clean_claude_audit.values()):
+                raise Error("clean Claude context audit was not inspectable")
+            (audit_governed / ".claude").mkdir()
+            (audit_governed / ".claude" / "settings.json").write_text("{}\n", encoding="utf-8")
+            changed_claude_audit = claude_context_influence_audit(
+                audit_global, audit_governed, audit_framework,
+            )
+            if changed_claude_audit["project_rules_workflows_skills_hooks_commands_mcp"] != "DECLARED_INFLUENCE":
+                raise Error("Claude project configuration influence was not detected")
             destination = Path(temp) / "manual-campaign"
             profile = Path(temp) / "vscode-test-profile"
             prepare(destination, selected_rows(rows, "GOV-001-GOV-002"))
@@ -1365,7 +1517,7 @@ def self_test() -> int:
     print("- generated global/governed/framework context instructions: PASS")
     print("- manual response collection, scoring packet, and response-relevant metadata: PASS")
     print("- pre-capture environment readiness snapshot and evidence binding: PASS")
-    print("- clean Codex context/configuration influence audit: PASS")
+    print("- clean Codex and Claude context/configuration influence audits: PASS")
     print("- sequential-conductor profile isolation and no-overwrite boundaries: PASS")
     print("- evaluation VM bootstrap lock/tamper boundaries: PASS")
     print("- AI calls, API keys, uploads, and Git initialization: NOT USED")

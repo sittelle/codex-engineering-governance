@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0-rc.4 — Portable Claude Evaluation Evidence
+
+- Adds portable source-tree identity for manual campaigns run from a verified
+  source package on a device without Git; Git-bound clean-source identity
+  remains unchanged when Git is available.
+- Makes Windows VS Code discovery resilient when PowerShell can find VS Code
+  but the `code` CLI directory is absent from a child process `PATH`.
+- Makes the Claude Code environment audit inspect known local, project, and
+  ancestor instruction/configuration surfaces so a clean isolated Claude
+  evaluation is observable as `VERIFIED_CLEAN` rather than structurally
+  `UNKNOWN`.
+
 ## 2.0.0-rc.3 — Inspectable Codex Evaluation Environment
 
 - Makes the Codex manual-evaluation audit inspect known ancestor and project

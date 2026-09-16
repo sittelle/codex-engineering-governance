@@ -64,7 +64,8 @@ Read the generated `README.md` in the prepared directory. For every challenge:
 Record the actual host, requested model, IDE/client version, operating system,
 settings such as a Codex reasoning effort, and evaluation protocol v2. Metadata
 v2 additionally records a privacy-safe VS Code extension inventory, context
-fingerprints, source tree identity when available, and the category/state of
+fingerprints, and either clean Git identity or a portable source-tree identity
+for a no-Git transferred package, plus the category/state of
 host influences such as rules, skills, settings, and persistent memory. It
 never copies their contents, paths, credentials, accounts, or chat history.
 A manual result is always bound to those recorded conditions; it does not
@@ -89,9 +90,10 @@ Before it copies the first prompt, the conductor creates an immutable
 source/context identity, managed host adapter, VS Code command, selected host
 integration, dedicated profile (when supplied), and the privacy-safe
 response-influence audit. It prints each result and refuses to copy a prompt
-when source/context/adapter/editor/integration checks fail. A clean source is
-required for a `PASS` source identity; declared or unknown influence categories
-are preserved as scope limitations rather than silently reported as clean.
+when source/context/adapter/editor/integration checks fail. A clean Git source
+or unchanged portable source-tree identity is required for a `PASS` source
+identity; declared or unknown influence categories are preserved as scope
+limitations rather than silently reported as clean.
 
 You can inspect and save that same evidence before opening the conductor:
 
@@ -128,9 +130,10 @@ extension is installed.
 python scripts/manual-behavioral-campaign.py conduct ..\manual-governance-evaluation --host claude --model <selected-model> --client <IDE-and-version> --setting mode=plan --vscode-user-data-dir ..\governance-vscode-test-profile
 ```
 
-Initialize the profile once before the command above. The platform's `code`
-command must be available on `PATH`; use `--vscode-command <executable>` when
-it is not named `code`. The conductor removes VS Code's inherited terminal IPC
+Initialize the profile once before the command above. The helper discovers the
+standard Windows VS Code CLI installation locations when `code` is absent from
+`PATH`; use `--vscode-command <executable>` when VS Code is installed elsewhere.
+The conductor removes VS Code's inherited terminal IPC
 variable when launching so an explicit test-profile command is not redirected
 through the editor that started it. On Ubuntu, it requires `wl-clipboard` for a
 Wayland desktop or `xclip` for an X11 desktop. It never installs either package
