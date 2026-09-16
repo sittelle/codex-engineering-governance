@@ -717,6 +717,35 @@ def claude_memory_state(home: Path) -> str:
     return "ABSENT"
 
 
+def claude_user_mcp_state(home: Path | None = None) -> str:
+    """Inspect only whether user-scoped MCP configuration can affect a response."""
+    path = (home or Path.home()) / ".claude.json"
+    if not path.exists():
+        return "ABSENT"
+    if path.is_symlink() or not path.is_file():
+        return "UNKNOWN"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return "UNKNOWN"
+    if not isinstance(data, dict):
+        return "UNKNOWN"
+
+    def has_nonempty_mcp(value: object) -> bool:
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                normalized = "".join(character for character in key.casefold() if character.isalnum())
+                if normalized == "mcpservers" and bool(nested):
+                    return True
+                if has_nonempty_mcp(nested):
+                    return True
+        elif isinstance(value, list):
+            return any(has_nonempty_mcp(item) for item in value)
+        return False
+
+    return "DECLARED_INFLUENCE" if has_nonempty_mcp(data) else "ABSENT"
+
+
 def host_influence_audit(host: str, campaign: Path, vscode_profile: Path | None) -> dict[str, object]:
     """Report response-influence categories, never settings or rule contents."""
     home = Path(os.environ.get("CODEX_HOME" if host == "codex" else "CLAUDE_CONFIG_DIR", Path.home() / (".codex" if host == "codex" else ".claude")))
@@ -744,7 +773,7 @@ def host_influence_audit(host: str, campaign: Path, vscode_profile: Path | None)
         categories["user_agents_commands_output_styles"] = aggregate_influence_state((
             home / "agents", home / "commands", home / "output-styles",
         ))
-        categories["user_mcp"] = safe_state(Path.home() / ".claude.json")
+        categories["user_mcp"] = claude_user_mcp_state()
         if platform.system() == "Windows":
             program_files = os.environ.get("ProgramW6432") or os.environ.get("ProgramFiles", "C:/Program Files")
             categories["organization_instruction_or_policy"] = aggregate_influence_state((
@@ -1409,6 +1438,16 @@ def self_test() -> int:
                 raise Error("portable no-Git source binding was not created")
             if source_identity_check(portable_state, source_state(portable_source))[0] != "PASS":
                 raise Error("portable no-Git source identity did not verify")
+            mcp_home = Path(temp) / "mcp-home"
+            mcp_home.mkdir()
+            if claude_user_mcp_state(mcp_home) != "ABSENT":
+                raise Error("absent Claude user MCP configuration was not clean")
+            (mcp_home / ".claude.json").write_text("{}\n", encoding="utf-8")
+            if claude_user_mcp_state(mcp_home) != "ABSENT":
+                raise Error("empty Claude user MCP configuration was not clean")
+            (mcp_home / ".claude.json").write_text('{"mcpServers":{"test":{"command":"ignored"}}}\n', encoding="utf-8")
+            if claude_user_mcp_state(mcp_home) != "DECLARED_INFLUENCE":
+                raise Error("Claude user MCP configuration influence was not detected")
             audit_campaign = Path(temp) / "audit-campaign"
             audit_global = audit_campaign / "contexts" / "global-kernel"
             audit_governed = audit_campaign / "contexts" / "governed-project"

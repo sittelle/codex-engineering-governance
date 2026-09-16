@@ -91,6 +91,11 @@ auto-memory, and managed-policy surfaces. A filesystem read/parse failure is
 `UNKNOWN`. This makes a clean isolated host observable rather than mistaking
 missing detector coverage for a host influence.
 
+The Claude user-level JSON file can contain authentication or application state
+as well as MCP data. The audit parses it only to decide whether a non-empty MCP
+configuration is present; it records neither keys nor values, and it does not
+label unrelated state as a response influence.
+
 For example, Claude Code can load user, project, local, ancestor, rules, and
 automatic-memory material. The v2 detector therefore audits those categories
 without copying their contents. The host-specific detector inventory is

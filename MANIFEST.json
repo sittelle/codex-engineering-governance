@@ -1,7 +1,7 @@
 {
-  "version": "2.0.0-rc.4",
+  "version": "2.0.0-rc.5",
   "status": "RELEASE_CANDIDATE",
-  "scope": "2.0 release-candidate behavioural-evidence refinement: native Codex and Claude Code adapters, unified governance.py management, host-neutral project lifecycle, and privacy-safe Metadata v2. Frozen GOV-001..030 scenarios/rubrics are unchanged; fresh rc.4 campaigns remain required.",
+  "scope": "2.0 release-candidate behavioural-evidence refinement: native Codex and Claude Code adapters, unified governance.py management, host-neutral project lifecycle, and privacy-safe Metadata v2. Frozen GOV-001..030 scenarios/rubrics are unchanged; fresh rc.5 campaigns remain required.",
   "files": [
     ".gitattributes",
     ".github/workflows/framework-verify.yml",

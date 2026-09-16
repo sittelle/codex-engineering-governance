@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0-rc.5 — Response-Relevant Claude MCP Audit
+
+- Refines the Claude user-MCP audit to inspect only whether a non-empty MCP
+  configuration exists. Authentication or other unrelated application state in
+  the same local JSON file is not reported as a response influence.
+- Treats unreadable, invalid, symbolic-link, or non-file MCP configuration as
+  `UNKNOWN`; no MCP key, server, credential, path, or setting value is stored.
+
 ## 2.0.0-rc.4 — Portable Claude Evaluation Evidence
 
 - Adds portable source-tree identity for manual campaigns run from a verified
