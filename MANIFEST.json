@@ -1,7 +1,7 @@
 {
-  "version": "2.0.0-rc.1",
+  "version": "2.0.0-rc.2",
   "status": "RELEASE_CANDIDATE",
-  "scope": "First 2.0 release-candidate baseline: native Codex and Claude Code adapters, unified governance.py management, host-neutral project lifecycle, and removal of legacy management entrypoints. Frozen GOV-001..030 scenarios/rubrics are unchanged; fresh Codex and Claude Code behavioral campaigns remain pending.",
+  "scope": "2.0 release-candidate behavioural-evidence refinement: native Codex and Claude Code adapters, unified governance.py management, host-neutral project lifecycle, and privacy-safe Metadata v2. Frozen GOV-001..030 scenarios/rubrics are unchanged; fresh rc.2 campaigns remain required.",
   "files": [
     ".gitattributes",
     ".github/workflows/framework-verify.yml",
@@ -36,6 +36,7 @@
     "codex-home/AGENTS.md",
     "codex-home/GOVERNANCE_ROOT.example",
     "docs/framework-threat-model.md",
+    "docs/behavioral-evaluation-evidence.md",
     "docs/evaluation-vm-bootstrap.md",
     "docs/release-policy.md",
     "framework-governance.yml",

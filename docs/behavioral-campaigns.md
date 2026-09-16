@@ -62,9 +62,13 @@ Read the generated `README.md` in the prepared directory. For every challenge:
 4. Save the unedited final response as `responses/GOV-###.txt` in UTF-8.
 
 Record the actual host, requested model, IDE/client version, operating system,
-settings such as a Codex reasoning effort, and evaluation protocol v2. A manual
-result is always bound to those recorded conditions; it does not establish
-behavior for another model, client, host, platform, or protocol.
+settings such as a Codex reasoning effort, and evaluation protocol v2. Metadata
+v2 additionally records a privacy-safe VS Code extension inventory, context
+fingerprints, source tree identity when available, and the category/state of
+host influences such as rules, skills, settings, and persistent memory. It
+never copies their contents, paths, credentials, accounts, or chat history.
+A manual result is always bound to those recorded conditions; it does not
+establish behavior for another model, client, host, platform, or protocol.
 
 ## Optional Windows and Ubuntu sequential conductor
 
@@ -80,6 +84,25 @@ call an AI API. The operator must select the intended host/model/settings and
 submit each prompt in a fresh chat.
 
 The default `shared-window` workflow is sequential and does not close VS Code.
+Before it copies the first prompt, the conductor creates an immutable
+`evidence/environment-preflight-*.json` snapshot. It verifies the prepared
+source/context identity, managed host adapter, VS Code command, selected host
+integration, dedicated profile (when supplied), and the privacy-safe
+response-influence audit. It prints each result and refuses to copy a prompt
+when source/context/adapter/editor/integration checks fail. A clean source is
+required for a `PASS` source identity; declared or unknown influence categories
+are preserved as scope limitations rather than silently reported as clean.
+
+You can inspect and save that same evidence before opening the conductor:
+
+```text
+python scripts/manual-behavioral-campaign.py preflight ..\manual-governance-evaluation --host claude --model <selected-model> --client <IDE-and-version> --setting mode=auto --vscode-user-data-dir ..\governance-vscode-test-profile
+```
+
+The conductor runs this preflight automatically. `collect` requires the latest
+non-`NOT_READY` preflight to bind the captured responses to the reviewed
+environment.
+
 For each challenge it does exactly this:
 
 1. Replaces the clipboard with the rubric-free prompt and opens or reuses the
@@ -163,10 +186,12 @@ python scripts/manual-behavioral-campaign.py collect ..\manual-governance-evalua
 Repeat `--setting` for additional recorded settings. `collect` rejects missing,
 empty, symbolic-link, or duplicate-output cases. It writes `campaign.json`,
 `EVALUATION-METADATA.json`, and `INDEPENDENT-SCORING-PACKET.md` locally. The
-metadata records only response-relevant provenance: the operating system, VS
-Code version, selected agent-integration version when discoverable,
-host/model/client, evaluation protocol, and declared runtime settings, without
-paths or credentials;
+metadata records only response-relevant provenance: source identity, the
+operating system, VS Code version/extension inventory, selected agent
+integration when discoverable, host/model/client, evaluation protocol,
+declared runtime settings, per-challenge logical contexts, and the host
+influence-audit category/state—plus the hash-bound preflight evidence—without
+paths, credentials, settings values, or instruction contents;
 the packet includes frozen definitions and rubrics plus raw responses for an
 independent scorer.
 

@@ -11,6 +11,12 @@ The record must bind:
 - SBOM/signing/provenance references when the approved publication channel makes them applicable;
 - final `READY`, `READY WITH ACCEPTED RISKS`, `NOT READY`, or `INCOMPLETE ASSURANCE` decision.
 
+For manual behavioural evidence, retain raw responses and any authenticated
+profile outside the repository. A release/validation record may bind a
+controlled external archive only by its SHA-256, source identity, score outcome,
+and privacy-safe environment categories. Do not commit candidate responses,
+local paths, account data, credentials, or chat transcripts.
+
 The release workflow and verification standard remain normative. This directory is only the repository-specific durable evidence convention.
 
 Failed verification evidence remains in the canonical verification/report structure and does not require a parallel record. Explicit approved policy exceptions are governed by `assurance/exception-policy.md`.

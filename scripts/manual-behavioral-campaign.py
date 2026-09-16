@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import platform
@@ -63,11 +64,43 @@ def run(argv: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess
 
 def source_state() -> dict:
     head = run(["git", "rev-parse", "HEAD"], ROOT)
+    tree = run(["git", "rev-parse", "HEAD^{tree}"], ROOT)
     status = run(["git", "status", "--porcelain=v1", "--untracked-files=all"], ROOT)
-    if head.returncode or status.returncode:
-        return {"binding": "UNBOUND_MANUAL", "git_commit": None, "git_clean": None}
+    if head.returncode or tree.returncode or status.returncode:
+        return {"binding": "UNBOUND_MANUAL", "git_commit": None, "git_tree": None, "git_clean": None}
     clean = not status.stdout.strip()
-    return {"binding": "COMMIT_BOUND" if clean else "DIRTY_MANUAL_ONLY", "git_commit": head.stdout.strip(), "git_clean": clean}
+    return {
+        "binding": "COMMIT_BOUND" if clean else "DIRTY_MANUAL_ONLY",
+        "git_commit": head.stdout.strip(),
+        "git_tree": tree.stdout.strip(),
+        "git_clean": clean,
+    }
+
+
+def directory_fingerprint(directory: Path) -> str:
+    """Hash a bounded context without recording its local location."""
+    entries: list[bytes] = []
+    for path in sorted(directory.rglob("*"), key=lambda item: item.as_posix()):
+        if path.is_dir():
+            continue
+        if path.is_symlink() or not path.is_file():
+            raise Error(f"context contains a non-regular file: {path.name}")
+        relative = path.relative_to(directory).as_posix().encode("utf-8")
+        entries.append(relative + b"\0" + file_sha(path).encode("ascii") + b"\n")
+    return sha(b"".join(entries))
+
+
+def context_identities(contexts: Path, source: dict) -> dict[str, dict[str, str | None]]:
+    global_context = contexts / "global-kernel"
+    governed_context = contexts / "governed-project"
+    return {
+        "GLOBAL_KERNEL": {"kind": "EMPTY_CONTEXT", "content_sha256": directory_fingerprint(global_context)},
+        "GOVERNED_REPOSITORY": {"kind": "GENERATED_GOVERNED_CONTEXT", "content_sha256": directory_fingerprint(governed_context)},
+        "GOVERNANCE_FRAMEWORK_REPOSITORY": {
+            "kind": "FRAMEWORK_SOURCE",
+            "content_sha256": source.get("git_tree"),
+        },
+    }
 
 
 def rendered_prompt(scenario: str) -> str:
@@ -227,6 +260,9 @@ This directory contains no model responses and makes no network calls itself.
    manual campaign.
 3. Record the actual host, selected model, IDE/client version, operating system,
    and relevant runtime settings. Use one fresh chat for each challenge.
+4. Before the first challenge, run `preflight` below. It displays the reviewed
+   environment result and writes a privacy-safe immutable snapshot under
+   `evidence/`. Do not begin capture when it reports `NOT_READY`.
 
 ## Contexts
 
@@ -280,6 +316,13 @@ Run the conductor from the copied framework source root:
 python scripts/manual-behavioral-campaign.py conduct <this-directory> --host <codex|claude> --model <selected-model> --client <IDE-or-client-version> --setting <name=value> --vscode-user-data-dir <separate-test-profile>
 ```
 
+The conductor runs preflight automatically. For a fully manual workflow, run
+and review it yourself before opening the first challenge:
+
+```text
+python scripts/manual-behavioral-campaign.py preflight <this-directory> --host <codex|claude> --model <selected-model> --client <IDE-or-client-version> --setting <name=value> --vscode-user-data-dir <separate-test-profile>
+```
+
 The default does not require a window-handling prompt. To initialize and
 configure a separate profile outside this campaign:
 
@@ -304,12 +347,14 @@ root:
 python scripts/manual-behavioral-campaign.py collect <this-directory> --host <codex|claude> --model <selected-model> --client <IDE-or-client-version> --setting <name=value> --vscode-user-data-dir <separate-test-profile>
 ```
 
-`collect` refuses missing/empty responses and creates one local independent
-scoring packet plus `EVALUATION-METADATA.json`. The metadata records only the
-operating system, VS Code version, selected agent-integration version when
-discoverable, selected host/model/client, and declared runtime settings; it
-does not record local paths or credentials. It never uploads either file. The
-packet is evidence only and does not authorize release acceptance.
+`collect` refuses missing/empty responses and a missing, stale, or `NOT_READY`
+preflight. It creates one local independent scoring packet plus
+`EVALUATION-METADATA.json`. The metadata records only response-relevant facts:
+source/context identity, operating system, VS Code/extension inventory,
+selected host/model/client/settings, influence categories, and the hash-bound
+preflight reference. It does not record local paths, credentials, settings
+values, or chat contents. It never uploads either file. The packet is evidence
+only and does not authorize release acceptance.
 """
 
 
@@ -324,19 +369,29 @@ def prepare(destination: Path, rows: list[dict]) -> None:
     prompts.mkdir()
     responses.mkdir()
     contexts.mkdir()
+    (destination / "evidence").mkdir()
     (contexts / "global-kernel").mkdir()
     create_governed_context(contexts)
+    source = source_state()
+    identities = context_identities(contexts, source)
     for row in rows:
         (prompts / f"{row['test_id']}.txt").write_text(row["prompt"] + "\n", encoding="utf-8", newline="\n")
     manifest = {
-        "schema_version": "2",
+        "schema_version": "4",
         "kind": "MANUAL_BEHAVIORAL_CAMPAIGN",
         "framework_version": (ROOT / "VERSION").read_text(encoding="utf-8").strip(),
         "evaluation_protocol": EVALUATION_PROTOCOL,
         "prepared_at": utc(),
-        "source": source_state(),
+        "source": source,
+        "context_identities": identities,
         "result": "PREPARED",
-        "records": [{key: value for key, value in row.items() if key != "prompt"} for row in rows],
+        "records": [
+            {
+                **{key: value for key, value in row.items() if key != "prompt"},
+                "context_identity": identities[row["context"]],
+            }
+            for row in rows
+        ],
     }
     write_json(destination / "campaign.json", manifest)
     (destination / "README.md").write_text(manual_readme(rows), encoding="utf-8", newline="\n")
@@ -357,19 +412,20 @@ def parse_settings(values: list[str]) -> dict[str, str]:
     return settings
 
 
-def tool_probe(argv: list[str]) -> dict[str, str]:
+def tool_probe(argv: list[str]) -> dict[str, object]:
     try:
         result = run(argv)
     except OSError:
         return {"state": "NOT_FOUND"}
     output = (result.stdout + "\n" + result.stderr).strip()
-    first_line = next((line.strip() for line in output.splitlines() if line.strip()), "")
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    first_line = lines[0] if lines else ""
     if result.returncode:
         return {"state": "ERROR", "detail": first_line[:300]}
-    return {"state": "AVAILABLE", "version": first_line[:300]}
+    return {"state": "AVAILABLE", "version": first_line[:300], "lines": lines[:10]}
 
 
-def vscode_extension_probe(extension_id: str, vscode_profile: Path | None) -> dict[str, str]:
+def vscode_extensions_probe(vscode_profile: Path | None) -> dict[str, object]:
     command = ["code"]
     if vscode_profile is not None:
         command.extend(["--user-data-dir", str(vscode_profile), "--extensions-dir", str(vscode_profile / "extensions")])
@@ -380,18 +436,161 @@ def vscode_extension_probe(extension_id: str, vscode_profile: Path | None) -> di
         return {"state": "NOT_FOUND"}
     if result.returncode:
         return {"state": "ERROR", "detail": (result.stderr or result.stdout).strip()[:300]}
+    extensions = []
     for line in result.stdout.splitlines():
         name, separator, version = line.strip().partition("@")
-        if name.casefold() == extension_id and separator and version:
-            return {"state": "AVAILABLE", "version": version[:300]}
-    return {"state": "NOT_FOUND"}
+        if name and separator and version:
+            extensions.append({"id": name.casefold()[:300], "version": version[:300]})
+    return {"state": "AVAILABLE", "extensions": sorted(extensions, key=lambda item: (item["id"], item["version"]))}
 
 
-def collected_metadata(manifest: dict, vscode_profile: Path | None = None) -> dict:
+def safe_state(path: Path) -> str:
+    """Return a content-free influence state for one filesystem entry."""
+    if not path.exists():
+        return "ABSENT"
+    if path.is_symlink() or not (path.is_file() or path.is_dir()):
+        return "UNKNOWN"
+    return "DECLARED_INFLUENCE"
+
+
+def clean_test_profile_state(profile: Path | None) -> str:
+    """Recognise only the profile settings the helper itself creates."""
+    if profile is None:
+        return "UNKNOWN"
+    settings = profile / "User" / "settings.json"
+    if not settings.exists():
+        return "ABSENT"
+    if settings.is_symlink() or not settings.is_file():
+        return "UNKNOWN"
+    try:
+        data = json.loads(settings.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return "UNKNOWN"
+    return (
+        "EXPECTED_MANAGED"
+        if data == {"workbench.colorTheme": VSCODE_TEST_THEME}
+        else "DECLARED_INFLUENCE"
+    )
+
+
+def expected_claude_settings_state(home: Path) -> str:
+    """Recognise exactly the read permission managed by this framework."""
+    settings = home / "settings.json"
+    if not settings.exists():
+        return "ABSENT"
+    if settings.is_symlink() or not settings.is_file():
+        return "UNKNOWN"
+    try:
+        data = json.loads(settings.read_text(encoding="utf-8"))
+        state_data = json.loads((home / ".sittelle-engineering-governance.json").read_text(encoding="utf-8"))
+        ownership = state_data.get("claude_settings_ownership") or {}
+        rule = ownership.get("rule")
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return "UNKNOWN"
+    if rule and data == {"permissions": {"allow": [rule]}}:
+        return "EXPECTED_MANAGED"
+    return "DECLARED_INFLUENCE"
+
+
+def context_influence_audit(campaign: Path, host: str) -> dict[str, str]:
+    """Inspect known context influence locations without retaining their names or text."""
+    contexts = campaign / "contexts"
+    global_context = contexts / "global-kernel"
+    governed_context = contexts / "governed-project"
+    framework_context = ROOT
+    instruction_names = ("AGENTS.md", "CLAUDE.md", "CLAUDE.local.md")
+    host_dirs = (".claude", ".codex", ".agents")
+
+    global_entries = [global_context / name for name in instruction_names + host_dirs]
+    global_state = "DECLARED_INFLUENCE" if any(safe_state(path) != "ABSENT" for path in global_entries) else "ABSENT"
+
+    governed_expected = {
+        "AGENTS.md", "CLAUDE.md", "project-governance.yml", "verification-plan.json",
+        ".editorconfig", ".gitignore", "docs", "src", "tests",
+    }
+    governed_extra = [path for path in governed_context.iterdir() if path.name not in governed_expected]
+    governed_state = "DECLARED_INFLUENCE" if any(safe_state(path) != "ABSENT" for path in governed_extra) else "EXPECTED_MANAGED"
+
+    framework_extra = [framework_context / name for name in ("CLAUDE.local.md", ".claude", ".codex", ".agents")]
+    framework_state = "DECLARED_INFLUENCE" if any(safe_state(path) != "ABSENT" for path in framework_extra) else "EXPECTED_MANAGED"
+
+    # Ancestor instruction discovery differs between hosts and editor releases.
+    # We detect known files, but do not claim a clean baseline if traversal is
+    # not covered by this detector.
+    known_ancestor = False
+    for start in (global_context, governed_context):
+        for parent in start.parents:
+            if parent == ROOT.parent:
+                break
+            if any((parent / name).is_file() for name in instruction_names):
+                known_ancestor = True
+                break
+        if known_ancestor:
+            break
+
+    return {
+        "global_context_instruction": global_state,
+        "governed_context_managed_files": governed_state,
+        "framework_context_managed_files": framework_state,
+        "known_ancestor_instruction": "DECLARED_INFLUENCE" if known_ancestor else "UNKNOWN",
+        "project_rules_workflows_skills_hooks_commands_mcp": "UNKNOWN",
+    }
+
+
+def host_influence_audit(host: str, campaign: Path, vscode_profile: Path | None) -> dict[str, object]:
+    """Report response-influence categories, never settings or rule contents."""
+    home = Path(os.environ.get("CODEX_HOME" if host == "codex" else "CLAUDE_CONFIG_DIR", Path.home() / (".codex" if host == "codex" else ".claude")))
+    verify = run([sys.executable, str(ROOT / "governance.py"), "host", "verify", "--host", host], ROOT)
+    instruction = home / ("AGENTS.md" if host == "codex" else "CLAUDE.md")
+    instruction_state = safe_state(instruction)
+    if verify.returncode == 0 and instruction_state != "ABSENT":
+        spec = importlib.util.spec_from_file_location("campaign_governance", ROOT / "governance.py")
+        if spec and spec.loader:
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+            expected = module.render_host_block(ROOT, module.HOSTS[host]) + "\n"
+            instruction_state = "EXPECTED_MANAGED" if instruction.read_text(encoding="utf-8-sig") == expected else "DECLARED_INFLUENCE"
+    categories: dict[str, str] = {
+        "framework_managed_adapter": "EXPECTED_MANAGED" if verify.returncode == 0 else "UNKNOWN",
+        "user_instruction": instruction_state,
+        "user_rules": safe_state(home / "rules"),
+        "user_skills": safe_state(home / "skills"),
+        "host_settings_or_policy": safe_state(home / "config.toml") if host == "codex" else expected_claude_settings_state(home),
+        "editor_profile_settings": clean_test_profile_state(vscode_profile),
+    }
+    if host == "claude":
+        categories["automatic_memory"] = safe_state(home / "projects")
+        if platform.system() == "Windows":
+            categories["organization_instruction_or_policy"] = safe_state(Path(os.environ.get("ProgramData", "C:/ProgramData")) / "ClaudeCode" / "CLAUDE.md")
+        else:
+            categories["organization_instruction_or_policy"] = safe_state(Path("/etc/claude-code/CLAUDE.md"))
+    else:
+        categories["automatic_memory"] = "UNKNOWN"
+        categories["organization_instruction_or_policy"] = "UNKNOWN"
+    categories.update(context_influence_audit(campaign, host))
+    # The managed host instruction is expected, but any other detected category
+    # scopes the result to that declared environment rather than a clean baseline.
+    extras = [value for key, value in categories.items() if key != "framework_managed_adapter" and value not in {"ABSENT", "EXPECTED_MANAGED"}]
+    return {
+        "detector_version": "1",
+        "categories": categories,
+        "clean_host_state": "VERIFIED_CLEAN" if categories["framework_managed_adapter"] == "EXPECTED_MANAGED" and not extras else ("DECLARED_INFLUENCES" if categories["framework_managed_adapter"] == "EXPECTED_MANAGED" else "UNKNOWN"),
+    }
+
+
+def collected_metadata(
+    manifest: dict,
+    campaign: Path,
+    preflight: dict[str, object],
+    vscode_profile: Path | None = None,
+) -> dict:
     host = manifest["session"]["host"]
     extension_id = {"codex": "openai.chatgpt", "claude": "anthropic.claude-code"}[host]
+    extensions = vscode_extensions_probe(vscode_profile)
+    selected = [item for item in extensions.get("extensions", []) if item["id"] == extension_id] if extensions.get("state") == "AVAILABLE" else []
     return {
-        "schema_version": "1",
+        "schema_version": "2",
         "kind": "MANUAL_BEHAVIORAL_EVALUATION_METADATA",
         "framework_version": manifest["framework_version"],
         "evaluation_protocol": manifest["evaluation_protocol"],
@@ -405,10 +604,183 @@ def collected_metadata(manifest: dict, vscode_profile: Path | None = None) -> di
                 "machine": platform.machine(),
             },
             "editor": {"vs_code": tool_probe(["code", "--version"])},
-            "agent_integration": {extension_id: vscode_extension_probe(extension_id, vscode_profile)},
+            "vs_code_extensions": extensions,
+            "agent_integration": {extension_id: selected[0] if len(selected) == 1 else {"state": "NOT_FOUND_OR_AMBIGUOUS"}},
         },
+        "response_influence_audit": host_influence_audit(host, campaign, vscode_profile),
         "agent_session": manifest["session"],
+        "fresh_chat_per_challenge": manifest["session"]["runtime_settings"].get(
+            "fresh_chat_per_challenge", "NOT_DECLARED"
+        ),
+        "environment_preflight": preflight,
+        "privacy": {"local_paths": "NOT_RECORDED", "credentials": "NOT_COLLECTED", "chat_contents": "NOT_COLLECTED"},
     }
+
+
+def evidence_path(campaign: Path, prefix: str) -> Path:
+    """Allocate a new evidence name without embedding a local machine path."""
+    evidence = campaign / "evidence"
+    if not evidence.is_dir():
+        raise Error("campaign evidence directory is missing")
+    stamp = utc().replace("-", "").replace(":", "")
+    candidate = evidence / f"{prefix}-{stamp}.json"
+    ordinal = 2
+    while candidate.exists():
+        candidate = evidence / f"{prefix}-{stamp}-{ordinal}.json"
+        ordinal += 1
+    return candidate
+
+
+def preflight_report(
+    campaign: Path,
+    manifest: dict,
+    host: str,
+    model: str,
+    client: str,
+    runtime_settings: dict[str, str],
+    vscode_profile: Path | None,
+) -> dict[str, object]:
+    """Create a privacy-safe environment readiness snapshot before capture."""
+    profile = None
+    profile_result = "INCOMPLETE"
+    if vscode_profile is not None:
+        try:
+            profile = validate_vscode_profile(vscode_profile, campaign)
+            profile_result = "PASS"
+        except Error:
+            profile_result = "FAIL"
+
+    current_source = source_state()
+    source = manifest["source"]
+    expected_contexts = manifest.get("context_identities")
+    actual_contexts = context_identities(campaign / "contexts", current_source)
+    contexts_match = expected_contexts == actual_contexts
+    host_verify = run([sys.executable, str(ROOT / "governance.py"), "host", "verify", "--host", host], ROOT)
+    editor = tool_probe(["code", "--version"])
+    extensions = vscode_extensions_probe(profile)
+    extension_id = {"codex": "openai.chatgpt", "claude": "anthropic.claude-code"}[host]
+    integrations = [
+        item for item in extensions.get("extensions", [])
+        if item["id"] == extension_id
+    ] if extensions.get("state") == "AVAILABLE" else []
+    source_same = (
+        source.get("git_commit") == current_source.get("git_commit")
+        and source.get("git_tree") == current_source.get("git_tree")
+    )
+    source_result = (
+        "PASS" if source_same and source.get("binding") == "COMMIT_BOUND" and current_source.get("binding") == "COMMIT_BOUND"
+        else ("INCOMPLETE" if source_same else "FAIL")
+    )
+    audit = host_influence_audit(host, campaign, profile)
+    checks = [
+        {
+            "id": "campaign_source_identity",
+            "result": source_result,
+            "detail": "prepared clean source identity matches the current clean framework source" if source_result == "PASS" else ("prepared and current source identities match but are not clean Git-bound evidence" if source_result == "INCOMPLETE" else "prepared source identity does not match the current framework source"),
+        },
+        {
+            "id": "campaign_context_identity",
+            "result": "PASS" if contexts_match else "FAIL",
+            "detail": "logical context fingerprints match the prepared campaign" if contexts_match else "one or more logical context fingerprints changed after preparation",
+        },
+        {
+            "id": "framework_host_adapter",
+            "result": "PASS" if host_verify.returncode == 0 else "FAIL",
+            "detail": "managed adapter verification passed" if host_verify.returncode == 0 else "managed adapter verification failed",
+        },
+        {
+            "id": "vs_code",
+            "result": "PASS" if editor.get("state") == "AVAILABLE" else "FAIL",
+            "detail": "VS Code command is available" if editor.get("state") == "AVAILABLE" else "VS Code command is unavailable or did not report a version",
+        },
+        {
+            "id": "dedicated_test_profile",
+            "result": profile_result,
+            "detail": "dedicated marked profile is available" if profile_result == "PASS" else ("no dedicated profile was supplied" if profile_result == "INCOMPLETE" else "supplied profile is not a valid marked test profile"),
+        },
+        {
+            "id": "selected_host_integration",
+            "result": "PASS" if len(integrations) == 1 else "FAIL",
+            "detail": "exactly one selected host integration was discovered" if len(integrations) == 1 else "selected host integration was missing or ambiguous",
+        },
+        {
+            "id": "response_influence_audit",
+            "result": audit["clean_host_state"],
+            "detail": "category/state only; no host rule, setting, path, credential, or chat content was recorded",
+        },
+    ]
+    blocking = [check["id"] for check in checks if check["result"] == "FAIL"]
+    incomplete = [check["id"] for check in checks if check["result"] == "INCOMPLETE"]
+    status = "NOT_READY" if blocking else ("READY" if not incomplete and audit["clean_host_state"] == "VERIFIED_CLEAN" else "READY_WITH_SCOPE_LIMITATIONS")
+    return {
+        "schema_version": "1",
+        "kind": "MANUAL_BEHAVIORAL_ENVIRONMENT_PREFLIGHT",
+        "captured_at": utc(),
+        "status": status,
+        "campaign_manifest_sha256": file_sha(campaign / "campaign.json"),
+        "framework_version": manifest["framework_version"],
+        "campaign_source": source,
+        "session": {
+            "host": host,
+            "requested_model": model,
+            "client": client,
+            "runtime_settings": runtime_settings,
+            "fresh_chat_per_challenge": runtime_settings.get("fresh_chat_per_challenge", "NOT_DECLARED"),
+        },
+        "environment": {
+            "operating_system": {"system": platform.system(), "release": platform.release(), "machine": platform.machine()},
+            "vs_code": editor,
+            "vs_code_extensions": extensions,
+            "selected_host_integration": {extension_id: integrations[0] if len(integrations) == 1 else {"state": "NOT_FOUND_OR_AMBIGUOUS"}},
+        },
+        "response_influence_audit": audit,
+        "checks": checks,
+        "blocking_checks": blocking,
+        "incomplete_checks": incomplete,
+        "privacy": {"local_paths": "NOT_RECORDED", "credentials": "NOT_COLLECTED", "settings_values": "NOT_COLLECTED", "chat_contents": "NOT_COLLECTED"},
+    }
+
+
+def write_preflight(
+    campaign: Path,
+    manifest: dict,
+    host: str,
+    model: str,
+    client: str,
+    runtime_settings: dict[str, str],
+    vscode_profile: Path | None,
+) -> tuple[Path, dict[str, object]]:
+    report = preflight_report(campaign, manifest, host, model, client, runtime_settings, vscode_profile)
+    path = evidence_path(campaign, "environment-preflight")
+    write_json(path, report)
+    print(f"Environment preflight: {report['status']}")
+    for check in report["checks"]:
+        print(f"- {check['id']}: {check['result']}")
+    print(f"Environment evidence: {path}")
+    return path, report
+
+
+def latest_preflight_evidence(campaign: Path) -> tuple[dict[str, object], dict[str, object]] | None:
+    def ordering(path: Path) -> tuple[str, int]:
+        match = re.fullmatch(r"environment-preflight-(\d{8}T\d{6}Z)(?:-(\d+))?\.json", path.name)
+        if not match:
+            return ("", 0)
+        return (match.group(1), int(match.group(2) or "1"))
+
+    candidates = sorted((campaign / "evidence").glob("environment-preflight-*.json"), key=ordering)
+    if not candidates:
+        return None
+    path = candidates[-1]
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if report.get("kind") != "MANUAL_BEHAVIORAL_ENVIRONMENT_PREFLIGHT":
+        return None
+    return (
+        {"file": path.relative_to(campaign).as_posix(), "sha256": file_sha(path), "status": report.get("status")},
+        report,
+    )
 
 
 def collect(
@@ -428,13 +800,24 @@ def collect(
     metadata_path = directory / "EVALUATION-METADATA.json"
     if (
         manifest.get("kind") != "MANUAL_BEHAVIORAL_CAMPAIGN"
-        or manifest.get("schema_version") != "2"
+        or manifest.get("schema_version") != "4"
         or manifest.get("evaluation_protocol") != EVALUATION_PROTOCOL
         or manifest.get("result") != "PREPARED"
         or packet.exists()
         or metadata_path.exists()
     ):
         raise Error("campaign is not collectable or scoring packet already exists")
+    preflight_entry = latest_preflight_evidence(directory)
+    if preflight_entry is None:
+        raise Error("environment preflight evidence is required before response collection")
+    preflight, preflight_report_data = preflight_entry
+    if preflight_report_data.get("status") == "NOT_READY":
+        raise Error("latest environment preflight was NOT_READY; prepare a valid environment before collecting")
+    checks = preflight_report_data.get("checks")
+    if not isinstance(checks, list) or any(not isinstance(check, dict) or check.get("result") == "FAIL" for check in checks):
+        raise Error("latest environment preflight does not contain a collectable readiness result")
+    if preflight_report_data.get("campaign_manifest_sha256") != file_sha(manifest_path):
+        raise Error("latest environment preflight does not bind the prepared campaign manifest")
     profile = validate_vscode_profile(vscode_profile, directory) if vscode_profile is not None else None
     records = []
     for item in manifest["records"]:
@@ -456,7 +839,7 @@ def collect(
     manifest["records"] = records
     manifest["result"] = "MANUAL_CAPTURE_COMPLETE"
     write_json(manifest_path, manifest)
-    write_json(metadata_path, collected_metadata(manifest, profile))
+    write_json(metadata_path, collected_metadata(manifest, directory, preflight, profile))
     heading = "# Independent scoring packet: manual campaign\n\n"
     notes = (
         "This packet contains frozen GOV definitions (including scoring rubrics), the protocol-v2 candidate prompts, and unmodified manually captured responses. "
@@ -489,7 +872,7 @@ def load_prepared_campaign(directory: Path) -> tuple[Path, dict]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if (
         manifest.get("kind") != "MANUAL_BEHAVIORAL_CAMPAIGN"
-        or manifest.get("schema_version") != "2"
+        or manifest.get("schema_version") != "4"
         or manifest.get("evaluation_protocol") != EVALUATION_PROTOCOL
         or manifest.get("result") != "PREPARED"
     ):
@@ -751,11 +1134,9 @@ def conduct(
 ) -> None:
     campaign, manifest = load_prepared_campaign(directory)
     mode = choose_close_mode(close_mode_argument, dry_run)
-    profile = validate_vscode_profile(vscode_profile, campaign) if vscode_profile is not None else None
-    if profile is not None and not dry_run:
-        configure_vscode_profile_theme(profile)
     pending = pending_records(campaign, manifest)
     if not pending:
+        profile = validate_vscode_profile(vscode_profile, campaign) if vscode_profile is not None else None
         collect(campaign, host, model, client, runtime_settings, profile)
         return
     conductor_settings = dict(runtime_settings)
@@ -775,6 +1156,12 @@ def conduct(
         return
     if platform.system() not in ("Windows", "Linux"):
         raise Error("interactive VS Code conduction is currently supported on Windows and Ubuntu Linux")
+    _, preflight = write_preflight(campaign, manifest, host, model, client, runtime_settings, vscode_profile)
+    if preflight["status"] == "NOT_READY":
+        raise Error("environment preflight is NOT_READY; no challenge prompt was copied or opened")
+    profile = validate_vscode_profile(vscode_profile, campaign) if vscode_profile is not None else None
+    if profile is not None:
+        configure_vscode_profile_theme(profile)
     if mode == "force-close-test-instance":
         if profile is None:
             raise Error("force-close requires --vscode-user-data-dir")
@@ -844,6 +1231,25 @@ def self_test() -> int:
                 refused = True
             if not refused:
                 raise Error("no-overwrite refusal failed")
+            preflight_path, preflight = write_preflight(
+                destination, json.loads((destination / "campaign.json").read_text(encoding="utf-8")),
+                "claude", "test-model", "test-client", {"mode": "plan"}, profile,
+            )
+            if not preflight_path.is_file() or preflight.get("kind") != "MANUAL_BEHAVIORAL_ENVIRONMENT_PREFLIGHT":
+                raise Error("environment preflight evidence was not created")
+            # The source test tree and test profile intentionally lack a live,
+            # signed-in Claude integration. Supply a bounded synthetic READY
+            # snapshot only to exercise post-preflight collection semantics.
+            if preflight.get("status") == "NOT_READY":
+                simulated = dict(preflight)
+                simulated["status"] = "READY_WITH_SCOPE_LIMITATIONS"
+                simulated["blocking_checks"] = []
+                simulated["incomplete_checks"] = ["self_test_simulated_environment"]
+                simulated["checks"] = [
+                    {**check, "result": "INCOMPLETE" if check["result"] == "FAIL" else check["result"]}
+                    for check in preflight["checks"]
+                ]
+                write_json(evidence_path(destination, "environment-preflight"), simulated)
             for test_id in ("GOV-001", "GOV-002"):
                 (destination / "responses" / f"{test_id}.txt").write_text("manual response\n", encoding="utf-8")
             collect(destination, "claude", "test-model", "test-client", {"mode": "plan"}, profile)
@@ -852,6 +1258,12 @@ def self_test() -> int:
             metadata = json.loads((destination / "EVALUATION-METADATA.json").read_text(encoding="utf-8"))
             if metadata["agent_session"]["requested_model"] != "test-model" or metadata["agent_session"]["runtime_settings"] != {"mode": "plan"}:
                 raise Error("response-relevant metadata was not recorded")
+            if metadata.get("schema_version") != "2" or "context_identities" not in json.loads((destination / "campaign.json").read_text(encoding="utf-8")):
+                raise Error("Metadata v2 context identity was not recorded")
+            if "response_influence_audit" not in metadata:
+                raise Error("Metadata v2 response-influence audit was not recorded")
+            if "environment_preflight" not in metadata:
+                raise Error("environment preflight binding was not recorded")
     except Error as exc:
         print(f"Manual behavioral campaign self-test: FAIL\n- {exc}")
         return 1
@@ -860,6 +1272,7 @@ def self_test() -> int:
     print("- bounded new-directory preparation and no-overwrite refusal: PASS")
     print("- generated global/governed/framework context instructions: PASS")
     print("- manual response collection, scoring packet, and response-relevant metadata: PASS")
+    print("- pre-capture environment readiness snapshot and evidence binding: PASS")
     print("- sequential-conductor profile isolation and no-overwrite boundaries: PASS")
     print("- evaluation VM bootstrap lock/tamper boundaries: PASS")
     print("- AI calls, API keys, uploads, and Git initialization: NOT USED")
@@ -879,6 +1292,13 @@ def main() -> int:
     collect_parser.add_argument("--client", required=True)
     collect_parser.add_argument("--setting", action="append", default=[], help="runtime setting as name=value; repeat as needed")
     collect_parser.add_argument("--vscode-user-data-dir", type=Path, help="dedicated test profile used for the responses; records its selected agent-integration version")
+    preflight_parser = commands.add_parser("preflight", help="inspect and preserve environment evidence before manual response capture")
+    preflight_parser.add_argument("campaign", type=Path)
+    preflight_parser.add_argument("--host", required=True, choices=HOSTS)
+    preflight_parser.add_argument("--model", required=True)
+    preflight_parser.add_argument("--client", required=True)
+    preflight_parser.add_argument("--setting", action="append", default=[], help="runtime setting as name=value; repeat as needed")
+    preflight_parser.add_argument("--vscode-user-data-dir", type=Path, help="dedicated marked test profile to inspect")
     profile_parser = commands.add_parser("vscode-profile-init", help="initialize a dedicated VS Code profile for manual evaluation")
     profile_parser.add_argument("--destination", required=True, type=Path)
     conduct_parser = commands.add_parser("conduct", help="Windows/Ubuntu sequential VS Code conductor; never automates a chat UI")
@@ -902,6 +1322,13 @@ def main() -> int:
     if args.command == "vscode-profile-init":
         initialize_vscode_profile(args.destination)
         return 0
+    if args.command == "preflight":
+        campaign, manifest = load_prepared_campaign(args.campaign)
+        _, report = write_preflight(
+            campaign, manifest, args.host, args.model, args.client,
+            parse_settings(args.setting), args.vscode_user_data_dir,
+        )
+        return 0 if report["status"] != "NOT_READY" else 1
     if args.command == "conduct":
         conduct(
             args.campaign,

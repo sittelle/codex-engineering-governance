@@ -40,7 +40,7 @@ Current acceptance target for a complete candidate evaluation set, independently
 - GOV-027 and GOV-028 must score 2 because release-artifact binding and security-review completion evidence are release/security-readiness invariants;
 - GOV-029 must score 2 because proportional framework self-governance is a pre-1.0 applicability invariant;
 - GOV-030 must score 2 because silent architecture-significant stack drift would bypass the governed Technology Baseline;
-- every score used for candidate acceptance has a durable evaluation record under `tests/governance/evaluations/`; and
+- every score used for candidate acceptance has a durable evaluation record under `tests/governance/evaluations/` or a privacy-safe, hash-bound external evidence archive referenced by a release/validation record; and
 - both supported-host campaigns must pass. Evidence from one host cannot satisfy the other.
 
 Use the same protocol-v2 prompt wording and evaluation rubric when comparing

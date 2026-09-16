@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0-rc.2 — Privacy-Safe Behavioral Evidence
+
+- Introduces Metadata v2 for future manual campaigns: Git-tree source identity,
+  context fingerprints, VS Code extension inventory, and a content-free host
+  response-influence audit. It records category/state rather than local paths,
+  settings values, instruction text, credentials, accounts, or chat history.
+- Requires and preserves a pre-capture environment readiness snapshot before a
+  conductor can copy the first challenge prompt; collection binds it to final
+  metadata.
+- Requires fresh protocol-v2 Codex and Claude Code campaigns for rc.2. Earlier
+  external campaigns are not used as rc.2 behavioural acceptance.
+
 ## 2.0.0-rc.1 ? Native Multi-Host Governance Candidate
 
 - Makes `-Apply` / `--apply` the sole explicit authorization for the
