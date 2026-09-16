@@ -109,13 +109,14 @@ bound to the frozen packet/archive it assessed. Historical failed campaigns
 remain failed evidence; a later passing campaign is additive rather than a
 rewrite.
 
-This collector does not yet implement response-surface equivalence as a release
-shortcut. A fresh complete campaign is therefore required for each candidate
-that seeks behavioural acceptance. Any future equivalence mechanism would need
-to bind the canonical GOV scenarios, protocol rendering, host operating kernel,
-host adapter, generated governed context, and framework context identity; it
-would not weaken the separate exact-source requirement for canonical full
-verification and release artifacts.
+A completed campaign may be carried to a successor candidate only through a
+durable response-surface-preservation record. That record must show that the
+canonical GOV scenarios/rubrics, protocol rendering, host operating kernel and
+adapter, generated contexts, and normal host/profile setup behavior are
+unchanged. It must identify the predecessor evidence, successor commit, and
+the bounded non-response-affecting diff. Changes to any listed surface require
+a fresh complete campaign; this mechanism never weakens exact-source canonical
+full verification or release-artifact binding.
 
 ## Privacy and retention
 

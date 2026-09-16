@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0-rc.6 — Response-Surface-Preserving Verification Fix
+
+- Adds a durable rule allowing complete behavioral campaigns to carry to a
+  successor candidate only when every response-affecting surface is proven
+  unchanged; exact-commit CI and artifact binding remain required.
+- Makes the Windows test-profile theme writer support PowerShell
+  `ShouldProcess`; normal `-Apply` behavior is unchanged.
+
 ## 2.0.0-rc.5 — Response-Relevant Claude MCP Audit
 
 - Refines the Claude user-MCP audit to inspect only whether a non-empty MCP

@@ -15,9 +15,12 @@ $ErrorActionPreference = 'Stop'
 
 function Fail([string]$Message) { throw "Evaluation VM bootstrap: FAIL - $Message" }
 function Get-Sha256([string]$Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() }
-function Set-TestProfileTheme([string]$ProfilePath) {
+function Set-TestProfileTheme {
+    [CmdletBinding(SupportsShouldProcess)]
+    param([string]$ProfilePath)
     $userPath = Join-Path $ProfilePath 'User'
     $settingsPath = Join-Path $userPath 'settings.json'
+    if (-not $PSCmdlet.ShouldProcess($settingsPath, 'Set dedicated VS Code test-profile theme')) { return }
     New-Item -ItemType Directory -Path $userPath -Force | Out-Null
     $settings = [ordered]@{}
     if (Test-Path -LiteralPath $settingsPath) {
