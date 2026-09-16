@@ -1,8 +1,9 @@
 RELEASE_CANDIDATE
 
-Version `2.0.0-rc.2` improves the manual behavioural-evaluation evidence
-contract without changing the frozen GOV-001..030 goals, rubrics, or
-protocol-v2 response rule.
+Version `2.0.0-rc.3` corrects the Codex manual-evaluation environment audit so
+a clean isolated host is observable without treating unimplemented detector
+coverage as an influence. It does not change the frozen GOV-001..030 goals,
+rubrics, or protocol-v2 response rule.
 
 The Sittelle Engineering Governance 2.0 line introduces native Codex and Claude Code host adapters, the unified
 Python `governance.py` management interface, host-neutral governed-project
@@ -20,8 +21,8 @@ An earlier Claude Code campaign scored 49/60 and remains failed historical
 evidence. It is not rewritten or treated as acceptance.
 
 Earlier external Codex and Claude Code campaigns remain outside this repository
-and are not used as rc.2 behavioural acceptance. Fresh protocol-v2 campaigns
-will be conducted and independently scored against this rc.2 source using the
+and are not used as rc.3 behavioural acceptance. Fresh protocol-v2 campaigns
+will be conducted and independently scored against this rc.3 source using the
 Metadata v2 collection contract.
 
 A local manual-campaign kit is prepared for disposable VM/IDE testing. It
@@ -35,7 +36,7 @@ response-relevant environment metadata, while an optional checksum-locked
 route supports an exact reviewed baseline. Neither tool makes AI calls, and no
 fresh protocol-v2 full-campaign evidence has yet been produced.
 
-Behavioural acceptance is pending for rc.2. Exact-commit cross-platform
+Behavioural acceptance is pending for rc.3. Exact-commit cross-platform
 canonical full assurance, deterministic package binding, and an explicit
 release decision remain required. Version `1.0.0` remains the latest published
 stable release.

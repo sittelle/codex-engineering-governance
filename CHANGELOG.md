@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.0-rc.3 — Inspectable Codex Evaluation Environment
+
+- Makes the Codex manual-evaluation audit inspect known ancestor and project
+  instruction/configuration surfaces instead of reporting unimplemented checks
+  as `UNKNOWN`.
+- Adds `NOT_APPLICABLE` with a privacy-safe reason for categories with no local
+  Codex configuration surface in the disposable-VM evaluation contract.
+- Reports an isolated Codex test environment as `VERIFIED_CLEAN` when every
+  applicable local response-influence source is absent or framework-managed.
+
 ## 2.0.0-rc.2 — Privacy-Safe Behavioral Evidence
 
 - Introduces Metadata v2 for future manual campaigns: Git-tree source identity,

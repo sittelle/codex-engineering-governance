@@ -1,6 +1,6 @@
 {
   "schema_version": "1",
-  "governance_version": "2.0.0-rc.2",
+  "governance_version": "2.0.0-rc.3",
   "facts": [
     {
       "id": "has_dependencies",

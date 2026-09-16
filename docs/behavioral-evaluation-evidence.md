@@ -67,22 +67,25 @@ paths, user names, credentials, or chat contents. Its categories are:
 - host policy/settings and provider-routing overrides; and
 - the framework-managed host adapter and generated challenge contexts.
 
-Each category is `ABSENT`, `EXPECTED_MANAGED`, `DECLARED_INFLUENCE`, or
-`UNKNOWN`. A `VERIFIED_CLEAN` campaign has only absent or expected-managed
-categories in the applicable detector inventory. A campaign with a declared
-influence is still valid evidence for that declared environment; it is simply
-not evidence of the clean baseline. An unknown category must never be reported
-as clean.
+Each category is `ABSENT`, `EXPECTED_MANAGED`, `DECLARED_INFLUENCE`,
+`NOT_APPLICABLE`, or `UNKNOWN`. `NOT_APPLICABLE` includes a durable,
+content-free reason: it is used only where the selected host has no local
+configuration surface in the evaluation contract. A `VERIFIED_CLEAN` campaign
+has only absent, expected-managed, or not-applicable categories in the
+applicable detector inventory. A campaign with a declared influence is still
+valid evidence for that declared environment; it is simply not evidence of the
+clean baseline. An unknown category means the helper could not inspect an
+applicable source and must never be reported as clean.
 
-The initial detector inventory directly examines the managed host adapter,
-host-home instruction/rule/skill/settings locations, known Claude organization
-locations, the dedicated VS Code test-profile settings, and the generated
-global/governed/framework contexts. It detects known ancestor instructions but
-marks ancestor traversal and project rule/workflow/skill/hook/command/MCP
-coverage `UNKNOWN` until the tested host documents a stable, inspectable
-discovery contract. Codex persistent-memory and organization-policy coverage
-are likewise `UNKNOWN` in this initial inventory. This conservative result is
-intentional: a future host feature cannot silently turn into a clean result.
+The detector directly examines the managed host adapter, host-home
+instruction/rule/skill/plugin/settings locations, the dedicated VS Code
+test-profile settings, and the generated global/governed/framework contexts.
+For Codex it also traverses the applicable `AGENTS.md` ancestor chain and
+checks the documented local project surfaces for configuration, rules, skills,
+plugins, MCP, hooks, and commands. Codex categories with no local evaluation
+surface are `NOT_APPLICABLE`, not `UNKNOWN`. A filesystem read/parse failure is
+`UNKNOWN`. This makes a clean isolated Codex home observable rather than
+mistaking missing detector coverage for a host influence.
 
 For example, Claude Code can load user, project, local, ancestor, rules, and
 automatic-memory material. The v2 detector therefore audits those categories

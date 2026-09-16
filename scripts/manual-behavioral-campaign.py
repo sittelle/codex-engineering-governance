@@ -498,6 +498,9 @@ def context_influence_audit(campaign: Path, host: str) -> dict[str, str]:
     global_context = contexts / "global-kernel"
     governed_context = contexts / "governed-project"
     framework_context = ROOT
+    if host == "codex":
+        return codex_context_influence_audit(campaign, global_context, governed_context, framework_context)
+
     instruction_names = ("AGENTS.md", "CLAUDE.md", "CLAUDE.local.md")
     host_dirs = (".claude", ".codex", ".agents")
 
@@ -537,6 +540,59 @@ def context_influence_audit(campaign: Path, host: str) -> dict[str, str]:
     }
 
 
+def codex_context_influence_audit(
+    campaign: Path,
+    global_context: Path,
+    governed_context: Path,
+    framework_context: Path,
+) -> dict[str, str]:
+    """Audit every documented local Codex context source used by this campaign."""
+    contexts = (
+        (global_context, False),
+        (governed_context, True),
+        (framework_context, True),
+    )
+    project_surface = (
+        ".codex/config.toml", ".codex/rules", ".codex/skills", ".codex/plugins",
+        ".agents/rules", ".agents/skills", ".mcp.json", ".vscode/mcp.json",
+        ".vscode/settings.json", "SKILL.md",
+    )
+    global_state = "DECLARED_INFLUENCE" if (global_context / "AGENTS.md").exists() else "ABSENT"
+    governed_state = "EXPECTED_MANAGED" if (governed_context / "AGENTS.md").is_file() else "UNKNOWN"
+    framework_state = "EXPECTED_MANAGED" if (framework_context / "AGENTS.md").is_file() else "UNKNOWN"
+
+    ancestor_influence = False
+    for context, has_expected_root_instruction in contexts:
+        stop = campaign.parent if context != framework_context else framework_context.parent
+        current = context
+        first = True
+        while True:
+            instruction = current / "AGENTS.md"
+            expected = first and has_expected_root_instruction
+            if instruction.exists() and not expected:
+                ancestor_influence = True
+                break
+            if current == stop or current.parent == current:
+                break
+            current = current.parent
+            first = False
+        if ancestor_influence:
+            break
+
+    project_influence = any(
+        safe_state(context / relative) != "ABSENT"
+        for context, _ in contexts
+        for relative in project_surface
+    )
+    return {
+        "global_context_instruction": global_state,
+        "governed_context_managed_files": governed_state,
+        "framework_context_managed_files": framework_state,
+        "known_ancestor_instruction": "DECLARED_INFLUENCE" if ancestor_influence else "ABSENT",
+        "project_rules_workflows_skills_hooks_commands_mcp": "DECLARED_INFLUENCE" if project_influence else "ABSENT",
+    }
+
+
 def host_influence_audit(host: str, campaign: Path, vscode_profile: Path | None) -> dict[str, object]:
     """Report response-influence categories, never settings or rule contents."""
     home = Path(os.environ.get("CODEX_HOME" if host == "codex" else "CLAUDE_CONFIG_DIR", Path.home() / (".codex" if host == "codex" else ".claude")))
@@ -566,16 +622,31 @@ def host_influence_audit(host: str, campaign: Path, vscode_profile: Path | None)
         else:
             categories["organization_instruction_or_policy"] = safe_state(Path("/etc/claude-code/CLAUDE.md"))
     else:
-        categories["automatic_memory"] = "UNKNOWN"
-        categories["organization_instruction_or_policy"] = "UNKNOWN"
+        categories["user_plugins"] = safe_state(home / "plugins")
+        categories["automatic_memory"] = "NOT_APPLICABLE"
+        categories["organization_instruction_or_policy"] = "NOT_APPLICABLE"
     categories.update(context_influence_audit(campaign, host))
-    # The managed host instruction is expected, but any other detected category
-    # scopes the result to that declared environment rather than a clean baseline.
-    extras = [value for key, value in categories.items() if key != "framework_managed_adapter" and value not in {"ABSENT", "EXPECTED_MANAGED"}]
+    # `UNKNOWN` means a real inspection failure, not an unimplemented category.
+    # `NOT_APPLICABLE` has no local host surface in this evaluation contract.
+    declared = [value for key, value in categories.items() if key != "framework_managed_adapter" and value == "DECLARED_INFLUENCE"]
+    unknown = [value for value in categories.values() if value == "UNKNOWN"]
+    if categories["framework_managed_adapter"] != "EXPECTED_MANAGED" or unknown:
+        clean_host_state = "UNKNOWN"
+    elif declared:
+        clean_host_state = "DECLARED_INFLUENCES"
+    else:
+        clean_host_state = "VERIFIED_CLEAN"
     return {
-        "detector_version": "1",
+        "detector_version": "2",
         "categories": categories,
-        "clean_host_state": "VERIFIED_CLEAN" if categories["framework_managed_adapter"] == "EXPECTED_MANAGED" and not extras else ("DECLARED_INFLUENCES" if categories["framework_managed_adapter"] == "EXPECTED_MANAGED" else "UNKNOWN"),
+        "not_applicable_reasons": (
+            {
+                "automatic_memory": "No local persistent-memory configuration surface is part of the Codex IDE evaluation contract; fresh chat is operator-declared.",
+                "organization_instruction_or_policy": "No local organization-policy configuration surface is part of the self-managed disposable-VM evaluation contract.",
+            }
+            if host == "codex" else {}
+        ),
+        "clean_host_state": clean_host_state,
     }
 
 
@@ -1200,6 +1271,27 @@ def self_test() -> int:
         if any(EVALUATION_PROTOCOL["prompt_rule"] not in row["prompt"] for row in rows):
             raise Error("protocol-v2 prompt rule is missing")
         with tempfile.TemporaryDirectory() as temp:
+            audit_campaign = Path(temp) / "audit-campaign"
+            audit_global = audit_campaign / "contexts" / "global-kernel"
+            audit_governed = audit_campaign / "contexts" / "governed-project"
+            audit_framework = Path(temp) / "audit-framework"
+            audit_global.mkdir(parents=True)
+            audit_governed.mkdir(parents=True)
+            audit_framework.mkdir()
+            (audit_governed / "AGENTS.md").write_text("managed\n", encoding="utf-8")
+            (audit_framework / "AGENTS.md").write_text("managed\n", encoding="utf-8")
+            clean_audit = codex_context_influence_audit(
+                audit_campaign, audit_global, audit_governed, audit_framework,
+            )
+            if any(value not in {"ABSENT", "EXPECTED_MANAGED"} for value in clean_audit.values()):
+                raise Error("clean Codex context audit was not inspectable")
+            (audit_governed / ".codex").mkdir()
+            (audit_governed / ".codex" / "config.toml").write_text("model = 'test'\n", encoding="utf-8")
+            changed_audit = codex_context_influence_audit(
+                audit_campaign, audit_global, audit_governed, audit_framework,
+            )
+            if changed_audit["project_rules_workflows_skills_hooks_commands_mcp"] != "DECLARED_INFLUENCE":
+                raise Error("Codex project configuration influence was not detected")
             destination = Path(temp) / "manual-campaign"
             profile = Path(temp) / "vscode-test-profile"
             prepare(destination, selected_rows(rows, "GOV-001-GOV-002"))
@@ -1273,6 +1365,7 @@ def self_test() -> int:
     print("- generated global/governed/framework context instructions: PASS")
     print("- manual response collection, scoring packet, and response-relevant metadata: PASS")
     print("- pre-capture environment readiness snapshot and evidence binding: PASS")
+    print("- clean Codex context/configuration influence audit: PASS")
     print("- sequential-conductor profile isolation and no-overwrite boundaries: PASS")
     print("- evaluation VM bootstrap lock/tamper boundaries: PASS")
     print("- AI calls, API keys, uploads, and Git initialization: NOT USED")
