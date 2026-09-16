@@ -22,8 +22,12 @@ evidence. It is not rewritten or treated as acceptance.
 
 Earlier external Codex and Claude Code campaigns remain outside this repository
 and are not used as rc.5 behavioural acceptance. Fresh protocol-v2 campaigns
-will be conducted and independently scored against this rc.5 source using the
-Metadata v2 collection contract.
+were completed against the rc.5 candidate using the Metadata v2 collection
+contract: clean Codex and Claude Code environments each captured 30/30
+hash-verified responses and scored 60/60. The privacy-safe archive bindings
+and environment categories are retained in
+`release-evidence/validation/VALIDATION-v2.0.0-rc.5.md`; raw responses,
+profiles, paths, account state, and chats remain controlled external evidence.
 
 A local manual-campaign kit is prepared for disposable VM/IDE testing. It
 creates the correct global, governed, and framework contexts, then collects
@@ -33,10 +37,9 @@ per challenge; its force-close mode requires a separate local test profile. The
 kit is paired with a Windows/Ubuntu VM bootstrap utility: its normal
 disposable-VM route obtains current prerequisites and records only
 response-relevant environment metadata, while an optional checksum-locked
-route supports an exact reviewed baseline. Neither tool makes AI calls, and no
-fresh protocol-v2 full-campaign evidence has yet been produced.
+route supports an exact reviewed baseline. Neither tool makes AI calls.
 
-Behavioural acceptance is pending for rc.5. Exact-commit cross-platform
+Behavioural acceptance is complete for rc.5. Exact-commit cross-platform
 canonical full assurance, deterministic package binding, and an explicit
 release decision remain required. Version `1.0.0` remains the latest published
 stable release.
