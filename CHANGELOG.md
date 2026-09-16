@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0-rc.7 — Windows VS Code Metadata Probe Correction
+
+- Stops Windows evaluation metadata and preflight from invoking the VS Code
+  Electron CLI merely to read version or extension information. It instead
+  reads the installed editor product metadata and the selected dedicated
+  profile's extension manifests.
+- Prevents a Codex-sandboxed Windows probe from causing VS Code Crashpad to
+  write an access-denied diagnostic in the framework working directory.
+- Leaves prompts, scoring rubrics, generated contexts, host adapters, managed
+  instructions, normal VS Code profile setup, and all response-affecting
+  evaluation surfaces unchanged.
+
 ## 2.0.0-rc.6 — Response-Surface-Preserving Verification Fix
 
 - Adds a durable rule allowing complete behavioral campaigns to carry to a

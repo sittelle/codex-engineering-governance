@@ -1,9 +1,12 @@
 RELEASE_CANDIDATE
 
-Version `2.0.0-rc.6` adds a response-surface-preservation rule and makes the
-Windows test-profile theme writer honor PowerShell `ShouldProcess`. Neither
-change affects the frozen GOV-001..030 goals, rubrics, protocol-v2 rendering,
-host adapter/instructions, generated contexts, or normal host/profile setup.
+Version `2.0.0-rc.7` corrects Windows-only evaluation metadata collection so
+it reads VS Code product metadata and dedicated-profile extension manifests
+without launching the Electron CLI from a Codex-sandboxed process. This avoids
+an unrelated Crashpad access-denied diagnostic in the framework working
+directory. It does not affect the frozen GOV-001..030 goals, rubrics,
+protocol-v2 rendering, host adapter/instructions, generated contexts, or
+normal host/profile setup.
 
 The Sittelle Engineering Governance 2.0 line introduces native Codex and Claude Code host adapters, the unified
 Python `governance.py` management interface, host-neutral governed-project
@@ -21,13 +24,13 @@ An earlier Claude Code campaign scored 49/60 and remains failed historical
 evidence. It is not rewritten or treated as acceptance.
 
 Earlier external Codex and Claude Code campaigns remain outside this repository
-and are not used as rc.6 behavioural acceptance. Fresh protocol-v2 campaigns
+and are not used as rc.7 behavioural acceptance. Fresh protocol-v2 campaigns
 were completed against the rc.5 candidate using the Metadata v2 collection
 contract: clean Codex and Claude Code environments each captured 30/30
 hash-verified responses and scored 60/60. The privacy-safe archive bindings
 and environment categories are retained in
-`release-evidence/validation/VALIDATION-v2.0.0-rc.5.md` and the rc.6
-preservation record; raw responses,
+`release-evidence/validation/VALIDATION-v2.0.0-rc.5.md` and the rc.6/rc.7
+preservation records; raw responses,
 profiles, paths, account state, and chats remain controlled external evidence.
 
 A local manual-campaign kit is prepared for disposable VM/IDE testing. It
@@ -40,7 +43,7 @@ disposable-VM route obtains current prerequisites and records only
 response-relevant environment metadata, while an optional checksum-locked
 route supports an exact reviewed baseline. Neither tool makes AI calls.
 
-Behavioural acceptance carries to rc.6 under the recorded preservation rule.
+Behavioural acceptance carries to rc.7 under the recorded preservation rule.
 Exact-commit cross-platform
 canonical full assurance, deterministic package binding, and an explicit
 release decision remain required. Version `1.0.0` remains the latest published

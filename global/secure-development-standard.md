@@ -1,6 +1,6 @@
 # Secure Development Standard
 
-Version 2.0.0-rc.6.
+Version 2.0.0-rc.7.
 
 ## Assurance
 

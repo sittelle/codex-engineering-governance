@@ -493,10 +493,79 @@ def vscode_cli_command() -> str | None:
     return None
 
 
+def vscode_product_probe(vscode_command: str | None = None) -> dict[str, object]:
+    """Inspect VS Code without launching its Electron CLI on Windows.
+
+    A Codex-sandboxed Windows process may be unable to register with VS Code's
+    Crashpad service. Invoking ``code --version`` in that context can then
+    write an Electron diagnostic into the caller's working directory. Product
+    metadata and the dedicated profile's extension manifests provide the same
+    response-relevant provenance without launching the editor.
+    """
+    executable = vscode_command or vscode_cli_command()
+    if executable is None:
+        return {"state": "NOT_FOUND"}
+    if platform.system() != "Windows":
+        return tool_probe([executable, "--version"])
+
+    cli = Path(executable).expanduser()
+    code_executable = cli if cli.suffix.lower() == ".exe" else cli.parent.parent / "Code.exe"
+    if not code_executable.is_file():
+        return {"state": "ERROR", "detail": "VS Code executable could not be resolved from its CLI"}
+    candidates = [
+        code_executable.parent / "resources" / "app" / "product.json",
+        *sorted(code_executable.parent.glob("*/resources/app/product.json")),
+    ]
+    for product_path in candidates:
+        if not product_path.is_file():
+            continue
+        try:
+            product = json.loads(product_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        version = product.get("version")
+        commit = product.get("commit")
+        if isinstance(version, str) and version:
+            lines = [version[:300]]
+            if isinstance(commit, str) and commit:
+                lines.append(commit[:300])
+            lines.append(platform.machine()[:300])
+            return {"state": "AVAILABLE", "version": lines[0], "lines": lines}
+    return {"state": "ERROR", "detail": "VS Code product metadata is unavailable"}
+
+
+def profile_extensions_probe(vscode_profile: Path) -> dict[str, object]:
+    """Read installed extension identities from a dedicated test profile."""
+    extensions_directory = vscode_profile / "extensions"
+    if not extensions_directory.is_dir():
+        return {"state": "NOT_FOUND"}
+    extensions = []
+    invalid_manifest = False
+    for extension_directory in sorted(extensions_directory.iterdir(), key=lambda item: item.name.casefold()):
+        manifest = extension_directory / "package.json"
+        if not extension_directory.is_dir() or not manifest.is_file():
+            continue
+        try:
+            value = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            invalid_manifest = True
+            continue
+        publisher, name, version = value.get("publisher"), value.get("name"), value.get("version")
+        if not all(isinstance(item, str) and item for item in (publisher, name, version)):
+            invalid_manifest = True
+            continue
+        extensions.append({"id": f"{publisher}.{name}".casefold()[:300], "version": version[:300]})
+    if invalid_manifest:
+        return {"state": "ERROR", "detail": "dedicated VS Code profile contains an invalid extension manifest"}
+    return {"state": "AVAILABLE", "extensions": sorted(extensions, key=lambda item: (item["id"], item["version"]))}
+
+
 def vscode_extensions_probe(vscode_profile: Path | None) -> dict[str, object]:
     executable = vscode_cli_command()
     if executable is None:
         return {"state": "NOT_FOUND"}
+    if platform.system() == "Windows":
+        return profile_extensions_probe(vscode_profile) if vscode_profile is not None else {"state": "NOT_REQUESTED"}
     command = [executable]
     if vscode_profile is not None:
         command.extend(["--user-data-dir", str(vscode_profile), "--extensions-dir", str(vscode_profile / "extensions")])
@@ -837,7 +906,7 @@ def collected_metadata(
                 "release": platform.release(),
                 "machine": platform.machine(),
             },
-            "editor": {"vs_code": tool_probe(["code", "--version"])},
+            "editor": {"vs_code": vscode_product_probe()},
             "vs_code_extensions": extensions,
             "agent_integration": {extension_id: selected[0] if len(selected) == 1 else {"state": "NOT_FOUND_OR_AMBIGUOUS"}},
         },
@@ -891,7 +960,7 @@ def preflight_report(
     contexts_match = expected_contexts == actual_contexts
     host_verify = run([sys.executable, str(ROOT / "governance.py"), "host", "verify", "--host", host], ROOT)
     vscode = vscode_cli_command()
-    editor = tool_probe([vscode, "--version"]) if vscode else {"state": "NOT_FOUND"}
+    editor = vscode_product_probe(vscode)
     extensions = vscode_extensions_probe(profile)
     extension_id = {"codex": "openai.chatgpt", "claude": "anthropic.claude-code"}[host]
     integrations = [
@@ -1492,6 +1561,15 @@ def self_test() -> int:
             settings = json.loads((profile / "User" / "settings.json").read_text(encoding="utf-8"))
             if settings.get("workbench.colorTheme") != VSCODE_TEST_THEME:
                 raise Error("VS Code test profile theme was not configured")
+            extension_directory = profile / "extensions" / "openai.chatgpt-test"
+            extension_directory.mkdir(parents=True)
+            (extension_directory / "package.json").write_text(
+                json.dumps({"publisher": "openai", "name": "chatgpt", "version": "test"}) + "\n",
+                encoding="utf-8",
+            )
+            extension_probe = profile_extensions_probe(profile)
+            if extension_probe != {"state": "AVAILABLE", "extensions": [{"id": "openai.chatgpt", "version": "test"}]}:
+                raise Error("dedicated VS Code extension-manifest inspection failed")
             conduct(
                 destination,
                 "claude",
