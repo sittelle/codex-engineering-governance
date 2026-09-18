@@ -1772,6 +1772,26 @@ def registration_state(project: Path) -> tuple[bool, bool]:
     return False, highest_risk
 
 
+def load_run_verification_module(root: Path):
+    """Dynamically load assurance/run-verification.py so the hook can reuse
+    governance_integrity_preflight instead of duplicating it a third time
+    (it is already duplicated once, intentionally, between governance.py and
+    run-verification.py's own small helpers, for the standalone-distribution
+    reason documented on that copy). governance.py only runs from within a
+    full framework root (framework_root() already requires many sibling
+    files), so depending on this sibling file here is not a new risk.
+    """
+    import importlib.util
+
+    path = root / "assurance" / "run-verification.py"
+    spec = importlib.util.spec_from_file_location("_governance_hook_run_verification", path)
+    if spec is None or spec.loader is None:
+        fail(f"Cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def hook_pre_tool_decision(root: Path, data: dict, *, enforce: bool) -> dict | None:
     """Return a hookSpecificOutput payload, or None to allow silently."""
     tool_name = data.get("tool_name")
@@ -1789,6 +1809,29 @@ def hook_pre_tool_decision(root: Path, data: dict, *, enforce: bool) -> dict | N
         verify_project(root, project)
     except GovernanceError as exc:
         reasons.append(f"Governance artifact integrity check failed: {exc}")
+
+    # verify_project (above) covers the manifest fields, both managed blocks,
+    # and (in business-led mode) the registration seal. It does not cover
+    # what only the verification runner's preflight checks: verification-plan.json's
+    # assurance object, .governance/integrity.json's internal consistency,
+    # and the .governance/assurance-bootstrap.json cross-check. Run that
+    # here too so a hand-edit to one of those is denied live, not only at
+    # the next quick/full run. Scoped to schema v3 projects, matching the
+    # runner's own scope for this preflight.
+    plan_path = project / "verification-plan.json"
+    if plan_path.is_file():
+        try:
+            plan_schema = json.loads(read_text(plan_path)).get("schema_version")
+        except Exception:
+            plan_schema = None
+        if plan_schema == "3":
+            run_verification = load_run_verification_module(root)
+            baseline_path = project / ".governance" / "assurance-baseline.json"
+            preflight = run_verification.governance_integrity_preflight(
+                project, baseline_path if baseline_path.is_file() else None
+            )
+            for issue in preflight.get("issues", []):
+                reasons.append(issue["message"])
 
     mode = project_governance_mode(read_text(manifest))
     if mode == "business-led":

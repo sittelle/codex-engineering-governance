@@ -45,6 +45,21 @@ def make_project(parent: Path, name: str) -> Path:
     return parent / name
 
 
+def run_hook(project: Path, *, enforce: bool = True) -> dict | None:
+    flag = "--enforce" if enforce else "--inform"
+    stdin_payload = json.dumps({"tool_name": "Edit", "cwd": str(project), "tool_input": {}})
+    proc = subprocess.run(
+        [sys.executable, str(GOVERNANCE_PY), "hook", "pre-tool", flag],
+        input=stdin_payload,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if not proc.stdout.strip():
+        return None
+    return json.loads(proc.stdout)
+
+
 def to_schema_v3(project: Path) -> None:
     plan_path = project / "verification-plan.json"
     data = json.loads(plan_path.read_text(encoding="utf-8-sig"))
@@ -187,6 +202,27 @@ def test_tampered_verification_plan_assurance(failures: list[str]) -> None:
         )
 
 
+def test_hook_covers_plan_tampering_not_just_managed_blocks(failures: list[str]) -> None:
+    """Regression guard for the gap found via live host-client testing
+    (2026-09-18): governance.py hook pre-tool originally only ran
+    verify_project, which does not check verification-plan.json's assurance
+    object. A business-led/Codex user could hand-edit it and the hook would
+    allow silently, even though the next quick/full run would catch it. The
+    hook now also runs governance_integrity_preflight (schema v3 only,
+    matching the runner's own scope) so this is denied live too.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        project = make_project(Path(td), "hook-plan-tamper")
+        to_schema_v3(project)
+        assert_true(run_hook(project, enforce=True) is None, "hook denied a clean v3 project", failures)
+        tamper_verification_plan_assurance(project)
+        payload = run_hook(project, enforce=True)
+        assert_true(payload is not None, "hook did not deny a tampered verification-plan.json (the gap this test guards)", failures)
+        if payload is not None:
+            decision = payload.get("hookSpecificOutput", {}).get("permissionDecision")
+            assert_true(decision == "deny", f"hook enforce mode did not deny; got {decision!r}", failures)
+
+
 def test_swapped_project_baseline_copy(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory() as td:
         project = make_project(Path(td), "swapped-copy")
@@ -294,6 +330,7 @@ def main() -> int:
     test_tampered_governance_fields(failures)
     test_project_owned_field_edit_is_not_flagged(failures)
     test_tampered_verification_plan_assurance(failures)
+    test_hook_covers_plan_tampering_not_just_managed_blocks(failures)
     test_swapped_project_baseline_copy(failures)
     test_central_release_baseline_mismatch(failures)
     test_unapproved_instruction_surface(failures)
@@ -312,6 +349,7 @@ def main() -> int:
     print("- tampered project-governance.yml governance: fields => GOVERNANCE_INTEGRITY_FAILED")
     print("- editing a project-owned field (not under governance:) is not flagged")
     print("- tampered verification-plan.json assurance object => GOVERNANCE_INTEGRITY_FAILED")
+    print("- governance.py hook pre-tool denies on the same tampering live, not just at the next quick/full run")
     print("- swapped .governance/assurance-baseline.json copy => GOVERNANCE_INTEGRITY_FAILED")
     print("- swapped central capability-baseline.json vs release-baseline-hashes.json => GOVERNANCE_INTEGRITY_FAILED")
     print("- unapproved .claude/ surface in business-led mode => UNAPPROVED_INSTRUCTION_SURFACE, suppressed once registration.yml exists")
