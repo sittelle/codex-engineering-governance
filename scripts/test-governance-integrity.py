@@ -8,8 +8,13 @@ a tampered managed block, a tampered project-governance.yml governance
 field, a tampered verification-plan.json assurance object, a swapped
 .governance/assurance-baseline.json copy, a swapped central
 capability-baseline.json, and an unapproved instruction surface in
-business-led mode. Confirms verification-plan schema v2 (report schema
-v4) fixtures are entirely unaffected by all of the above, per the
+business-led mode -- including WS4 phase 3's exact hash-pinned
+allowlisted_instruction_surfaces comparison: a listed and content-matching
+surface is approved, an unlisted or drifted (edited-since-approval)
+surface is flagged, and a registration.yml whose integrity seal is
+missing or tampered is never trusted regardless of its allowlist
+contents. Confirms verification-plan schema v2 (report schema v4)
+fixtures are entirely unaffected by all of the above, per the
 "schema v2 and v4 paths unchanged" constraint.
 """
 from __future__ import annotations
@@ -123,6 +128,31 @@ def tamper_verification_plan_assurance(project: Path) -> None:
     data = json.loads(plan_path.read_text(encoding="utf-8-sig"))
     data["assurance"]["facts"]["has_exposed_web_surface"] = True
     plan_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def seal_registration_with_allowlist(project: Path, entries: list[dict]) -> Path:
+    """Write a registration.yml into the project with the given
+    allowlisted_instruction_surfaces entries ({path, sha256}), then seal it
+    via governance.py registration seal, exactly as IT Security's tooling
+    would.
+    """
+    template_text = (ROOT / "templates/repository/registration.yml").read_text(encoding="utf-8-sig")
+    text = template_text.replace('registration_id: "<assigned by IT Security>"', 'registration_id: "REG-TEST"')
+    text = text.replace('purpose: "<what this project is for and who uses it>"', 'purpose: "Test fixture."')
+    text = text.replace('business_owner: "<name>"', 'business_owner: "Test Owner"')
+    text = text.replace('approval_authority: "<IT Security contact>"', 'approval_authority: "Test IT Security"')
+    if entries:
+        block_lines = ["allowlisted_instruction_surfaces:"]
+        for entry in entries:
+            block_lines.append(f'  - path: "{entry["path"]}"')
+            block_lines.append(f'    sha256: "{entry["sha256"]}"')
+        text = text.replace("allowlisted_instruction_surfaces: []", "\n".join(block_lines))
+    reg_path = project / "registration.yml"
+    reg_path.write_text(text, encoding="utf-8", newline="\n")
+    proc = run([sys.executable, str(GOVERNANCE_PY), "registration", "seal", "--registration", str(reg_path), "--by", "test"])
+    if proc.returncode != 0:
+        raise RuntimeError(f"registration seal failed: {proc.stdout}\n{proc.stderr}")
+    return reg_path
 
 
 def enable_business_led_mode(project: Path) -> None:
@@ -289,8 +319,74 @@ def test_unapproved_instruction_surface(failures: list[str]) -> None:
         (project / "registration.yml").write_text("registration_id: demo\n", encoding="utf-8")
         report2 = quick_report(project)
         assert_true(
-            not issue_codes(report2, "instruction_surface_audit"),
-            "presence of registration.yml did not suppress the placeholder instruction-surface flag",
+            "UNAPPROVED_INSTRUCTION_SURFACE" in issue_codes(report2, "instruction_surface_audit"),
+            "an unsealed registration.yml with no allowlist incorrectly suppressed the instruction-surface flag "
+            "(its allowlist must not be trusted merely because the file exists)",
+            failures,
+        )
+
+
+def current_surfaces(project: Path) -> list[dict]:
+    """The audit's own enumeration of every current instruction surface and
+    its hash (including any non-managed AGENTS.md remainder the project
+    scaffold itself carries), used to build a matching allowlist rather than
+    guessing which surfaces exist and what their bytes hash to."""
+    report = quick_report(project)
+    return (report.get("instruction_surface_audit") or {}).get("surfaces", [])
+
+
+def test_allowlisted_instruction_surface_is_exact_hash_pinned(failures: list[str]) -> None:
+    """The registration's allowlisted_instruction_surfaces is the exact,
+    hash-pinned set IT Security approved (WS4 registration schema), not
+    merely "a registration.yml exists". A listed-and-matching surface is
+    approved; an edited-since-approval surface (hash drift) is flagged the
+    same as an unlisted one.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        project = make_project(Path(td), "allowlisted-surface")
+        to_schema_v3(project)
+        enable_business_led_mode(project)
+        claude_dir = project / ".claude"
+        claude_dir.mkdir()
+        settings_path = claude_dir / "settings.json"
+        settings_path.write_text("{}\n", encoding="utf-8")
+
+        seal_registration_with_allowlist(project, current_surfaces(project))
+        report = quick_report(project)
+        assert_true(
+            not issue_codes(report, "instruction_surface_audit"),
+            "every currently enumerated surface was allowlisted with a matching hash but was still flagged as unapproved",
+            failures,
+        )
+
+        settings_path.write_text('{"changed": true}\n', encoding="utf-8")
+        report2 = quick_report(project)
+        issues2 = (report2.get("instruction_surface_audit") or {}).get("issues", [])
+        assert_true(
+            any(i.get("path") == ".claude/settings.json" for i in issues2),
+            "editing an allowlisted surface after approval (hash drift) was not re-flagged",
+            failures,
+        )
+
+
+def test_tampered_registration_seal_untrusts_allowlist(failures: list[str]) -> None:
+    with tempfile.TemporaryDirectory() as td:
+        project = make_project(Path(td), "tampered-allowlist-seal")
+        to_schema_v3(project)
+        enable_business_led_mode(project)
+        claude_dir = project / ".claude"
+        claude_dir.mkdir()
+        (claude_dir / "settings.json").write_text("{}\n", encoding="utf-8")
+
+        reg_path = seal_registration_with_allowlist(project, current_surfaces(project))
+        text = reg_path.read_text(encoding="utf-8-sig")
+        text = text.replace('pathway: "green"', 'pathway: "red"')
+        reg_path.write_text(text, encoding="utf-8", newline="\n")
+
+        report = quick_report(project)
+        assert_true(
+            "UNAPPROVED_INSTRUCTION_SURFACE" in issue_codes(report, "instruction_surface_audit"),
+            "a tampered (hand-edited-after-sealing) registration.yml still had its allowlist trusted",
             failures,
         )
 
@@ -334,6 +430,8 @@ def main() -> int:
     test_swapped_project_baseline_copy(failures)
     test_central_release_baseline_mismatch(failures)
     test_unapproved_instruction_surface(failures)
+    test_allowlisted_instruction_surface_is_exact_hash_pinned(failures)
+    test_tampered_registration_seal_untrusts_allowlist(failures)
     test_professional_mode_reports_only(failures)
     test_v2_plan_unaffected_by_tampering(failures)
 
@@ -352,7 +450,9 @@ def main() -> int:
     print("- governance.py hook pre-tool denies on the same tampering live, not just at the next quick/full run")
     print("- swapped .governance/assurance-baseline.json copy => GOVERNANCE_INTEGRITY_FAILED")
     print("- swapped central capability-baseline.json vs release-baseline-hashes.json => GOVERNANCE_INTEGRITY_FAILED")
-    print("- unapproved .claude/ surface in business-led mode => UNAPPROVED_INSTRUCTION_SURFACE, suppressed once registration.yml exists")
+    print("- unapproved .claude/ surface in business-led mode => UNAPPROVED_INSTRUCTION_SURFACE, an unsealed/empty allowlist never suppresses it")
+    print("- exact hash-pinned allowlist entry suppresses the flag; editing the surface afterward (drift) re-flags it")
+    print("- tampered registration.yml seal is never trusted, even with a matching allowlist entry present")
     print("- professional mode enumerates surfaces but never fails on them")
     print("- verification-plan schema v2 / report schema v4 is entirely unaffected by all of the above")
     return 0

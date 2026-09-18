@@ -918,19 +918,90 @@ def non_managed_agents_text(project_root: Path) -> str | None:
     return remainder or None
 
 
+def registration_integrity_block(text: str) -> re.Match | None:
+    return re.search(r"(?m)^integrity:[ \t]*\n(?:[ \t]+.*\n?|[ \t]*\n)*", text)
+
+
+def registration_sealed_content(text: str) -> str | None:
+    """Everything except the integrity: block itself, mirroring
+    governance.py's registration_sealed_content so both sides hash the same
+    bytes. Self-contained here since this file is copied standalone into
+    every governed project and must not import governance.py."""
+    match = registration_integrity_block(text)
+    if match is None:
+        return None
+    return text[: match.start()] + text[match.end() :]
+
+
+def registration_seal_valid(text: str) -> bool:
+    match = registration_integrity_block(text)
+    if match is None:
+        return False
+    recorded = re.search(r'(?m)^\s*sha256:\s*["\']?([0-9a-f]{64})["\']?\s*$', match.group(0))
+    if not recorded:
+        return False
+    sealed_content = registration_sealed_content(text)
+    if sealed_content is None:
+        return False
+    return sha256_bytes(sealed_content.encode("utf-8")) == recorded.group(1)
+
+
+def _strip_matching_quotes(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        return value[1:-1]
+    return value
+
+
+def parse_allowlisted_instruction_surfaces(text: str) -> list[dict]:
+    """Light-touch parse of registration.yml's allowlisted_instruction_surfaces
+    block: a list of {path, sha256} entries, or empty (inline [] or absent).
+    Accepts both the flow-mapping form the template documents
+    (- {path: "...", sha256: "..."}) and the block form (- path: ...\n
+    sha256: ...) on separate lines."""
+    match = re.search(r"(?m)^allowlisted_instruction_surfaces:[ \t]*(?:\[\])?[ \t]*\n?((?:[ \t]+.*\n?)*)", text)
+    if not match:
+        return []
+    entries: list[dict] = []
+    current_path: str | None = None
+    for line in match.group(1).splitlines():
+        flow_match = re.match(
+            r"[ \t]*-[ \t]*\{[ \t]*path:[ \t]*(.+?)[ \t]*,[ \t]*sha256:[ \t]*(.+?)[ \t]*\}[ \t]*$", line
+        )
+        if flow_match:
+            entries.append(
+                {
+                    "path": _strip_matching_quotes(flow_match.group(1)),
+                    "sha256": _strip_matching_quotes(flow_match.group(2)),
+                }
+            )
+            current_path = None
+            continue
+        path_match = re.match(r"[ \t]*-[ \t]*path:[ \t]*(.+?)[ \t]*$", line)
+        if path_match:
+            current_path = _strip_matching_quotes(path_match.group(1))
+            continue
+        sha_match = re.match(r"[ \t]*sha256:[ \t]*(.+?)[ \t]*$", line)
+        if sha_match and current_path is not None:
+            entries.append({"path": current_path, "sha256": _strip_matching_quotes(sha_match.group(1))})
+            current_path = None
+    return entries
+
+
 def instruction_surface_audit(project_root: Path) -> dict:
     """Enumerate project-level instruction surfaces (.claude/ rules, skills,
     agents, commands, hooks, settings, .mcp.json, CLAUDE.local.md, and
     non-managed AGENTS.md text) not covered by the governance-managed blocks.
 
     In professional mode this is informational only: it never affects the
-    overall result. In business-led mode, a registration allowlist governs
-    which surfaces are approved (WS4); until that allowlist's format exists,
-    the presence of a registration file is treated as sufficient evidence
-    that IT Security reviewed the current surfaces, and only a business-led
-    project with no registration at all is flagged as fully unapproved. This
-    placeholder must be replaced with an exact hash-pinned allowlist
-    comparison once WS4 defines registration.yml's schema.
+    overall result. In business-led mode, registration.yml's
+    allowlisted_instruction_surfaces is the exact, hash-pinned set IT
+    Security approved (WS4 registration schema). A surface is approved only
+    if its path is listed AND its current sha256 matches the recorded
+    value; drift (edited-since-approval) is flagged the same as an
+    unlisted surface. A missing registration.yml, or one whose integrity
+    seal is missing/invalid, cannot be trusted at all: every current
+    surface is flagged.
     """
     mode = project_governance_mode(project_root)
     entries = [
@@ -942,15 +1013,50 @@ def instruction_surface_audit(project_root: Path) -> dict:
         entries.append({"path": "AGENTS.md#non-managed-text", "sha256": sha256_bytes(remainder.encode("utf-8"))})
 
     issues: list[dict] = []
-    if mode == "business-led" and not (project_root / "registration.yml").is_file():
-        for entry in entries:
-            issues.append(
-                {
-                    "code": "UNAPPROVED_INSTRUCTION_SURFACE",
-                    "path": entry["path"],
-                    "message": f"{entry['path']}: business-led mode requires a registration allowlist; no registration.yml is present",
+    if mode == "business-led":
+        registration_path = project_root / "registration.yml"
+        if not registration_path.is_file():
+            for entry in entries:
+                issues.append(
+                    {
+                        "code": "UNAPPROVED_INSTRUCTION_SURFACE",
+                        "path": entry["path"],
+                        "message": f"{entry['path']}: business-led mode requires a registration allowlist; no registration.yml is present",
+                    }
+                )
+        else:
+            registration_text = read_text_lenient(registration_path)
+            if not registration_seal_valid(registration_text):
+                for entry in entries:
+                    issues.append(
+                        {
+                            "code": "UNAPPROVED_INSTRUCTION_SURFACE",
+                            "path": entry["path"],
+                            "message": f"{entry['path']}: registration.yml's integrity seal is missing or invalid; its allowlist cannot be trusted",
+                        }
+                    )
+            else:
+                allowlist = {
+                    e["path"]: e["sha256"] for e in parse_allowlisted_instruction_surfaces(registration_text)
                 }
-            )
+                for entry in entries:
+                    approved_hash = allowlist.get(entry["path"])
+                    if approved_hash is None:
+                        issues.append(
+                            {
+                                "code": "UNAPPROVED_INSTRUCTION_SURFACE",
+                                "path": entry["path"],
+                                "message": f"{entry['path']}: not in registration.yml's allowlisted_instruction_surfaces",
+                            }
+                        )
+                    elif approved_hash != entry["sha256"]:
+                        issues.append(
+                            {
+                                "code": "UNAPPROVED_INSTRUCTION_SURFACE",
+                                "path": entry["path"],
+                                "message": f"{entry['path']}: content changed since IT Security approved it; the allowlisted sha256 no longer matches",
+                            }
+                        )
 
     return {"mode": mode, "status": "PASS" if not issues else "INCOMPLETE_ASSURANCE", "surfaces": entries, "issues": issues}
 
