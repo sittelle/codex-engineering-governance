@@ -1212,6 +1212,120 @@ def apply_registration_facts(plan_text: str, facts: dict) -> str:
     return json.dumps(data, indent=2) + "\n"
 
 
+def pending_request_records(project: Path) -> list[dict]:
+    requests_dir = project / "docs" / "governance" / "requests"
+    if not requests_dir.is_dir():
+        return []
+    pending = []
+    for path in sorted(requests_dir.glob("REQUEST-*.md")):
+        text = read_text(path)
+        status_match = re.search(r"(?m)^Status:\s*(.+?)\s*$", text)
+        status = status_match.group(1).strip() if status_match else "unknown"
+        if status.lower() == "open":
+            routing_match = re.search(r"(?m)^Routing outcome:\s*(.+?)\s*$", text)
+            pending.append(
+                {
+                    "path": path.relative_to(project).as_posix(),
+                    "status": status,
+                    "routing_outcome": routing_match.group(1).strip() if routing_match else None,
+                }
+            )
+    return pending
+
+
+def build_readiness_packet(root: Path, project: Path, report_path: Path | None) -> dict:
+    manifest = project / "project-governance.yml"
+    if not manifest.is_file():
+        fail(f"Not a governed project: {project}")
+    mode = project_governance_mode(read_text(manifest))
+
+    registration_summary = None
+    registration_path = project / "registration.yml"
+    if registration_path.is_file():
+        reg_text = read_text(registration_path)
+        registration_summary = {
+            "seal_valid": registration_seal_valid(reg_text),
+            **{k: v for k, v in parse_registration(reg_text).items() if k != "capabilities"},
+        }
+
+    report = None
+    if report_path is not None:
+        if not report_path.is_file():
+            fail(f"Verification report does not exist: {report_path}")
+        try:
+            report = json.loads(read_text(report_path))
+        except Exception as exc:
+            fail(f"Cannot parse verification report {report_path}: {exc}")
+
+    governance_integrity = (report or {}).get("governance_integrity")
+    instruction_surface = (report or {}).get("instruction_surface_audit")
+    ci_enforcement = (report or {}).get("ci_enforcement")
+    overall = (report or {}).get("overall")
+    fail_count = sum(1 for r in (report or {}).get("results", []) if r.get("result") == "FAIL")
+
+    requests = pending_request_records(project)
+
+    pathway = (registration_summary or {}).get("pathway")
+    blocking = (
+        mode == "business-led"
+        and (
+            registration_summary is None
+            or not registration_summary.get("seal_valid")
+            or report is None
+            or overall != "PASS"
+            or fail_count > 0
+            or (governance_integrity or {}).get("status") not in (None, "PASS")
+            or (instruction_surface or {}).get("status") not in (None, "PASS")
+        )
+    )
+    if mode != "business-led":
+        disposition = "NOT_APPLICABLE"
+    elif report is None:
+        disposition = "INCOMPLETE_EVIDENCE"
+    elif blocking:
+        disposition = "NOT_READY"
+    elif pathway == "red":
+        disposition = "IT_OWNERSHIP_REQUIRED"
+    elif requests:
+        disposition = "PENDING_IT_SECURITY"
+    elif pathway == "green":
+        disposition = "READY_FOR_AUTOMATED_APPROVAL"
+    else:
+        disposition = "READY_FOR_MANUAL_REVIEW"
+
+    return {
+        "schema_version": "1",
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "project": project.name,
+        "governance_mode": mode,
+        "git_commit": git_head(project),
+        "registration": registration_summary,
+        "full_report": (
+            {
+                "path": report_path.as_posix() if report_path else None,
+                "overall": overall,
+                "generated_at_utc": (report or {}).get("generated_at_utc"),
+                "plan_sha256": (report or {}).get("plan_sha256"),
+                "fail_count": fail_count,
+            }
+            if report is not None
+            else None
+        ),
+        "governance_integrity": governance_integrity,
+        "instruction_surface_audit": instruction_surface,
+        "enforcement": ci_enforcement,
+        "pending_requests": requests,
+        "disposition": disposition,
+    }
+
+
+def git_head(project: Path) -> str | None:
+    if not (project / ".git").exists():
+        return None
+    result = run_git(["rev-parse", "HEAD"], project)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
 def verify_project(root: Path, project: Path) -> None:
     manifest = project / "project-governance.yml"
     agents = project / "AGENTS.md"
@@ -1820,6 +1934,11 @@ def build_parser() -> argparse.ArgumentParser:
     verify = project_sub.add_parser("verify")
     verify.add_argument("--project", required=True)
 
+    readiness = project_sub.add_parser("readiness")
+    readiness.add_argument("--project", required=True)
+    readiness.add_argument("--report", default=None, help="Path to a canonical full verification report JSON.")
+    readiness.add_argument("--output", default=None, help="Write the packet to this path instead of stdout.")
+
     new = project_sub.add_parser("new")
     new.add_argument("--parent", required=True)
     new.add_argument("--name", required=True)
@@ -1918,6 +2037,18 @@ def main(argv: list[str] | None = None) -> int:
                 project = Path(args.project).expanduser().resolve()
                 verify_project(root, project)
                 print("Project verification: PASS")
+                return 0
+
+            if args.action == "readiness":
+                project = Path(args.project).expanduser().resolve()
+                report_path = Path(args.report).expanduser().resolve() if args.report else None
+                packet = build_readiness_packet(root, project, report_path)
+                text = json.dumps(packet, indent=2) + "\n"
+                if args.output:
+                    write_text(Path(args.output).expanduser().resolve(), text)
+                    print(f"Readiness packet written: {args.output}")
+                else:
+                    print(text, end="")
                 return 0
 
             if args.action == "new":
