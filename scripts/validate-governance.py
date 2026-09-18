@@ -45,9 +45,9 @@ required = [
     "assurance/aggregate-verification.py", "assurance/tool-environment-locks.md", "assurance/architecture.md",
     "assurance/capability-matrix.md", "templates/github/governance-verify.yml", "templates/repository/verification-plan.json",
     "scripts/bootstrap-assurance.py", "scripts/bootstrap-assurance.ps1", "scripts/bootstrap-assurance.sh",
-    "governance.py", "scripts/manual-behavioral-campaign.py", "scripts/test-management.py", "scripts/test-assurance-integration.py", "workflows/refactor/WORKFLOW.md",
+    "governance.py", "scripts/manual-behavioral-campaign.py", "scripts/test-management.py", "scripts/test-assurance-integration.py", "scripts/test-governance-integrity.py", "workflows/refactor/WORKFLOW.md",
     "workflows/emergency-fix/WORKFLOW.md", "workflows/dependency-change/WORKFLOW.md", "workflows/data-migration/WORKFLOW.md",
-    "codex-home/AGENTS.md", "host-adapters/operating-kernel.md", "CLAUDE.md", "templates/repository/AGENTS.md",
+    "codex-home/AGENTS.md", "host-adapters/operating-kernel.md", "host-adapters/claude/README.md", "host-adapters/claude/managed-settings.inform.json", "host-adapters/claude/managed-settings.block.json", "CLAUDE.md", "templates/repository/AGENTS.md",
     "templates/repository/CLAUDE.md", "templates/repository/project-governance.yml",
     "tests/governance/TEST-CONTEXTS.json", "tests/governance/TEST-CONTEXTS.md",
     "tests/governance/evaluations/README.md", "global/operating-contract.md", "global/engineering-constitution.md",
@@ -353,6 +353,44 @@ if "{{" in rendered_codex_kernel or "}}" in rendered_codex_kernel:
     errors.append("shared host operating kernel contains unresolved placeholders")
 if (root / "codex-home/AGENTS.md").read_text(encoding="utf-8") != rendered_codex_kernel:
     errors.append("codex-home/AGENTS.md is not the exact Codex rendering of the shared host operating kernel")
+
+claude_managed_settings = {}
+for variant, flag in (("inform", "--inform"), ("block", "--enforce")):
+    path = root / f"host-adapters/claude/managed-settings.{variant}.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        errors.append(f"host-adapters/claude/managed-settings.{variant}.json is invalid JSON: {exc}")
+        continue
+    claude_managed_settings[variant] = data
+    deny = (data.get("permissions") or {}).get("deny") or []
+    if not isinstance(deny, list) or not deny:
+        errors.append(f"managed-settings.{variant}.json has no permissions.deny rules")
+    if (data.get("permissions") or {}).get("disableBypassPermissionsMode") != "disable":
+        errors.append(f"managed-settings.{variant}.json does not disable bypass-permissions mode")
+    hooks = ((data.get("hooks") or {}).get("PreToolUse") or [{}])[0].get("hooks") or [{}]
+    command = hooks[0].get("command", "")
+    if "governance.py" not in command or "hook" not in command or "pre-tool" not in command:
+        errors.append(f"managed-settings.{variant}.json PreToolUse hook does not invoke governance.py hook pre-tool")
+    if flag not in command:
+        errors.append(f"managed-settings.{variant}.json hook command missing {flag}")
+    other_flag = "--enforce" if flag == "--inform" else "--inform"
+    if other_flag in command:
+        errors.append(f"managed-settings.{variant}.json hook command has the wrong enforcement flag")
+    if data.get("allowManagedMcpServersOnly") is not True:
+        errors.append(f"managed-settings.{variant}.json does not restrict to the managed MCP allowlist")
+    if not data.get("allowManagedHooksOnly"):
+        errors.append(f"managed-settings.{variant}.json does not restrict hooks to the managed layer")
+
+if "inform" in claude_managed_settings and "block" in claude_managed_settings:
+    inform_copy = json.loads(json.dumps(claude_managed_settings["inform"]))
+    block_copy = json.loads(json.dumps(claude_managed_settings["block"]))
+    inform_hooks = ((inform_copy.get("hooks") or {}).get("PreToolUse") or [{}])[0].get("hooks") or [{}]
+    block_hooks = ((block_copy.get("hooks") or {}).get("PreToolUse") or [{}])[0].get("hooks") or [{}]
+    inform_hooks[0]["command"] = ""
+    block_hooks[0]["command"] = ""
+    if inform_copy != block_copy:
+        errors.append("managed-settings.inform.json and managed-settings.block.json differ by more than the hook enforcement parameter")
 
 if "permissions.additionalDirectories" in management_source:
     errors.append("Claude adapter uses broad additionalDirectories instead of a least-privilege Read allow rule")

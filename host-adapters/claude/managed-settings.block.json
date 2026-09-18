@@ -1,0 +1,53 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(./project-governance.yml)",
+      "Write(./project-governance.yml)",
+      "Edit(./verification-plan.json)",
+      "Write(./verification-plan.json)",
+      "Edit(./.governance/**)",
+      "Write(./.governance/**)",
+      "Edit(./.claude/**)",
+      "Write(./.claude/**)",
+      "Edit(./.mcp.json)",
+      "Write(./.mcp.json)",
+      "Edit(./registration.yml)",
+      "Write(./registration.yml)",
+      "Edit(./CLAUDE.local.md)",
+      "Write(./CLAUDE.local.md)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard*)",
+      "Bash(git filter-branch*)",
+      "Bash(git update-ref*)",
+      "Bash(git rebase -i*)",
+      "Bash(git rebase --interactive*)",
+      "Bash(git reflog expire*)",
+      "Bash(git reflog delete*)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  },
+  "allowManagedHooksOnly": true,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import json,os,pathlib,subprocess,sys;cfg=pathlib.Path(os.environ.get('CLAUDE_CONFIG_DIR') or (pathlib.Path.home()/'.claude'));root=pathlib.Path((cfg/'GOVERNANCE_ROOT').read_text(encoding='utf-8-sig').strip());sys.exit(subprocess.call([sys.executable,str(root/'governance.py'),'hook','pre-tool','--enforce'],stdin=sys.stdin))\"",
+            "statusMessage": "Checking governance policy"
+          }
+        ]
+      }
+    ]
+  },
+  "allowedMcpServers": [],
+  "allowManagedMcpServersOnly": true,
+  "strictPluginOnlyCustomization": ["agents", "plugins", "skills", "mcp", "hooks"]
+}
