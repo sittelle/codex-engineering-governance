@@ -2,6 +2,12 @@ governance:
   baseline: "2.0.0"
   source: "host-adapter-locator"
   locator: "GOVERNANCE_ROOT"
+  # professional | business-led. In business-led mode, IT Security is the
+  # approval authority and the business employee receives plain-language
+  # routing instead of engineering classifications; see "Business-led mode
+  # and approval authority" in global/governance-standard.md. Changing this
+  # is a governance decision, not a routine edit.
+  mode: "professional"
 
 project:
   name: "<project-name>"
@@ -9,6 +15,13 @@ project:
   # Machine identifier: SA0 | SA1 | SA2 | SA3
   assurance: "SA1"
   lifecycle: "ACTIVE"
+
+# Meaningful only in business-led mode; the developer holds all of these
+# roles in professional mode and this block is left empty there.
+roles:
+  business_owner: null
+  approval_authority: null
+  professional_it_contact: null
 
 # Governed architecture-significant technology state.
 # Allowed states: UNESTABLISHED | ESTABLISHED | RECONCILIATION_REQUIRED
