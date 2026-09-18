@@ -32,6 +32,13 @@ jobs:
           check-latest: false
 
       - name: Run governed CI verification
+        env:
+          # Set as repository/organization Actions variables (Settings > Secrets
+          # and variables > Actions > Variables), never edited here. A missing
+          # GOVERNANCE_ENFORCEMENT is recorded as ABSENT/inform in the report;
+          # it is never silently treated as configured.
+          GOVERNANCE_MIN_VERSION: ${{ vars.GOVERNANCE_MIN_VERSION }}
+          GOVERNANCE_ENFORCEMENT: ${{ vars.GOVERNANCE_ENFORCEMENT }}
         run: >-
           python .governance/run-ci-verification.py
           --project-root .

@@ -154,6 +154,7 @@
     "skills/threat-modeling/SKILL.md",
     "templates/README.md",
     "templates/github/governance-verify.yml",
+    "templates/gitlab/governance-pipeline-policy.yml",
     "templates/repository/.editorconfig",
     "templates/repository/.gitignore",
     "templates/repository/AGENTS.md",

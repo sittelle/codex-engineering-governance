@@ -1,0 +1,50 @@
+# SITTELLE-ENGINEERING-GOVERNANCE-MANAGED-WORKFLOW v1
+#
+# Canonical governance verification for GitLab CI. Use as a project's own
+# .gitlab-ci.yml, or compose it with other pipeline configuration via
+# `include: - local: 'governance-pipeline-policy.yml'` (add this file's
+# `governance` stage to your own `stages:` list when doing so).
+#
+# GOVERNANCE_MIN_VERSION and GOVERNANCE_ENFORCEMENT are set as protected
+# CI/CD variables at the GitLab project or group level (Settings > CI/CD >
+# Variables), never edited here: GitLab's variable precedence gives a
+# protected project/group variable priority over the empty defaults below,
+# so IT Security controls both without touching this file, and a
+# contributor cannot override a protected variable from a merge request.
+# A missing GOVERNANCE_ENFORCEMENT is recorded as ABSENT/inform in the
+# report, per the framework's fail-closed rule; it is never silently
+# treated as configured.
+#
+# Fetching a fresher runner/baseline from an internal artifact source
+# instead of the project's committed .governance/ copy is an optional
+# extension point for IT's own infrastructure; this template does not
+# assume one exists and instead uses the copy bootstrap-assurance.py
+# already committed to the project, which the governance-integrity
+# preflight in assurance/run-verification.py independently protects
+# against drift.
+
+stages:
+  - governance
+
+governance:full-assurance:
+  stage: governance
+  image: python:3.13-slim
+  variables:
+    GOVERNANCE_MIN_VERSION: ""
+    GOVERNANCE_ENFORCEMENT: ""
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  script:
+    - >-
+      python .governance/run-ci-verification.py
+      --project-root .
+      --plan verification-plan.json
+      --baseline .governance/assurance-baseline.json
+      --report .governance/evidence/ci-full.json
+  artifacts:
+    when: always
+    paths:
+      - .governance/evidence/ci-full.json
+    expire_in: 14 days
