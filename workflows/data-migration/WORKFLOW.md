@@ -94,6 +94,10 @@ For C2/C3 migrations, present:
 
 Obtain material-direction approval before substantial migration implementation.
 
+## Business-led mode routing
+
+In business-led mode (`governance.mode: business-led`), route this workflow's material decision points through the five outcomes in "Business-led mode routing outcomes" (`global/governance-standard.md`) instead of developer approval: continue, update registration, obtain reassessment, involve IT Security, or hand over to IT. Record a request per "Business-led mode request records" when the outcome is "involve IT Security" or "obtain reassessment". A migration with destructive/irreversible steps always routes to "involve IT Security" at minimum.
+
 ## 7. Implement migration mechanics
 
 Implementation should:

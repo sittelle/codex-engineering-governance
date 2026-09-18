@@ -137,6 +137,10 @@ Obtain approval before implementation when the dependency change materially:
 
 Routine C1 maintenance does not require ceremonial approval.
 
+## Business-led mode routing
+
+In business-led mode (`governance.mode: business-led`), route this workflow's material decision points through the five outcomes in "Business-led mode routing outcomes" (`global/governance-standard.md`) instead of developer approval: continue, update registration, obtain reassessment, involve IT Security, or hand over to IT. Record a request per "Business-led mode request records" when the outcome is "involve IT Security" or "obtain reassessment". A dependency that introduces a capability outside the registration (a new external service, network connection, or elevated access) routes to "update registration".
+
 ## Technology Baseline interaction
 
 A framework, runtime, persistence, deployment/packaging, supported-platform, or other architecture-significant dependency may be both a dependency/supply-chain commitment and a Technology Baseline decision.

@@ -18,3 +18,7 @@ A security-review completion record MUST durably identify at minimum:
 The record may be represented in an existing issue/review/release system or repository evidence; a dedicated document is not required. `No findings` by itself is not sufficient evidence for SECURITY READY.
 
 Conclusion: SECURITY READY / SECURITY READY WITH ACCEPTED RISKS / NOT SECURITY READY / INCOMPLETE ASSURANCE.
+
+## Business-led mode routing
+
+In business-led mode (`governance.mode: business-led`), a finding requiring risk acceptance always routes to "involve IT Security" rather than a developer risk acceptance, per "Business-led mode routing outcomes" (`global/governance-standard.md`); the business owner's understanding is recorded, but the risk acceptance itself remains an owner decision awaiting IT Security confirmation until IT Security confirms it. `SECURITY READY WITH ACCEPTED RISKS` in business-led mode means IT Security has confirmed the acceptance, not that the business owner alone accepted it.

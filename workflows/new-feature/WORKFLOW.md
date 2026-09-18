@@ -11,3 +11,7 @@ Escalate for new persistence, external service, network exposure, auth, sensitiv
 If feature implementation would introduce, remove, or replace architecture-significant language/toolchain, runtime, primary framework/platform, persistence, deployment/packaging, supported target, or another stack-shaping component, do not treat that change as an incidental implementation shortcut.
 
 Pause the ordinary feature path for that delta, route/reuse `technology-selection` and the `dependency-change` workflow (plus data/security/migration workflows when triggered), and produce the required **Technology Baseline Transition Summary** before C2/C3 approval or substantial migration implementation. Continue unrelated feature work on the `ESTABLISHED` baseline when feasible.
+
+## Business-led mode routing
+
+In business-led mode (`governance.mode: business-led`), route this workflow's material decision points through the five outcomes in "Business-led mode routing outcomes" (`global/governance-standard.md`) instead of developer approval: continue, update registration, obtain reassessment, involve IT Security, or hand over to IT. Record a request per "Business-led mode request records" when the outcome is "involve IT Security" or "obtain reassessment".

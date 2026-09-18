@@ -210,6 +210,10 @@ Report:
 
 Use `VERIFIED`, `UNVERIFIED`, `KNOWN RISK`, `ACCEPTED RISK`, `NOT APPLICABLE`, and `REMAINING WORK` accurately.
 
+## Business-led mode routing
+
+In business-led mode (`governance.mode: business-led`), route this workflow's material decision points through the five outcomes in "Business-led mode routing outcomes" (`global/governance-standard.md`) instead of developer approval: continue, update registration, obtain reassessment, involve IT Security, or hand over to IT. Record a request per "Business-led mode request records" when the outcome is "involve IT Security" or "obtain reassessment".
+
 ## Stop conditions
 
 Stop and surface the issue when:

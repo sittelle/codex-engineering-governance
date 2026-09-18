@@ -27,3 +27,7 @@ When the release/readiness question is caused by a required control that is miss
 Do not shorten this to “everything else passed” or “CI can run it later”; those phrases omit the decision boundary the release owner must understand.
 
 If a post-release issue is discovered, preserve the affected release/artifact identity and route the work according to impact: plausible security impact → security-review; urgent stabilization → emergency-fix; ordinary product defect → bug-fix. Consequential withdrawal, rollback, replacement, or deployment actions still follow the applicable approval boundary.
+
+## Business-led mode routing
+
+In business-led mode (`governance.mode: business-led`), a release decision is never a developer approval; it is "continue" toward a readiness packet for IT Security's review (Green: automated rule permitted; Amber: manual review; Red: development continues but the packet states IT ownership is required before real use), or "involve IT Security" for anything the readiness packet cannot resolve on its own, per "Business-led mode routing outcomes" (`global/governance-standard.md`). The agent never marks a business-led release ready on IT Security's behalf.
