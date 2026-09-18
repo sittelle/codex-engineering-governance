@@ -166,6 +166,7 @@
     "templates/repository/docs/adr/ADR-template.md",
     "templates/repository/docs/architecture.md",
     "templates/repository/docs/design.md",
+    "templates/repository/docs/governance/requests/REQUEST-template.md",
     "templates/repository/docs/requirements.md",
     "templates/repository/docs/risk/accepted-risks.md",
     "templates/repository/docs/security.md",
