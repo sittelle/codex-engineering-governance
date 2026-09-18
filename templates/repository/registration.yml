@@ -13,6 +13,10 @@ schema_version: "1"
 
 registration_id: "<assigned by IT Security>"
 
+# What the project is for and who uses it, in the business owner's own
+# words. Source for `governance.py project validation-checklist`.
+purpose: "<what this project is for and who uses it>"
+
 # green | amber | red
 pathway: "green"
 

@@ -1165,9 +1165,15 @@ def parse_registration(text: str) -> dict:
     this with.
     """
     result: dict = {}
-    for key in ("schema_version", "registration_id", "pathway", "business_owner", "approval_authority"):
-        m = re.search(rf'(?m)^{key}:\s*["\']?([^"\'\n]*?)["\']?\s*$', text)
-        result[key] = m.group(1).strip() if m else None
+    for key in ("schema_version", "registration_id", "purpose", "pathway", "business_owner", "approval_authority"):
+        m = re.search(rf"(?m)^{key}:[ \t]*(.*)$", text)
+        if not m:
+            result[key] = None
+            continue
+        value = m.group(1).strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        result[key] = value
 
     caps_match = re.search(r"(?m)^capabilities:[ \t]*\n((?:[ \t]+.*\n?)*)", text)
     capabilities: dict[str, bool] = {}
@@ -1187,7 +1193,7 @@ def validate_registration(text: str) -> None:
         fail("registration.yml is not schema_version 1")
     if data.get("pathway") not in ("green", "amber", "red"):
         fail("registration.yml pathway must be green, amber, or red")
-    for field in ("registration_id", "business_owner", "approval_authority"):
+    for field in ("registration_id", "purpose", "business_owner", "approval_authority"):
         if not data.get(field):
             fail(f"registration.yml is missing {field}")
 
@@ -1231,6 +1237,64 @@ def pending_request_records(project: Path) -> list[dict]:
                 }
             )
     return pending
+
+
+CAPABILITY_CHECKLIST_ITEMS = {
+    "network_connections": "It only connects to the services it's supposed to, and fails safely if one of them is unavailable.",
+    "persistence": "The data it stores is what it should be, nothing more, and it doesn't keep data longer than needed.",
+    "authentication": "Only the right people can log in, and losing a password or access doesn't lock out the business.",
+    "write_or_delete_actions": "It only changes or deletes the specific things it's meant to, and a mistake doesn't destroy something you can't get back.",
+    "cloud": "It only uses the cloud services it's registered for, and stops working safely if one becomes unavailable.",
+    "external_recipients": "It only sends information to the people or systems it's supposed to, and not to anyone else.",
+    "elevated_access": "It only uses the extra access it has for the specific task that needs it.",
+}
+
+
+def build_validation_checklist(project: Path) -> dict:
+    """Generate the plain-language business validation checklist from the
+    registration's purpose and approved capabilities.
+
+    KNOWN LIMITATION: WS7 (not yet built) links this checklist to the same
+    acceptance criteria the project's automated tests trace to, and shows
+    per-item test coverage. Until WS7 exists, items are derived from the
+    registration's purpose and capability flags only, not from acceptance
+    criteria, since the registration schema has no acceptance-criteria field
+    and none is recorded elsewhere in the framework yet.
+    """
+    manifest = project / "project-governance.yml"
+    if not manifest.is_file():
+        fail(f"Not a governed project: {project}")
+    mode = project_governance_mode(read_text(manifest))
+    registration_path = project / "registration.yml"
+    if not registration_path.is_file():
+        fail("No registration.yml found; the validation checklist needs a registration to generate from")
+    reg_text = read_text(registration_path)
+    validate_registration(reg_text)
+    data = parse_registration(reg_text)
+
+    items = [
+        {
+            "item": f"The software does what it's registered for: {data.get('purpose')}",
+            "source": "purpose",
+            "automated_test": None,
+        }
+    ]
+    for key, description in CAPABILITY_CHECKLIST_ITEMS.items():
+        if data.get("capabilities", {}).get(key):
+            items.append({"item": description, "source": f"capability:{key}", "automated_test": None})
+
+    return {
+        "schema_version": "1",
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "project": project.name,
+        "governance_mode": mode,
+        "registration_id": data.get("registration_id"),
+        "items": items,
+        "note": (
+            "automated_test is always null today: WS7 will populate it once acceptance-criteria-to-test "
+            "traceability exists. Check each item yourself before relying on this software for real work."
+        ),
+    }
 
 
 def build_readiness_packet(root: Path, project: Path, report_path: Path | None) -> dict:
@@ -1939,6 +2003,10 @@ def build_parser() -> argparse.ArgumentParser:
     readiness.add_argument("--report", default=None, help="Path to a canonical full verification report JSON.")
     readiness.add_argument("--output", default=None, help="Write the packet to this path instead of stdout.")
 
+    checklist = project_sub.add_parser("validation-checklist")
+    checklist.add_argument("--project", required=True)
+    checklist.add_argument("--output", default=None, help="Write the checklist to this path instead of stdout.")
+
     new = project_sub.add_parser("new")
     new.add_argument("--parent", required=True)
     new.add_argument("--name", required=True)
@@ -2047,6 +2115,17 @@ def main(argv: list[str] | None = None) -> int:
                 if args.output:
                     write_text(Path(args.output).expanduser().resolve(), text)
                     print(f"Readiness packet written: {args.output}")
+                else:
+                    print(text, end="")
+                return 0
+
+            if args.action == "validation-checklist":
+                project = Path(args.project).expanduser().resolve()
+                checklist = build_validation_checklist(project)
+                text = json.dumps(checklist, indent=2) + "\n"
+                if args.output:
+                    write_text(Path(args.output).expanduser().resolve(), text)
+                    print(f"Validation checklist written: {args.output}")
                 else:
                     print(text, end="")
                 return 0
