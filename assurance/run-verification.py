@@ -697,8 +697,8 @@ def extract_managed_block(text: str, begin: str, end: str) -> str | None:
 
 
 def governance_owned_yaml_block(text: str) -> str | None:
-    match = re.search(r"(?ms)^governance:[ \t]*\n(?:[ \t]+\S.*\n?)*", text)
-    return match.group(0) if match else None
+    match = re.search(r"(?m)^governance:[ \t]*\n(?:[ \t]+.*\n?|[ \t]*\n)*", text)
+    return match.group(0).rstrip("\n") + "\n" if match else None
 
 
 def verification_plan_assurance_json(path: Path) -> str | None:

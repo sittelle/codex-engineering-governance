@@ -91,6 +91,18 @@ def tamper_governance_fields(project: Path) -> None:
     manifest.write_text(text, encoding="utf-8", newline="\n")
 
 
+def edit_project_owned_field(project: Path) -> None:
+    """Edit a project-owned field (not under the governance: block) to
+    confirm the governance-owned-fields extraction is scoped correctly and
+    does not over-match the rest of the file.
+    """
+    manifest = project / "project-governance.yml"
+    text = manifest.read_text(encoding="utf-8-sig")
+    assert "development: []" in text, "fixture template changed; update project-owned edit target"
+    text = text.replace("development: []", 'development: ["windows"]')
+    manifest.write_text(text, encoding="utf-8", newline="\n")
+
+
 def tamper_verification_plan_assurance(project: Path) -> None:
     plan_path = project / "verification-plan.json"
     data = json.loads(plan_path.read_text(encoding="utf-8-sig"))
@@ -139,6 +151,25 @@ def test_tampered_governance_fields(failures: list[str]) -> None:
         assert_true(
             "GOVERNANCE_INTEGRITY_FAILED" in issue_codes(report, "governance_integrity"),
             "tampered project-governance.yml governance: fields did not produce GOVERNANCE_INTEGRITY_FAILED",
+            failures,
+        )
+
+
+def test_project_owned_field_edit_is_not_flagged(failures: list[str]) -> None:
+    """Regression guard: governance_owned_yaml_block must extract only the
+    governance: block, not the rest of the file. An earlier implementation
+    used a DOTALL regex that let the match swallow every subsequent line
+    (project:, platforms:, profiles:, ...), which would have flagged every
+    ordinary project edit as governance tampering.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        project = make_project(Path(td), "project-owned-edit")
+        to_schema_v3(project)
+        edit_project_owned_field(project)
+        report = quick_report(project)
+        assert_true(
+            "GOVERNANCE_INTEGRITY_FAILED" not in issue_codes(report, "governance_integrity"),
+            "editing a project-owned field (platforms.development) incorrectly produced GOVERNANCE_INTEGRITY_FAILED",
             failures,
         )
 
@@ -261,6 +292,7 @@ def main() -> int:
     test_clean_project_has_no_new_issues(failures)
     test_tampered_managed_block(failures)
     test_tampered_governance_fields(failures)
+    test_project_owned_field_edit_is_not_flagged(failures)
     test_tampered_verification_plan_assurance(failures)
     test_swapped_project_baseline_copy(failures)
     test_central_release_baseline_mismatch(failures)
@@ -278,6 +310,7 @@ def main() -> int:
     print("- clean v3 project: no governance-integrity or instruction-surface issues")
     print("- tampered managed AGENTS.md block => GOVERNANCE_INTEGRITY_FAILED")
     print("- tampered project-governance.yml governance: fields => GOVERNANCE_INTEGRITY_FAILED")
+    print("- editing a project-owned field (not under governance:) is not flagged")
     print("- tampered verification-plan.json assurance object => GOVERNANCE_INTEGRITY_FAILED")
     print("- swapped .governance/assurance-baseline.json copy => GOVERNANCE_INTEGRITY_FAILED")
     print("- swapped central capability-baseline.json vs release-baseline-hashes.json => GOVERNANCE_INTEGRITY_FAILED")

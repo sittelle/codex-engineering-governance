@@ -973,10 +973,10 @@ def governance_owned_yaml_block(text: str) -> str:
     project-owned fields (maturity, profiles, platforms) that are not
     governance-owned.
     """
-    match = re.search(r"(?ms)^governance:[ \t]*\n(?:[ \t]+\S.*\n?)*", text)
+    match = re.search(r"(?m)^governance:[ \t]*\n(?:[ \t]+.*\n?|[ \t]*\n)*", text)
     if not match:
         fail("project-governance.yml has no top-level governance: block")
-    return match.group(0)
+    return match.group(0).rstrip("\n") + "\n"
 
 
 def verification_plan_assurance_json(path: Path) -> str:
