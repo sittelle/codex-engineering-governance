@@ -8,9 +8,10 @@ maintainer has reviewed this packet.
 
 ## 1. Commits
 
-34 commits, each verified with `python scripts/verify-framework.py quick`
-before the next, oldest first. Commits 33–34 postdate this document's first
-version and reflect the maintainer's live host-client testing described in
+36 commits, each verified with `python scripts/verify-framework.py quick`
+before the next, oldest first. Commits 33–36 postdate this document's first
+version and reflect the maintainer's live host-client testing, the critical
+fix it found, and the follow-on hook-coverage fix, all described in
 section 6:
 
 1. `d0d375f` docs: add business-led mode implementation plan and management description
@@ -47,9 +48,11 @@ section 6:
 32. `c3d05cc` feat: add governance.py project validation-checklist
 33. `cf1fe6f` docs: prepare phase-2 review packet (this document, first version)
 34. `4d2b880` fix: remove root-anchored glob from Codex deny_read (breaks session init) —
-    found via the maintainer's live VM test described in section 6, after this
-    document's first version; this update (section 6, and this list) is that
-    finding folded back in
+    found via the maintainer's live VM test described in section 6
+35. `00ac78d` docs: fold live host-client test results into the phase-2 review packet
+36. `fcd2745` feat: extend hook pre-tool to cover full governance-integrity preflight —
+    closes the narrower Codex hook-coverage gap identified while writing up
+    commit 35; this document's current version reflects that fix
 
 ## 2. `full` output at current head
 
@@ -277,21 +280,28 @@ true and is still a real difference from Claude Code's design. What's no
 longer theoretical: the compensating control (WS1's governance-integrity
 preflight, surfaced through the same hook) was confirmed, live, to actually
 deny the edit on a real Codex session (section above) — not merely detect it
-after the fact in the next verification run. The risk that remains is narrower than originally recorded, and precisely
-scoped: `governance.py hook pre-tool` denies on the same checks
-`verify_project` runs (baseline/source/locator fields, both managed blocks,
-and, in business-led mode, the registration's seal), so editing
-`registration.yml` directly *is* caught live, confirmed by this test. What
-the live hook does **not** check is what only
+after the fact in the next verification run.
+
+**CLOSED — the hook's coverage gap this live test surfaced.** Writing up the
+result above found that `governance.py hook pre-tool` only ran
+`verify_project` (manifest fields, both managed blocks, and, in
+business-led mode, the registration seal — so editing `registration.yml`
+directly was already caught live, confirmed by the test) but not what only
 `assurance/run-verification.py`'s `governance_integrity_preflight` checks:
 `verification-plan.json`'s assurance object, `.governance/integrity.json`'s
 internal consistency, and the `.governance/assurance-bootstrap.json`
-cross-check. A hand-edit to one of those specifically would not be denied
-in real time by the hook on Codex (no native deny_write to fall back on);
-it would still be caught, but only at the next `quick`/`full` run. On
-Claude Code, `permissions.deny` additionally blocks `Edit()`/`Write()` on
-`.governance/**` and `verification-plan.json` outright, so this narrower
-gap is Codex-specific.
+cross-check. On Claude Code this was already covered by
+`permissions.deny` blocking `Edit()`/`Write()` on those paths outright, so
+it was Codex-specific. Commit `fcd2745` (postdates this document's second
+version) closes it: the hook now also runs
+`governance_integrity_preflight` (schema v3 only, matching the runner's own
+scope), reusing the runner's existing logic via a dynamic import rather
+than duplicating it. Hand-verified: tampering
+`verification-plan.json`'s facts without touching `AGENTS.md` previously
+produced silent allow from the hook; now produces an explicit deny with the
+runner's own reason text. Not re-tested against a live Codex session
+(no VM round-trip after this fix) — the unit-level fix is verified, the
+live host-client confirmation of *this specific* fix is not.
 
 **KNOWN LIMITATION — `validation-checklist` has no acceptance-criteria
 traceability.** Stated in the command's own output (`note` field), not just
