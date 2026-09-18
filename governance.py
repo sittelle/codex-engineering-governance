@@ -1297,7 +1297,9 @@ def build_validation_checklist(project: Path) -> dict:
     }
 
 
-def build_readiness_packet(root: Path, project: Path, report_path: Path | None) -> dict:
+def build_readiness_packet(
+    root: Path, project: Path, report_path: Path | None, conformance_report_path: Path | None = None
+) -> dict:
     manifest = project / "project-governance.yml"
     if not manifest.is_file():
         fail(f"Not a governed project: {project}")
@@ -1320,6 +1322,21 @@ def build_readiness_packet(root: Path, project: Path, report_path: Path | None) 
             report = json.loads(read_text(report_path))
         except Exception as exc:
             fail(f"Cannot parse verification report {report_path}: {exc}")
+
+    conformance = None
+    if conformance_report_path is not None:
+        if not conformance_report_path.is_file():
+            fail(f"Conformance report does not exist: {conformance_report_path}")
+        try:
+            conformance_raw = json.loads(read_text(conformance_report_path))
+        except Exception as exc:
+            fail(f"Cannot parse conformance report {conformance_report_path}: {exc}")
+        conformance = {
+            "status": conformance_raw.get("status"),
+            "generated_at_utc": conformance_raw.get("generated_at_utc"),
+            "unregistered_capabilities": conformance_raw.get("unregistered_capabilities"),
+            "request_record": conformance_raw.get("request_record"),
+        }
 
     governance_integrity = (report or {}).get("governance_integrity")
     instruction_surface = (report or {}).get("instruction_surface_audit")
@@ -1377,6 +1394,7 @@ def build_readiness_packet(root: Path, project: Path, report_path: Path | None) 
         ),
         "governance_integrity": governance_integrity,
         "instruction_surface_audit": instruction_surface,
+        "conformance": conformance,
         "enforcement": ci_enforcement,
         "pending_requests": requests,
         "disposition": disposition,
@@ -2044,6 +2062,11 @@ def build_parser() -> argparse.ArgumentParser:
     readiness = project_sub.add_parser("readiness")
     readiness.add_argument("--project", required=True)
     readiness.add_argument("--report", default=None, help="Path to a canonical full verification report JSON.")
+    readiness.add_argument(
+        "--conformance-report",
+        default=None,
+        help="Path to a scripts/run-registration-conformance.py --report JSON.",
+    )
     readiness.add_argument("--output", default=None, help="Write the packet to this path instead of stdout.")
 
     checklist = project_sub.add_parser("validation-checklist")
@@ -2153,7 +2176,10 @@ def main(argv: list[str] | None = None) -> int:
             if args.action == "readiness":
                 project = Path(args.project).expanduser().resolve()
                 report_path = Path(args.report).expanduser().resolve() if args.report else None
-                packet = build_readiness_packet(root, project, report_path)
+                conformance_report_path = (
+                    Path(args.conformance_report).expanduser().resolve() if args.conformance_report else None
+                )
+                packet = build_readiness_packet(root, project, report_path, conformance_report_path)
                 text = json.dumps(packet, indent=2) + "\n"
                 if args.output:
                     write_text(Path(args.output).expanduser().resolve(), text)

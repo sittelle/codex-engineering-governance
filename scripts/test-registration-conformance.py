@@ -9,8 +9,9 @@ exercising every capability rule's recall (a deliberate positive trigger
 per capability) and precision (a capability-free negative fixture that
 must produce zero findings), plus end-to-end coverage of
 scripts/run-registration-conformance.py's drift detection, request-record
-creation, and DID_NOT_EXECUTE paths. Requires `semgrep` on PATH; if it is
-not available, this entire test is DID_NOT_EXECUTE, not a pass.
+creation, DID_NOT_EXECUTE paths, and `governance.py project readiness`
+surfacing the conformance/drift state. Requires `semgrep` on PATH; if it
+is not available, this entire test is DID_NOT_EXECUTE, not a pass.
 """
 from __future__ import annotations
 
@@ -208,6 +209,80 @@ def test_missing_registration_is_did_not_execute(failures: list[str]) -> None:
         assert_true(report.get("status") == "DID_NOT_EXECUTE", "missing registration did not report DID_NOT_EXECUTE status", failures)
 
 
+def test_readiness_packet_surfaces_conformance_state(failures: list[str]) -> None:
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        registration = make_sealed_registration(td, approved={"network_connections"})
+        project = make_business_led_project(td, "readiness-conformance-demo", registration)
+        (project / "src").mkdir(exist_ok=True)
+        shutil.copy2(FIXTURES / "python" / "positive.py", project / "src" / "app.py")
+
+        conformance_report = td / "conformance-report.json"
+        proc = run(
+            [
+                sys.executable,
+                str(CONFORMANCE),
+                "--project-root",
+                str(project),
+                "--report",
+                str(conformance_report),
+            ]
+        )
+        assert_true(proc.returncode == 0, f"conformance run for readiness fixture exited {proc.returncode}", failures)
+        assert_true(conformance_report.is_file(), "conformance --report did not write a report file", failures)
+        if not conformance_report.is_file():
+            return
+
+        readiness_proc = run(
+            [
+                sys.executable,
+                str(GOVERNANCE_PY),
+                "project",
+                "readiness",
+                "--project",
+                str(project),
+                "--conformance-report",
+                str(conformance_report),
+            ]
+        )
+        assert_true(
+            readiness_proc.returncode == 0,
+            f"governance.py project readiness exited {readiness_proc.returncode}: {readiness_proc.stdout}\n{readiness_proc.stderr}",
+            failures,
+        )
+        packet = json.loads(readiness_proc.stdout)
+        conformance = packet.get("conformance")
+        assert_true(conformance is not None, "readiness packet has no conformance block when --conformance-report was given", failures)
+        if conformance is not None:
+            assert_true(
+                conformance.get("status") == "REGISTRATION_RECONCILIATION_REQUIRED",
+                f"readiness packet conformance.status mismatch: {conformance.get('status')}",
+                failures,
+            )
+            expected_unregistered = sorted(EXPECTED_CAPABILITIES - {"network_connections"})
+            assert_true(
+                conformance.get("unregistered_capabilities") == expected_unregistered,
+                f"readiness packet conformance.unregistered_capabilities mismatch: {conformance.get('unregistered_capabilities')}",
+                failures,
+            )
+            assert_true(conformance.get("request_record"), "readiness packet conformance block has no request_record", failures)
+
+        readiness_no_conformance = run(
+            [sys.executable, str(GOVERNANCE_PY), "project", "readiness", "--project", str(project)]
+        )
+        assert_true(
+            readiness_no_conformance.returncode == 0,
+            f"governance.py project readiness without --conformance-report exited {readiness_no_conformance.returncode}",
+            failures,
+        )
+        packet_no_conformance = json.loads(readiness_no_conformance.stdout)
+        assert_true(
+            packet_no_conformance.get("conformance") is None,
+            "readiness packet reported a conformance block when none was supplied",
+            failures,
+        )
+
+
 def test_tampered_registration_seal_is_did_not_execute(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
@@ -236,6 +311,7 @@ def main() -> int:
     test_typescript_rules_recall_and_precision(failures)
     test_conformance_detects_drift_and_writes_request(failures)
     test_conformance_clean_project_passes_no_request(failures)
+    test_readiness_packet_surfaces_conformance_state(failures)
     test_missing_registration_is_did_not_execute(failures)
     test_tampered_registration_seal_is_did_not_execute(failures)
 
@@ -250,6 +326,7 @@ def main() -> int:
     print("- TypeScript capability rules: 7/7 recall on the positive fixture, 0 false positives on the negative fixture")
     print("- unregistered capabilities => REGISTRATION_RECONCILIATION_REQUIRED, exit 0 (never blocks), request record written")
     print("- fully registered/clean project => PASS, no request record")
+    print("- project readiness --conformance-report surfaces drift state, omitted when not supplied")
     print("- missing registration.yml => DID_NOT_EXECUTE")
     print("- tampered registration seal => DID_NOT_EXECUTE")
     return 0
