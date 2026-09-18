@@ -8,8 +8,10 @@ maintainer has reviewed this packet.
 
 ## 1. Commits
 
-32 commits, each verified with `python scripts/verify-framework.py quick`
-before the next, oldest first:
+34 commits, each verified with `python scripts/verify-framework.py quick`
+before the next, oldest first. Commits 33–34 postdate this document's first
+version and reflect the maintainer's live host-client testing described in
+section 6:
 
 1. `d0d375f` docs: add business-led mode implementation plan and management description
 2. `32f1db6` docs: add ADR for business-led mode three-layer architecture
@@ -43,6 +45,11 @@ before the next, oldest first:
 30. `221f077` feat: add governance.py project readiness packet
 31. `d3c13f1` docs: record internal distribution as a release-signing reassessment trigger
 32. `c3d05cc` feat: add governance.py project validation-checklist
+33. `cf1fe6f` docs: prepare phase-2 review packet (this document, first version)
+34. `4d2b880` fix: remove root-anchored glob from Codex deny_read (breaks session init) —
+    found via the maintainer's live VM test described in section 6, after this
+    document's first version; this update (section 6, and this list) is that
+    finding folded back in
 
 ## 2. `full` output at current head
 
@@ -199,19 +206,52 @@ implementation:
 
 ## 6. Open questions and known risks
 
-**OPEN QUESTION — host-client end-to-end behavior not verified.** Every
-piece of hook logic and every managed-settings/requirements template was
-verified by direct invocation (`governance.py hook pre-tool` fed real JSON
-on stdin, including through an actual shell invocation of the exact command
-string the templates register) and by static validation (JSON/TOML parsing,
-required markers, cross-template diffing). What was **not** verified: an
-actual Claude Code or Codex client, with the managed-settings/requirements
-template applied, actually invoking the hook and actually denying a tool
-call. This environment has no live host client to test against. This is the
-same limitation the plan already anticipates for behavioral campaigns
-(section 10: manual, not run by the implementing agent) and should be
-treated the same way — a managed test-client verification step for phase 5,
-not something claimed as done here.
+**RESOLVED — host-client end-to-end behavior, confirmed live on both hosts.**
+This environment has no host client to test against, so this started as an
+open question; the maintainer then ran the real test on a separate machine
+(Windows dev machine for Claude Code, an Ubuntu VM for Codex, both with the
+`block` managed-policy variant actually deployed to the real system paths:
+`C:\Program Files\ClaudeCode\managed-settings.json` and
+`/etc/codex/requirements.toml`), against a project whose managed AGENTS.md
+block was deliberately tampered so there was a real finding to deny.
+
+- **Claude Code:** denied the edit, surfaced the exact governance-integrity
+  reason, and explicitly refused to work around it, offering to diff the
+  tampered block against the pinned template instead.
+- **Codex:** on the first attempt, session initialization itself failed —
+  see the critical finding below. After the fix, Codex denied the edit and
+  told the user to have "the project's designated approval authority" make
+  the change instead — a reasonable paraphrase of the hook's reason, not a
+  literal quote, which is fine; what matters is that the deny was received
+  and respected.
+
+This also concretely confirms the answer given to the Codex file-path
+write-deny gap below: Codex has no native `deny_write` rule, but the
+governance-integrity hook denied the edit anyway. The compensating control
+is not theoretical.
+
+**CRITICAL FINDING, found by this test and fixed the same session —
+`host-adapters/codex/requirements.{inform,block}.toml` broke Codex session
+initialization entirely.** `deny_read = ["/**/*.env", "/**/secrets/**", ...]`
+— a pattern copied directly from OpenAI's own managed-configuration
+documentation — made Codex's sandbox builder (bubblewrap) fail before
+`AGENTS.md` could even load: *"unreadable glob `/**/*.env` cannot be safely
+expanded; use a pattern with a non-root directory prefix."* This was not a
+missed-enforcement bug; deploying either template as shipped would have made
+Codex unusable on the managed client, full stop. Fixed in commit `4d2b880`
+by dropping the leading slash (`**/*.env`, `**/secrets/**`); confirmed via a
+second live test after the fix that Codex started normally and enforced the
+policy correctly. Added a permanent `validate-governance.py` guard rejecting
+any `deny_read` entry starting with `/**`, and confirmed the guard actually
+fires by temporarily reintroducing the bug.
+
+This is the clearest evidence in this whole packet for why "verified by
+direct invocation" and "verified against a live client" are not
+interchangeable claims: every unit-level test of the hook logic passed
+throughout WS2's development, and the bug was still real and severe. Treat
+this as a standing argument for running the phase-5 managed-client
+verification for real, on both hosts, before relying on either `block`
+template operationally — not as a formality now that one round has passed.
 
 **OPEN QUESTION — interactive `governance.py` menu not extended.** The
 parameterized CLI (`governance.py project new --mode ... --registration
@@ -229,12 +269,29 @@ setting.** Recorded in `docs/business-led/host-policy-surface-verification.md`
 and `host-adapters/claude/README.md`. `strictPluginOnlyCustomization`
 narrows but does not eliminate this gap.
 
-**KNOWN RISK — Codex has no documented file-path write-deny mechanism.**
-Only `deny_read` is documented; there is no confirmed equivalent of Claude
-Code's `permissions.deny` `Edit()`/`Write()` rules. Recorded in
-`host-adapters/codex/README.md`. The compensating control (WS1's
-governance-integrity preflight, surfaced through the same hook) is real but
-detects after the fact rather than preventing the edit.
+**KNOWN RISK, narrowed by live confirmation — Codex has no documented
+file-path write-deny mechanism.** Only `deny_read` is documented; there is
+no confirmed equivalent of Claude Code's `permissions.deny` `Edit()`/
+`Write()` rules. Recorded in `host-adapters/codex/README.md`. This remains
+true and is still a real difference from Claude Code's design. What's no
+longer theoretical: the compensating control (WS1's governance-integrity
+preflight, surfaced through the same hook) was confirmed, live, to actually
+deny the edit on a real Codex session (section above) — not merely detect it
+after the fact in the next verification run. The risk that remains is narrower than originally recorded, and precisely
+scoped: `governance.py hook pre-tool` denies on the same checks
+`verify_project` runs (baseline/source/locator fields, both managed blocks,
+and, in business-led mode, the registration's seal), so editing
+`registration.yml` directly *is* caught live, confirmed by this test. What
+the live hook does **not** check is what only
+`assurance/run-verification.py`'s `governance_integrity_preflight` checks:
+`verification-plan.json`'s assurance object, `.governance/integrity.json`'s
+internal consistency, and the `.governance/assurance-bootstrap.json`
+cross-check. A hand-edit to one of those specifically would not be denied
+in real time by the hook on Codex (no native deny_write to fall back on);
+it would still be caught, but only at the next `quick`/`full` run. On
+Claude Code, `permissions.deny` additionally blocks `Edit()`/`Write()` on
+`.governance/**` and `verification-plan.json` outright, so this narrower
+gap is Codex-specific.
 
 **KNOWN LIMITATION — `validation-checklist` has no acceptance-criteria
 traceability.** Stated in the command's own output (`note` field), not just
