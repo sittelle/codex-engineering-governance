@@ -47,7 +47,7 @@ required = [
     "scripts/bootstrap-assurance.py", "scripts/bootstrap-assurance.ps1", "scripts/bootstrap-assurance.sh",
     "governance.py", "scripts/manual-behavioral-campaign.py", "scripts/test-management.py", "scripts/test-assurance-integration.py", "scripts/test-governance-integrity.py", "workflows/refactor/WORKFLOW.md",
     "workflows/emergency-fix/WORKFLOW.md", "workflows/dependency-change/WORKFLOW.md", "workflows/data-migration/WORKFLOW.md",
-    "codex-home/AGENTS.md", "host-adapters/operating-kernel.md", "host-adapters/claude/README.md", "host-adapters/claude/managed-settings.inform.json", "host-adapters/claude/managed-settings.block.json", "CLAUDE.md", "templates/repository/AGENTS.md",
+    "codex-home/AGENTS.md", "host-adapters/operating-kernel.md", "host-adapters/claude/README.md", "host-adapters/claude/managed-settings.inform.json", "host-adapters/claude/managed-settings.block.json", "host-adapters/codex/README.md", "host-adapters/codex/requirements.inform.toml", "host-adapters/codex/requirements.block.toml", "CLAUDE.md", "templates/repository/AGENTS.md",
     "templates/repository/CLAUDE.md", "templates/repository/project-governance.yml",
     "tests/governance/TEST-CONTEXTS.json", "tests/governance/TEST-CONTEXTS.md",
     "tests/governance/evaluations/README.md", "global/operating-contract.md", "global/engineering-constitution.md",
@@ -391,6 +391,50 @@ if "inform" in claude_managed_settings and "block" in claude_managed_settings:
     block_hooks[0]["command"] = ""
     if inform_copy != block_copy:
         errors.append("managed-settings.inform.json and managed-settings.block.json differ by more than the hook enforcement parameter")
+
+try:
+    import tomllib
+except ImportError:
+    tomllib = None
+
+codex_managed_requirements = {}
+if tomllib is None:
+    errors.append("cannot validate host-adapters/codex/requirements.*.toml: Python 3.11+ (tomllib) is required")
+else:
+    for variant, flag in (("inform", "--inform"), ("block", "--enforce")):
+        path = root / f"host-adapters/codex/requirements.{variant}.toml"
+        try:
+            data = tomllib.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            errors.append(f"host-adapters/codex/requirements.{variant}.toml is invalid TOML: {exc}")
+            continue
+        codex_managed_requirements[variant] = data
+        if not (data.get("hooks") or {}).get("allow_managed_hooks_only"):
+            errors.append(f"requirements.{variant}.toml does not restrict hooks to the managed layer")
+        pre_tool = ((data.get("hooks") or {}).get("PreToolUse") or [{}])[0].get("hooks") or [{}]
+        for key in ("command", "command_windows"):
+            command = pre_tool[0].get(key, "")
+            if "governance.py" not in command or "hook" not in command or "pre-tool" not in command:
+                errors.append(f"requirements.{variant}.toml PreToolUse {key} does not invoke governance.py hook pre-tool")
+            if flag not in command:
+                errors.append(f"requirements.{variant}.toml {key} missing {flag}")
+            other_flag = "--enforce" if flag == "--inform" else "--inform"
+            if other_flag in command:
+                errors.append(f"requirements.{variant}.toml {key} has the wrong enforcement flag")
+        if not (data.get("permissions") or {}).get("filesystem", {}).get("deny_read"):
+            errors.append(f"requirements.{variant}.toml has no permissions.filesystem.deny_read entries")
+        if not (data.get("rules") or {}).get("prefix_rules"):
+            errors.append(f"requirements.{variant}.toml has no rules.prefix_rules entries")
+
+    if "inform" in codex_managed_requirements and "block" in codex_managed_requirements:
+        inform_copy = json.loads(json.dumps(codex_managed_requirements["inform"]))
+        block_copy = json.loads(json.dumps(codex_managed_requirements["block"]))
+        for copy in (inform_copy, block_copy):
+            hooks = ((copy.get("hooks") or {}).get("PreToolUse") or [{}])[0].get("hooks") or [{}]
+            hooks[0]["command"] = ""
+            hooks[0]["command_windows"] = ""
+        if inform_copy != block_copy:
+            errors.append("requirements.inform.toml and requirements.block.toml differ by more than the hook enforcement parameter")
 
 if "permissions.additionalDirectories" in management_source:
     errors.append("Claude adapter uses broad additionalDirectories instead of a least-privilege Read allow rule")

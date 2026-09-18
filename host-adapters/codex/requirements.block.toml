@@ -1,0 +1,45 @@
+allowed_approval_policies = ["on-request"]
+allowed_sandbox_modes = ["read-only", "workspace-write"]
+
+[allowed_permission_profiles]
+":read-only" = true
+":workspace" = true
+
+[permissions.filesystem]
+deny_read = [
+  "~/.ssh",
+  "~/.aws",
+  "/**/*.env",
+  "/**/secrets/**",
+]
+
+[rules]
+prefix_rules = [
+  { pattern = [{ token = "git" }, { token = "push" }, { token = "--force" }], decision = "forbidden", justification = "Force push is denied; open a new commit or ask the developer." },
+  { pattern = [{ token = "git" }, { token = "push" }, { token = "-f" }], decision = "forbidden", justification = "Force push is denied; open a new commit or ask the developer." },
+  { pattern = [{ token = "git" }, { token = "reset" }, { token = "--hard" }], decision = "forbidden", justification = "History-altering reset is denied." },
+  { pattern = [{ token = "git" }, { token = "filter-branch" }], decision = "forbidden", justification = "History rewrite is denied." },
+  { pattern = [{ token = "git" }, { token = "update-ref" }], decision = "forbidden", justification = "Direct ref manipulation is denied." },
+  { pattern = [{ token = "git" }, { token = "rebase" }, { token = "-i" }], decision = "forbidden", justification = "Interactive rebase (history rewrite) is denied." },
+  { pattern = [{ token = "git" }, { token = "rebase" }, { token = "--interactive" }], decision = "forbidden", justification = "Interactive rebase (history rewrite) is denied." },
+  { pattern = [{ token = "git" }, { token = "reflog" }, { token = "expire" }], decision = "forbidden", justification = "Reflog expiry is denied." },
+  { pattern = [{ token = "git" }, { token = "reflog" }, { token = "delete" }], decision = "forbidden", justification = "Reflog deletion is denied." },
+]
+
+[features]
+hooks = true
+
+[hooks]
+allow_managed_hooks_only = true
+
+[[hooks.PreToolUse]]
+matcher = "^(apply_patch|Bash)$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "python -c \"import json,os,pathlib,subprocess,sys;cfg=pathlib.Path(os.environ.get('CODEX_HOME') or (pathlib.Path.home()/'.codex'));root=pathlib.Path((cfg/'GOVERNANCE_ROOT').read_text(encoding='utf-8-sig').strip());sys.exit(subprocess.call([sys.executable,str(root/'governance.py'),'hook','pre-tool','--enforce'],stdin=sys.stdin))\""
+command_windows = "python -c \"import json,os,pathlib,subprocess,sys;cfg=pathlib.Path(os.environ.get('CODEX_HOME') or (pathlib.Path.home()/'.codex'));root=pathlib.Path((cfg/'GOVERNANCE_ROOT').read_text(encoding='utf-8-sig').strip());sys.exit(subprocess.call([sys.executable,str(root/'governance.py'),'hook','pre-tool','--enforce'],stdin=sys.stdin))\""
+statusMessage = "Checking governance policy"
+
+[mcp_servers]
+# IT Security populates this table with approved servers; absent here means none approved.
