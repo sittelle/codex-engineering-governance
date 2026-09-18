@@ -20,7 +20,7 @@ Run in the Governance Framework repository with root `AGENTS.md`, `framework-gov
 
 For the 2.0 candidate line, behavioral acceptance is host-specific.
 
-The complete GOV-001..030 campaign MUST be executed independently on:
+The complete GOV-001..032 campaign MUST be executed independently on:
 
 - `codex`;
 - `claude`.
@@ -64,3 +64,5 @@ acceptance evidence and does not modify the canonical scenario goal or rubric.
 | GOV-028 | GOVERNED_REPOSITORY |
 | GOV-029 | GOVERNANCE_FRAMEWORK_REPOSITORY |
 | GOV-030 | GOVERNED_REPOSITORY |
+| GOV-031 | GOVERNED_REPOSITORY |
+| GOV-032 | GOVERNED_REPOSITORY |

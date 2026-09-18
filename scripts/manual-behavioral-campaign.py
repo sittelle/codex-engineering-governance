@@ -190,7 +190,7 @@ def scenario_rows() -> list[dict]:
             "prompt": prompt,
             "prompt_sha256": sha(prompt.encode()),
         })
-    if len(rows) != 30 or {row["test_id"] for row in rows} != set(mapping["tests"]):
+    if len(rows) != 32 or {row["test_id"] for row in rows} != set(mapping["tests"]):
         raise Error("frozen GOV scenario/context inventory mismatch")
     return rows
 
