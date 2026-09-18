@@ -43,7 +43,7 @@ required = [
     "release-evidence/validation/VALIDATION-v0.3.7.md", "release-evidence/validation/VALIDATION-v0.3.8.md", "release-evidence/validation/VALIDATION-v0.3.9.md", "release-evidence/validation/VALIDATION-v0.3.10.md", "release-evidence/validation/VALIDATION-v0.4.0.md", "release-evidence/validation/VALIDATION-v0.5.0.md", "release-evidence/validation/VALIDATION-v0.5.1.md", "release-evidence/validation/VALIDATION-v0.5.2.md", "release-evidence/validation/VALIDATION-v0.5.3.md", "release-evidence/validation/VALIDATION-v0.5.4.md", "release-evidence/validation/VALIDATION-v0.5.5.md", "release-evidence/validation/VALIDATION-v0.5.6.md", "release-evidence/validation/VALIDATION-v0.5.7.md", "release-evidence/validation/VALIDATION-v0.5.8.md", "release-evidence/validation/VALIDATION-v0.5.9.md", "release-evidence/validation/VALIDATION-v0.5.10.md", "release-evidence/validation/VALIDATION-v0.5.11.md", "release-evidence/validation/VALIDATION-v0.5.12.md", "release-evidence/validation/VALIDATION-v0.5.13.md", "release-evidence/validation/VALIDATION-v0.5.14.md", "release-evidence/validation/VALIDATION-v0.5.15.md", "release-evidence/validation/VALIDATION-v0.5.16.md", "release-evidence/validation/VALIDATION-v0.5.17.md", "release-evidence/validation/VALIDATION-v0.5.18.md", "release-evidence/validation/VALIDATION-v0.5.19.md", "release-evidence/validation/VALIDATION-v0.5.20.md", "release-evidence/validation/VALIDATION-v0.5.21.md", "release-evidence/validation/VALIDATION-v0.5.22.md", "release-evidence/validation/VALIDATION-v0.5.23.md", "release-evidence/validation/VALIDATION-v0.5.24.md", "release-evidence/validation/VALIDATION-v0.5.25.md", "release-evidence/validation/VALIDATION-v0.5.26.md", "release-evidence/validation/VALIDATION-v0.5.27.md", "release-evidence/validation/VALIDATION-v1.0.0-rc.1.md", "release-evidence/validation/VALIDATION-v1.0.0-rc.2.md", "release-evidence/validation/VALIDATION-v1.0.0-rc.3.md", "assurance/capability-baseline.json", "assurance/release-baseline-hashes.json", "assurance/verification-report.schema.json",
     "assurance/verification-plan.schema.json", "assurance/verification-plan-v3.schema.json", "assurance/verification-report-v5.schema.json", "assurance/aggregate-bundle-v2.schema.json", "assurance/run-verification.py", "assurance/run-ci-verification.py",
     "assurance/aggregate-verification.py", "assurance/tool-environment-locks.md", "assurance/architecture.md",
-    "assurance/capability-matrix.md", "templates/github/governance-verify.yml", "templates/gitlab/governance-pipeline-policy.yml", "templates/repository/verification-plan.json",
+    "assurance/capability-matrix.md", "assurance/registration.schema.json", "templates/repository/registration.yml", "templates/github/governance-verify.yml", "templates/gitlab/governance-pipeline-policy.yml", "templates/repository/verification-plan.json",
     "scripts/bootstrap-assurance.py", "scripts/bootstrap-assurance.ps1", "scripts/bootstrap-assurance.sh",
     "governance.py", "scripts/manual-behavioral-campaign.py", "scripts/test-management.py", "scripts/test-assurance-integration.py", "scripts/test-governance-integrity.py", "workflows/refactor/WORKFLOW.md",
     "workflows/emergency-fix/WORKFLOW.md", "workflows/dependency-change/WORKFLOW.md", "workflows/data-migration/WORKFLOW.md",
@@ -447,6 +447,18 @@ if "{{HOST_NAME}}" not in business_led_kernel or "{{LOCATOR_DISPLAY}}" not in bu
     errors.append("host-adapters/operating-kernel.business-led.md is missing a required placeholder")
 if "<!-- BEGIN ENGINEERING-GOVERNANCE-MANAGED -->" not in business_led_agents or "<!-- END ENGINEERING-GOVERNANCE-MANAGED -->" not in business_led_agents:
     errors.append("templates/repository/AGENTS.business-led.md has no managed governance block markers")
+
+registration_schema = json.loads((root / "assurance/registration.schema.json").read_text(encoding="utf-8"))
+registration_template = (root / "templates/repository/registration.yml").read_text(encoding="utf-8")
+for key in registration_schema.get("required", []):
+    if not re.search(rf"(?m)^{re.escape(key)}:", registration_template):
+        errors.append(f"templates/repository/registration.yml is missing required top-level key: {key}")
+schema_capability_keys = set(registration_schema.get("properties", {}).get("capabilities", {}).get("required", []))
+for key in schema_capability_keys:
+    if not re.search(rf"(?m)^\s+{re.escape(key)}:\s*(true|false)\s*$", registration_template):
+        errors.append(f"templates/repository/registration.yml is missing capability key: {key}")
+if 'schema_version: "1"' not in registration_template:
+    errors.append("templates/repository/registration.yml does not declare schema_version 1")
 
 if "permissions.additionalDirectories" in management_source:
     errors.append("Claude adapter uses broad additionalDirectories instead of a least-privilege Read allow rule")

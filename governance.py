@@ -1106,6 +1106,112 @@ def write_integrity_manifest(root: Path, project: Path) -> None:
     write_text(project / INTEGRITY_PATH, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
 
+# ---------------------------------------------------------------------------
+# Business-led mode registration
+# ---------------------------------------------------------------------------
+
+REGISTRATION_CAPABILITY_KEYS = (
+    "network_connections",
+    "persistence",
+    "authentication",
+    "write_or_delete_actions",
+    "cloud",
+    "external_recipients",
+    "elevated_access",
+)
+
+
+def registration_integrity_block(text: str) -> re.Match | None:
+    return re.search(r"(?m)^integrity:[ \t]*\n(?:[ \t]+.*\n?|[ \t]*\n)*", text)
+
+
+def registration_sealed_content(text: str) -> str:
+    """Everything except the integrity: block itself, so sealing does not hash its own output."""
+    match = registration_integrity_block(text)
+    if match is None:
+        fail("registration.yml has no top-level integrity: block")
+    return text[: match.start()] + text[match.end() :]
+
+
+def seal_registration_text(text: str, sealed_by: str, sealed_at: str) -> str:
+    content_hash = sha256_text(registration_sealed_content(text))
+    match = registration_integrity_block(text)
+    if match is None:
+        fail("registration.yml has no top-level integrity: block")
+    block = match.group(0)
+    block, n1 = re.subn(r'(?m)^(\s*sha256:\s*).*$', lambda m: f'{m.group(1)}"{content_hash}"', block, count=1)
+    block, n2 = re.subn(r'(?m)^(\s*sealed_by:\s*).*$', lambda m: f'{m.group(1)}"{sealed_by}"', block, count=1)
+    block, n3 = re.subn(r'(?m)^(\s*sealed_at:\s*).*$', lambda m: f'{m.group(1)}"{sealed_at}"', block, count=1)
+    if (n1, n2, n3) != (1, 1, 1):
+        fail("registration.yml integrity block is missing sha256/sealed_by/sealed_at fields")
+    return text[: match.start()] + block + text[match.end() :]
+
+
+def registration_seal_valid(text: str) -> bool:
+    match = registration_integrity_block(text)
+    if match is None:
+        return False
+    recorded = re.search(r'(?m)^\s*sha256:\s*["\']?([0-9a-f]{64})["\']?\s*$', match.group(0))
+    if not recorded:
+        return False
+    return sha256_text(registration_sealed_content(text)) == recorded.group(1)
+
+
+def parse_registration(text: str) -> dict:
+    """Light-touch field extraction, not a general YAML parser, matching this
+    codebase's existing pattern for project-governance.yml. Sufficient for the
+    flat/shallow registration.yml shape; a project needing more expressive
+    registration content is exactly what a future registration tool replaces
+    this with.
+    """
+    result: dict = {}
+    for key in ("schema_version", "registration_id", "pathway", "business_owner", "approval_authority"):
+        m = re.search(rf'(?m)^{key}:\s*["\']?([^"\'\n]*?)["\']?\s*$', text)
+        result[key] = m.group(1).strip() if m else None
+
+    caps_match = re.search(r"(?m)^capabilities:[ \t]*\n((?:[ \t]+.*\n?)*)", text)
+    capabilities: dict[str, bool] = {}
+    caps_text = caps_match.group(1) if caps_match else ""
+    for key in REGISTRATION_CAPABILITY_KEYS:
+        m = re.search(rf"(?m)^\s*{key}:\s*(true|false)\s*$", caps_text)
+        capabilities[key] = (m.group(1) == "true") if m else False
+    result["capabilities"] = capabilities
+    return result
+
+
+def validate_registration(text: str) -> None:
+    if not registration_seal_valid(text):
+        fail("registration.yml integrity seal is missing or does not match its content; it was hand-edited or never sealed")
+    data = parse_registration(text)
+    if data.get("schema_version") != "1":
+        fail("registration.yml is not schema_version 1")
+    if data.get("pathway") not in ("green", "amber", "red"):
+        fail("registration.yml pathway must be green, amber, or red")
+    for field in ("registration_id", "business_owner", "approval_authority"):
+        if not data.get(field):
+            fail(f"registration.yml is missing {field}")
+
+
+def registration_assurance_facts(data: dict) -> dict:
+    """Derive verification-plan.json assurance.facts entries from registration
+    capabilities. Only facts genuinely implied by a capability flag are
+    returned; other facts (has_dependencies, has_container_artifact, has_iac,
+    ships_distributable_artifact) are not derivable from registration alone
+    and are left for the project to declare.
+    """
+    caps = data.get("capabilities", {})
+    return {
+        "has_exposed_web_surface": bool(caps.get("network_connections") or caps.get("cloud")),
+        "has_persisted_data": bool(caps.get("persistence")),
+    }
+
+
+def apply_registration_facts(plan_text: str, facts: dict) -> str:
+    data = json.loads(plan_text)
+    data.setdefault("assurance", {}).setdefault("facts", {}).update(facts)
+    return json.dumps(data, indent=2) + "\n"
+
+
 def verify_project(root: Path, project: Path) -> None:
     manifest = project / "project-governance.yml"
     agents = project / "AGENTS.md"
@@ -1151,10 +1257,25 @@ def verify_project(root: Path, project: Path) -> None:
     if "@AGENTS.md" not in claude_text:
         fail("Project CLAUDE.md does not import AGENTS.md")
 
+    if mode == "business-led":
+        registration_path = project / "registration.yml"
+        if not registration_path.is_file():
+            fail("Business-led project has no registration.yml")
+        validate_registration(read_text(registration_path))
 
-def preview_project_new(root: Path, parent: Path, name: str, no_git_init: bool, mode: str = "professional") -> Path:
+
+def preview_project_new(
+    root: Path,
+    parent: Path,
+    name: str,
+    no_git_init: bool,
+    mode: str = "professional",
+    registration: Path | None = None,
+) -> Path:
     if mode not in GOVERNANCE_MODES:
         fail(f"Unknown governance mode: {mode}")
+    if mode == "business-led" and registration is None:
+        fail("business-led mode requires --registration")
     if not parent.is_dir():
         fail(f"Parent folder does not exist: {parent}")
     if not name or any(ch in name for ch in '\\/:*?"<>|'):
@@ -1171,6 +1292,11 @@ def preview_project_new(root: Path, parent: Path, name: str, no_git_init: bool, 
             "Create: AGENTS.md, CLAUDE.md, project-governance.yml, verification-plan.json",
             "Create: docs/, src/, tests/ and available repository templates",
             "Create: .governance/integrity.json (governance artifact integrity manifest)",
+            (
+                f"Registration: {registration}, derive assurance facts from its capabilities"
+                if registration
+                else "Registration: none"
+            ),
             f"Git init: {'no' if no_git_init else 'yes'}",
             "Application code: none",
         ],
@@ -1178,7 +1304,32 @@ def preview_project_new(root: Path, parent: Path, name: str, no_git_init: bool, 
     return target
 
 
-def apply_project_new(root: Path, target: Path, name: str, no_git_init: bool, mode: str = "professional") -> None:
+def apply_registration(target: Path, registration: Path | None, mode: str) -> None:
+    """Validate and copy the registration into a project, deriving assurance
+    facts from its capability flags. Required in business-led mode.
+    """
+    if registration is None:
+        if mode == "business-led":
+            fail("business-led mode requires --registration")
+        return
+    reg_text = read_text(registration)
+    validate_registration(reg_text)
+    write_text(target / "registration.yml", reg_text)
+
+    plan_path = target / "verification-plan.json"
+    if plan_path.is_file():
+        facts = registration_assurance_facts(parse_registration(reg_text))
+        write_text(plan_path, apply_registration_facts(read_text(plan_path), facts))
+
+
+def apply_project_new(
+    root: Path,
+    target: Path,
+    name: str,
+    no_git_init: bool,
+    mode: str = "professional",
+    registration: Path | None = None,
+) -> None:
     if mode not in GOVERNANCE_MODES:
         fail(f"Unknown governance mode: {mode}")
     templates = template_paths(root)
@@ -1204,6 +1355,8 @@ def apply_project_new(root: Path, target: Path, name: str, no_git_init: bool, mo
             destination_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination_path)
 
+    apply_registration(target, registration, mode)
+
     if not no_git_init and not (target / ".git").exists():
         result = run_git(["init"], target)
         if result.returncode != 0:
@@ -1213,9 +1366,13 @@ def apply_project_new(root: Path, target: Path, name: str, no_git_init: bool, mo
     verify_project(root, target)
 
 
-def preview_project_adopt(root: Path, project: Path, mode: str = "professional") -> None:
+def preview_project_adopt(
+    root: Path, project: Path, mode: str = "professional", registration: Path | None = None
+) -> None:
     if mode not in GOVERNANCE_MODES:
         fail(f"Unknown governance mode: {mode}")
+    if mode == "business-led" and registration is None:
+        fail("business-led mode requires --registration")
     if not project.is_dir():
         fail(f"Project root does not exist: {project}")
     if (project / "project-governance.yml").exists():
@@ -1233,11 +1390,16 @@ def preview_project_adopt(root: Path, project: Path, mode: str = "professional")
         "Add/refresh only managed Claude adapter block in CLAUDE.md",
         "Preserve existing project content and custom host instructions",
         "Create/refresh .governance/integrity.json (governance artifact integrity manifest)",
+        (
+            f"Registration: {registration}, derive assurance facts from its capabilities"
+            if registration
+            else "Registration: none"
+        ),
     ]
     print_preview("Adopt existing project preview", lines)
 
 
-def apply_project_adopt(root: Path, project: Path, mode: str = "professional") -> None:
+def apply_project_adopt(root: Path, project: Path, mode: str = "professional", registration: Path | None = None) -> None:
     if mode not in GOVERNANCE_MODES:
         fail(f"Unknown governance mode: {mode}")
     templates = template_paths(root)
@@ -1293,6 +1455,7 @@ Before substantial C2/C3, security-sensitive, or release work, perform governanc
 reconciliation and establish a truthful post-adoption evidence baseline.
 """
     write_text(project / "docs" / "governance-adoption.md", adoption)
+    apply_registration(project, registration, mode)
     write_integrity_manifest(root, project)
     verify_project(root, project)
 
@@ -1662,11 +1825,13 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument("--name", required=True)
     new.add_argument("--no-git-init", action="store_true")
     new.add_argument("--mode", choices=GOVERNANCE_MODES, default="professional")
+    new.add_argument("--registration", default=None)
     new.add_argument("-y", "--yes", action="store_true")
 
     adopt = project_sub.add_parser("adopt")
     adopt.add_argument("--project", required=True)
     adopt.add_argument("--mode", choices=GOVERNANCE_MODES, default="professional")
+    adopt.add_argument("--registration", default=None)
     adopt.add_argument("-y", "--yes", action="store_true")
 
     update = project_sub.add_parser("update")
@@ -1682,6 +1847,12 @@ def build_parser() -> argparse.ArgumentParser:
     mode_group = pre_tool.add_mutually_exclusive_group(required=True)
     mode_group.add_argument("--enforce", action="store_true")
     mode_group.add_argument("--inform", action="store_true")
+
+    registration = sub.add_parser("registration", help="Business-led mode registration tooling.")
+    registration_sub = registration.add_subparsers(dest="action", required=True)
+    seal = registration_sub.add_parser("seal", help="Compute and write the integrity seal over a registration.yml.")
+    seal.add_argument("--registration", required=True)
+    seal.add_argument("--by", required=True, help="Identity of the sealer, recorded in integrity.sealed_by.")
 
     return parser
 
@@ -1751,18 +1922,20 @@ def main(argv: list[str] | None = None) -> int:
 
             if args.action == "new":
                 parent = Path(args.parent).expanduser().resolve()
-                target = preview_project_new(root, parent, args.name, args.no_git_init, args.mode)
+                registration = Path(args.registration).expanduser().resolve() if args.registration else None
+                target = preview_project_new(root, parent, args.name, args.no_git_init, args.mode, registration)
                 confirm(args.yes)
-                apply_project_new(root, target, args.name, args.no_git_init, args.mode)
+                apply_project_new(root, target, args.name, args.no_git_init, args.mode, registration)
                 print(f"Created governed project: {target}")
                 print("Verification: PASS")
                 return 0
 
             project = Path(args.project).expanduser().resolve()
             if args.action == "adopt":
-                preview_project_adopt(root, project, args.mode)
+                registration = Path(args.registration).expanduser().resolve() if args.registration else None
+                preview_project_adopt(root, project, args.mode, registration)
                 confirm(args.yes)
-                apply_project_adopt(root, project, args.mode)
+                apply_project_adopt(root, project, args.mode, registration)
                 print("Governance adoption: PASS")
                 print("Verification: PASS")
                 return 0
@@ -1778,6 +1951,18 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.area == "hook" and args.action == "pre-tool":
             return run_hook_pre_tool(root, enforce=args.enforce)
+
+        if args.area == "registration" and args.action == "seal":
+            reg_path = Path(args.registration).expanduser().resolve()
+            if not reg_path.is_file():
+                fail(f"Registration file does not exist: {reg_path}")
+            sealed_at = datetime.now(timezone.utc).isoformat()
+            new_text = seal_registration_text(read_text(reg_path), args.by, sealed_at)
+            write_text(reg_path, new_text)
+            print(f"Sealed: {reg_path}")
+            print(f"Sealed by: {args.by}")
+            print(f"Sealed at: {sealed_at}")
+            return 0
 
         parser.error("Unsupported operation")
         return 2

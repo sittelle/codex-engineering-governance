@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/codex-governance/registration.schema.json",
+  "title": "Business-led Mode Project Registration",
+  "description": "IT Security's registration of a business-led project: the reference the framework derives assurance facts from and detects implementation drift against. Filled by hand until a registration tool exists, per docs/business-led/implementation-plan.md section 11.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "registration_id",
+    "pathway",
+    "business_owner",
+    "approval_authority",
+    "capabilities",
+    "integrity"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "registration_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pathway": {
+      "enum": [
+        "green",
+        "amber",
+        "red"
+      ]
+    },
+    "business_owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "approval_authority": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "description": "IT Security's explicit approval that the project may exhibit each capability; not a detection result. run-registration-conformance.py (WS4 phase 3) compares detected capabilities against this set.",
+      "required": [
+        "network_connections",
+        "persistence",
+        "authentication",
+        "write_or_delete_actions",
+        "cloud",
+        "external_recipients",
+        "elevated_access"
+      ],
+      "properties": {
+        "network_connections": {
+          "type": "boolean"
+        },
+        "persistence": {
+          "type": "boolean"
+        },
+        "authentication": {
+          "type": "boolean"
+        },
+        "write_or_delete_actions": {
+          "type": "boolean"
+        },
+        "cloud": {
+          "type": "boolean"
+        },
+        "external_recipients": {
+          "type": "boolean"
+        },
+        "elevated_access": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "operating_conditions": {
+      "description": "Conditions IT Security attached to the pathway, for example Amber conditions under which the business owner may proceed. Recorded and displayed, not interpreted by the framework beyond that.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "allowlisted_instruction_surfaces": {
+      "description": "The exact project instruction-surface files (.claude/ rules, skills, agents, commands, hooks, settings, .mcp.json, non-managed AGENTS.md/CLAUDE.md text) IT Security has reviewed and approved. Compared by assurance/run-verification.py's instruction_surface_audit.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "integrity": {
+      "description": "The hash IT Security's tooling (or governance.py registration seal, until a tool exists) computes over the registration content above, so a later hand-edit is detectable.",
+      "type": "object",
+      "required": [
+        "sha256",
+        "sealed_by",
+        "sealed_at"
+      ],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sealed_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sealed_at": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
