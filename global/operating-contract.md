@@ -72,6 +72,10 @@ Security takes precedence over convenience. Critical/High release blockers follo
 
 Completion statements must report actual evidence and distinguish unexecuted/not-applicable checks.
 
+## Agent runtime configuration boundary
+
+MCP servers, hooks, plugins, subagents, memory configuration, and agent permission/bypass-mode scope are trust-boundary changes, not ordinary project content. Adding or changing any of them is C2 at minimum; C3 when production systems or credentials are involved. The agent does not add, remove, or change its own runtime configuration surfaces to complete a task; it recommends and routes such a change through the normal C2/C3 approval boundary.
+
 ## Authentication implementation boundary
 
 For SA-2/SA-3 systems that locally manage login, sessions, password credentials, enrollment tokens, certificates, recovery, or revocation, establish and approve the relevant authentication/credential lifecycle design before substantial implementation.
