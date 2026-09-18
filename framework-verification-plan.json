@@ -36,6 +36,7 @@
         "checks": [
           "assurance-integration",
           "governance-integrity",
+          "registration-conformance",
           "lifecycle-common",
           "lifecycle-windows",
           "lifecycle-posix"
@@ -265,6 +266,38 @@
       "verified_targets": [],
       "result_policy": {
         "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    },
+    {
+      "id": "registration-conformance",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-registration-conformance.py"
+      ],
+      "reason": "Business-led WS4 phase 3 capability-detection rules (semgrep/capabilities/*.yml) and scripts/run-registration-conformance.py: recall/precision on synthetic positive/negative fixtures, drift detection and request-record creation, and DID_NOT_EXECUTE on missing/tampered registration.yml. Per explicit maintainer direction, this is the heuristic stand-in for a live IT Security false-positive review on real repositories.",
+      "timeout_seconds": 180,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "DOCUMENTED_EXIT_CODES",
+        "did_not_execute_codes": [
+          3
+        ],
+        "reference": "scripts/test-registration-conformance.py contract: 0 all fixtures/assertions pass, 1 assertion failure, 3 semgrep not available on PATH (DID_NOT_EXECUTE)"
       },
       "execution": {
         "allowed_contexts": [
