@@ -340,7 +340,12 @@ def test_common(failures):
         status_paths = {line[3:].replace("\\", "/") for line in status if line}
         assert_true(
             status_paths
-            == {"CLAUDE.md", "project-governance.yml", ASSERTION_REL.as_posix()},
+            == {
+                "CLAUDE.md",
+                "project-governance.yml",
+                ".governance/integrity.json",
+                ASSERTION_REL.as_posix(),
+            },
             "activation produced unexpected fixture changes: " + repr(status),
             failures,
         )

@@ -13,6 +13,7 @@ ALLOWED_FIXTURE_PATHS = {
     "AGENTS.md",
     "CLAUDE.md",
     "project-governance.yml",
+    ".governance/integrity.json",
     ASSERTION_REL.as_posix(),
 }
 BACKUP_PATTERNS = (

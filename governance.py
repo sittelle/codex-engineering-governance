@@ -38,10 +38,12 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 FRAMEWORK_ID = "sittelle-engineering-governance"
 LEGACY_FRAMEWORK_IDS = {"codex-engineering-governance"}
+INTEGRITY_PATH = ".governance/integrity.json"
 STATE_NAME = ".sittelle-engineering-governance.json"
 
 HOST_BEGIN = "<!-- BEGIN SITTELLE-ENGINEERING-GOVERNANCE -->"
@@ -902,6 +904,108 @@ def project_status(root: Path, project: Path) -> str:
     return f"GOVERNED {baseline}; update available to {current} ({suffix})"
 
 
+def governance_owned_yaml_block(text: str) -> str:
+    """Return the top-level `governance:` block of project-governance.yml.
+
+    This is the subset of the manifest that identifies the governance
+    binding itself (baseline/source/locator); it is what an agent could
+    edit to fake compliance with a different baseline, independent of the
+    project-owned fields (maturity, profiles, platforms) that are not
+    governance-owned.
+    """
+    match = re.search(r"(?ms)^governance:[ \t]*\n(?:[ \t]+\S.*\n?)*", text)
+    if not match:
+        fail("project-governance.yml has no top-level governance: block")
+    return match.group(0)
+
+
+def verification_plan_assurance_json(path: Path) -> str:
+    """Return a canonical JSON rendering of verification-plan.json's assurance object.
+
+    Only `assurance` (facts plus capability decisions) is governance-owned in
+    the sense that matters for integrity tracking; the `checks` array's argv
+    commands are project-specific and are not covered here.
+    """
+    try:
+        data = json.loads(read_text(path))
+    except Exception as exc:
+        fail(f"Cannot parse verification plan {path}: {exc}")
+    assurance = data.get("assurance")
+    if not isinstance(assurance, dict):
+        fail(f"{path}: verification plan has no assurance object")
+    return json.dumps(assurance, sort_keys=True, separators=(",", ":"))
+
+
+def compute_integrity_entries(root: Path, project: Path) -> list[dict]:
+    """Compute the governance-artifact integrity entries governance.py itself owns.
+
+    The assurance-bootstrap baseline copy, copied runner, and CI workflow are
+    separately hash-recorded by `scripts/bootstrap-assurance.py` in
+    `.governance/assurance-bootstrap.json`; the verification-runner integrity
+    preflight cross-checks those against live bytes directly rather than
+    duplicating a second hash record for the same files here.
+    """
+    entries: list[dict] = []
+
+    agents = project / "AGENTS.md"
+    if agents.is_file():
+        block = PROJECT_RE.search(read_text(agents))
+        if block:
+            entries.append(
+                {"id": "agents_managed_block", "path": "AGENTS.md", "sha256": sha256_text(block.group(0))}
+            )
+
+    claude = project / "CLAUDE.md"
+    if claude.is_file():
+        block = CLAUDE_PROJECT_RE.search(read_text(claude))
+        if block:
+            entries.append(
+                {"id": "claude_managed_block", "path": "CLAUDE.md", "sha256": sha256_text(block.group(0))}
+            )
+
+    manifest = project / "project-governance.yml"
+    if manifest.is_file():
+        entries.append(
+            {
+                "id": "project_governance_fields",
+                "path": "project-governance.yml",
+                "sha256": sha256_text(governance_owned_yaml_block(read_text(manifest))),
+            }
+        )
+
+    verification_plan = project / "verification-plan.json"
+    if verification_plan.is_file():
+        entries.append(
+            {
+                "id": "verification_plan_assurance",
+                "path": "verification-plan.json",
+                "sha256": sha256_text(verification_plan_assurance_json(verification_plan)),
+            }
+        )
+
+    registration = project / "registration.yml"
+    if registration.is_file():
+        entries.append(
+            {
+                "id": "registration",
+                "path": "registration.yml",
+                "sha256": sha256_text(read_text(registration)),
+            }
+        )
+
+    return entries
+
+
+def write_integrity_manifest(root: Path, project: Path) -> None:
+    manifest = {
+        "schema_version": "1",
+        "governance_baseline": version(root),
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "entries": compute_integrity_entries(root, project),
+    }
+    write_text(project / INTEGRITY_PATH, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+
+
 def verify_project(root: Path, project: Path) -> None:
     manifest = project / "project-governance.yml"
     agents = project / "AGENTS.md"
@@ -962,6 +1066,7 @@ def preview_project_new(root: Path, parent: Path, name: str, no_git_init: bool) 
             f"Governance baseline: {version(root)}",
             "Create: AGENTS.md, CLAUDE.md, project-governance.yml, verification-plan.json",
             "Create: docs/, src/, tests/ and available repository templates",
+            "Create: .governance/integrity.json (governance artifact integrity manifest)",
             f"Git init: {'no' if no_git_init else 'yes'}",
             "Application code: none",
         ],
@@ -997,6 +1102,7 @@ def apply_project_new(root: Path, target: Path, name: str, no_git_init: bool) ->
         if result.returncode != 0:
             fail(f"Project created, but git init failed: {result.stderr.strip()}")
 
+    write_integrity_manifest(root, target)
     verify_project(root, target)
 
 
@@ -1016,6 +1122,7 @@ def preview_project_adopt(root: Path, project: Path) -> None:
         "Add/refresh only managed governance block in AGENTS.md",
         "Add/refresh only managed Claude adapter block in CLAUDE.md",
         "Preserve existing project content and custom host instructions",
+        "Create/refresh .governance/integrity.json (governance artifact integrity manifest)",
     ]
     print_preview("Adopt existing project preview", lines)
 
@@ -1073,6 +1180,7 @@ Before substantial C2/C3, security-sensitive, or release work, perform governanc
 reconciliation and establish a truthful post-adoption evidence baseline.
 """
     write_text(project / "docs" / "governance-adoption.md", adoption)
+    write_integrity_manifest(root, project)
     verify_project(root, project)
 
 
@@ -1144,6 +1252,7 @@ def preview_project_update(root: Path, project: Path, plan: dict) -> None:
         ),
         "Preserve project-specific AGENTS.md and CLAUDE.md text",
         "Create backups before applying changed governed files",
+        "Refresh .governance/integrity.json (governance artifact integrity manifest)",
     ]
     print_preview("Governed project update preview", lines)
 
@@ -1168,6 +1277,7 @@ def apply_project_update(root: Path, project: Path, plan: dict) -> None:
         shutil.copy2(claude, project / f"CLAUDE.md.governance-backup-{stamp}")
         write_text(claude, plan["claude_new"])
 
+    write_integrity_manifest(root, project)
     verify_project(root, project)
 
 
