@@ -244,6 +244,64 @@
         }
       },
       "additionalProperties": false
+    },
+    "governance_integrity": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Cross-check of .governance/integrity.json and .governance/assurance-bootstrap.json against live bytes. Optional for backward compatibility with reports produced before this field existed; new reports from an updated runner always populate it.",
+      "required": [
+        "status",
+        "issues",
+        "checked"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "PASS",
+            "INCOMPLETE_ASSURANCE"
+          ]
+        },
+        "issues": {
+          "type": "array"
+        },
+        "checked": {
+          "type": "array"
+        }
+      },
+      "additionalProperties": false
+    },
+    "instruction_surface_audit": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Enumeration of project-level instruction surfaces not covered by the governance-managed blocks. Informational in professional mode; can produce UNAPPROVED_INSTRUCTION_SURFACE issues in business-led mode. Optional for backward compatibility with reports produced before this field existed.",
+      "required": [
+        "mode",
+        "status",
+        "surfaces",
+        "issues"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "INCOMPLETE_ASSURANCE"
+          ]
+        },
+        "surfaces": {
+          "type": "array"
+        },
+        "issues": {
+          "type": "array"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": true

@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -642,11 +643,20 @@ def summarize(
     context: str,
     actual_target: dict,
     plan_version: str,
+    governance_integrity: dict | None = None,
+    instruction_surface: dict | None = None,
 ) -> str:
     required_rows = [r for r in results if r["id"] in required_check_ids]
     if any(r["result"] == "FAIL" for r in required_rows):
         return "FAIL"
     if any(r["result"] == "DID_NOT_EXECUTE" for r in required_rows):
+        return "INCOMPLETE_ASSURANCE"
+    # Tamper detection is not release-completeness-dependent the way capability
+    # checklist completeness is: it applies in both quick and full so drift is
+    # visible immediately, not only at release time.
+    if governance_integrity and governance_integrity["status"] != "PASS":
+        return "INCOMPLETE_ASSURANCE"
+    if instruction_surface and instruction_surface["status"] != "PASS":
         return "INCOMPLETE_ASSURANCE"
     if stage == "full" and preflight["status"] != "PASS":
         return "INCOMPLETE_ASSURANCE"
@@ -655,6 +665,247 @@ def summarize(
     ):
         return "INCOMPLETE_ASSURANCE"
     return "PASS"
+
+
+# --- Governance-artifact integrity (business-led mode WS1) -----------------
+#
+# This is verification-plan schema v3 / report schema v5 only; schema v2/v4
+# behavior is intentionally unchanged. These extraction helpers must stay in
+# sync with governance.py's equivalents (governance_owned_yaml_block,
+# verification_plan_assurance_json, PROJECT_RE/CLAUDE_PROJECT_RE), because
+# this copy of the runner is distributed standalone into governed projects
+# and cannot import governance.py.
+
+PROJECT_BLOCK_MARKERS = (
+    "<!-- BEGIN ENGINEERING-GOVERNANCE-MANAGED -->",
+    "<!-- END ENGINEERING-GOVERNANCE-MANAGED -->",
+)
+CLAUDE_BLOCK_MARKERS = (
+    "<!-- BEGIN SITTELLE-ENGINEERING-GOVERNANCE-CLAUDE -->",
+    "<!-- END SITTELLE-ENGINEERING-GOVERNANCE-CLAUDE -->",
+)
+
+
+def read_text_lenient(path: Path) -> str:
+    return path.read_text(encoding="utf-8-sig")
+
+
+def extract_managed_block(text: str, begin: str, end: str) -> str | None:
+    pattern = re.compile(re.escape(begin) + r".*?" + re.escape(end), re.DOTALL)
+    match = pattern.search(text)
+    return match.group(0) if match else None
+
+
+def governance_owned_yaml_block(text: str) -> str | None:
+    match = re.search(r"(?ms)^governance:[ \t]*\n(?:[ \t]+\S.*\n?)*", text)
+    return match.group(0) if match else None
+
+
+def verification_plan_assurance_json(path: Path) -> str | None:
+    try:
+        data = json.loads(read_text_lenient(path))
+    except Exception:
+        return None
+    assurance = data.get("assurance")
+    if not isinstance(assurance, dict):
+        return None
+    return json.dumps(assurance, sort_keys=True, separators=(",", ":"))
+
+
+def integrity_current_hash(project_root: Path, entry_id: str, rel_path: str) -> str | None:
+    path = project_root / rel_path
+    if not path.is_file():
+        return None
+    if entry_id == "agents_managed_block":
+        block = extract_managed_block(read_text_lenient(path), *PROJECT_BLOCK_MARKERS)
+        return sha256_bytes(block.encode("utf-8")) if block else None
+    if entry_id == "claude_managed_block":
+        block = extract_managed_block(read_text_lenient(path), *CLAUDE_BLOCK_MARKERS)
+        return sha256_bytes(block.encode("utf-8")) if block else None
+    if entry_id == "project_governance_fields":
+        block = governance_owned_yaml_block(read_text_lenient(path))
+        return sha256_bytes(block.encode("utf-8")) if block else None
+    if entry_id == "verification_plan_assurance":
+        canonical = verification_plan_assurance_json(path)
+        return sha256_bytes(canonical.encode("utf-8")) if canonical is not None else None
+    if entry_id == "registration":
+        return sha256_bytes(read_text_lenient(path).encode("utf-8"))
+    return None
+
+
+def load_governed_json(path: Path) -> dict | None:
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(read_text_lenient(path))
+    except Exception as exc:
+        return {"_error": f"cannot parse {path.name}: {exc}"}
+
+
+def governance_integrity_preflight(project_root: Path) -> dict:
+    """Cross-check the two existing governance-tooling hash records against
+    live bytes: .governance/integrity.json (governance.py-owned content) and
+    .governance/assurance-bootstrap.json (bootstrap-assurance.py-owned
+    baseline/runner/CI-workflow copies). Absent records are not an error;
+    they simply mean that governance-artifact tracking has not been
+    bootstrapped for this project yet.
+    """
+    issues: list[dict] = []
+    checked: list[dict] = []
+
+    manifest = load_governed_json(project_root / ".governance" / "integrity.json")
+    if manifest is not None:
+        if "_error" in manifest:
+            issues.append(
+                {"code": "GOVERNANCE_INTEGRITY_FAILED", "path": ".governance/integrity.json", "message": manifest["_error"]}
+            )
+        elif manifest.get("schema_version") != "1" or not isinstance(manifest.get("entries"), list):
+            issues.append(
+                {
+                    "code": "GOVERNANCE_INTEGRITY_FAILED",
+                    "path": ".governance/integrity.json",
+                    "message": "unrecognized governance integrity manifest schema",
+                }
+            )
+        else:
+            for entry in manifest["entries"]:
+                entry_id = entry.get("id")
+                rel_path = entry.get("path")
+                recorded = entry.get("sha256")
+                if not entry_id or not rel_path or not recorded:
+                    issues.append(
+                        {
+                            "code": "GOVERNANCE_INTEGRITY_FAILED",
+                            "path": rel_path or "?",
+                            "message": "malformed governance integrity manifest entry",
+                        }
+                    )
+                    continue
+                checked.append({"id": entry_id, "path": rel_path})
+                current = integrity_current_hash(project_root, entry_id, rel_path)
+                if current is None:
+                    issues.append(
+                        {
+                            "code": "GOVERNANCE_INTEGRITY_FAILED",
+                            "path": rel_path,
+                            "message": f"{rel_path}: governance-owned content recorded in integrity.json is now missing or unrecognizable",
+                        }
+                    )
+                elif current != recorded:
+                    issues.append(
+                        {
+                            "code": "GOVERNANCE_INTEGRITY_FAILED",
+                            "path": rel_path,
+                            "message": f"{rel_path}: governance-owned content does not match the integrity manifest; it was edited or tampered with",
+                        }
+                    )
+
+    bootstrap = load_governed_json(project_root / ".governance" / "assurance-bootstrap.json")
+    if bootstrap is not None:
+        if "_error" in bootstrap:
+            issues.append(
+                {
+                    "code": "GOVERNANCE_INTEGRITY_FAILED",
+                    "path": ".governance/assurance-bootstrap.json",
+                    "message": bootstrap["_error"],
+                }
+            )
+        else:
+            for key in ("runner", "aggregator", "ci_runner", "assurance_baseline", "ci_workflow"):
+                rel_path = bootstrap.get(key)
+                recorded = bootstrap.get(f"{key}_sha256")
+                if not rel_path or not recorded:
+                    continue
+                checked.append({"id": key, "path": rel_path})
+                target = project_root / rel_path
+                if not target.is_file():
+                    issues.append(
+                        {
+                            "code": "GOVERNANCE_INTEGRITY_FAILED",
+                            "path": rel_path,
+                            "message": f"{rel_path}: recorded in assurance-bootstrap.json but is now missing",
+                        }
+                    )
+                    continue
+                current = sha256_bytes(target.read_bytes())
+                if current != recorded:
+                    issues.append(
+                        {
+                            "code": "GOVERNANCE_INTEGRITY_FAILED",
+                            "path": rel_path,
+                            "message": f"{rel_path}: does not match the hash recorded at assurance bootstrap; it was edited or tampered with",
+                        }
+                    )
+
+    return {"status": "PASS" if not issues else "INCOMPLETE_ASSURANCE", "issues": issues, "checked": checked}
+
+
+def project_governance_mode(project_root: Path) -> str:
+    path = project_root / "project-governance.yml"
+    if not path.is_file():
+        return "professional"
+    match = re.search(r'(?m)^\s*mode:\s*["\']?([A-Za-z-]+)["\']?\s*$', read_text_lenient(path))
+    return match.group(1) if match else "professional"
+
+
+def enumerate_instruction_surfaces(project_root: Path) -> list[Path]:
+    found: list[Path] = []
+    claude_dir = project_root / ".claude"
+    if claude_dir.is_dir():
+        found.extend(p for p in claude_dir.rglob("*") if p.is_file())
+    for name in (".mcp.json", "CLAUDE.local.md"):
+        candidate = project_root / name
+        if candidate.is_file():
+            found.append(candidate)
+    return sorted(found)
+
+
+def non_managed_agents_text(project_root: Path) -> str | None:
+    path = project_root / "AGENTS.md"
+    if not path.is_file():
+        return None
+    text = read_text_lenient(path)
+    block = extract_managed_block(text, *PROJECT_BLOCK_MARKERS)
+    remainder = text.replace(block, "", 1) if block else text
+    remainder = remainder.strip()
+    return remainder or None
+
+
+def instruction_surface_audit(project_root: Path) -> dict:
+    """Enumerate project-level instruction surfaces (.claude/ rules, skills,
+    agents, commands, hooks, settings, .mcp.json, CLAUDE.local.md, and
+    non-managed AGENTS.md text) not covered by the governance-managed blocks.
+
+    In professional mode this is informational only: it never affects the
+    overall result. In business-led mode, a registration allowlist governs
+    which surfaces are approved (WS4); until that allowlist's format exists,
+    the presence of a registration file is treated as sufficient evidence
+    that IT Security reviewed the current surfaces, and only a business-led
+    project with no registration at all is flagged as fully unapproved. This
+    placeholder must be replaced with an exact hash-pinned allowlist
+    comparison once WS4 defines registration.yml's schema.
+    """
+    mode = project_governance_mode(project_root)
+    entries = [
+        {"path": p.relative_to(project_root).as_posix(), "sha256": sha256_bytes(p.read_bytes())}
+        for p in enumerate_instruction_surfaces(project_root)
+    ]
+    remainder = non_managed_agents_text(project_root)
+    if remainder:
+        entries.append({"path": "AGENTS.md#non-managed-text", "sha256": sha256_bytes(remainder.encode("utf-8"))})
+
+    issues: list[dict] = []
+    if mode == "business-led" and not (project_root / "registration.yml").is_file():
+        for entry in entries:
+            issues.append(
+                {
+                    "code": "UNAPPROVED_INSTRUCTION_SURFACE",
+                    "path": entry["path"],
+                    "message": f"{entry['path']}: business-led mode requires a registration allowlist; no registration.yml is present",
+                }
+            )
+
+    return {"mode": mode, "status": "PASS" if not issues else "INCOMPLETE_ASSURANCE", "surfaces": entries, "issues": issues}
 
 
 def resolve_baseline_path(project_root: Path, explicit: str | None) -> Path | None:
@@ -718,6 +969,21 @@ def main() -> int:
         print("[capability-preflight] INCOMPLETE_ASSURANCE")
         for issue in preflight["issues"]:
             print("  - " + issue["message"])
+
+    governance_integrity = None
+    instruction_surface = None
+    if plan_version == "3":
+        governance_integrity = governance_integrity_preflight(project_root)
+        instruction_surface = instruction_surface_audit(project_root)
+        if governance_integrity["issues"]:
+            print("[governance-integrity] INCOMPLETE_ASSURANCE")
+            for issue in governance_integrity["issues"]:
+                print("  - " + issue["message"])
+        if instruction_surface["issues"]:
+            print("[instruction-surface-audit] INCOMPLETE_ASSURANCE")
+            for issue in instruction_surface["issues"]:
+                print("  - " + issue["message"])
+
     print(f"[execution-context] {context}")
     if plan_version == "3":
         print(f"[execution-target] {target_label(actual_target)}")
@@ -736,7 +1002,17 @@ def main() -> int:
         resolved = f" [{result.get('resolved_executable')}]" if result.get("resolved_executable") else ""
         print(f"  -> {result['result']}{resolved}{suffix}")
 
-    overall = summarize(args.stage, preflight, results, required_check_ids, context, actual_target, plan_version)
+    overall = summarize(
+        args.stage,
+        preflight,
+        results,
+        required_check_ids,
+        context,
+        actual_target,
+        plan_version,
+        governance_integrity,
+        instruction_surface,
+    )
     commit, dirty = resolve_git_state(project_root)
     plan_identity = artifact_identity(plan_path, project_root, dirty)
     baseline_identity = artifact_identity(baseline_path, project_root, dirty)
@@ -773,6 +1049,8 @@ def main() -> int:
     }
     if report_schema == "5":
         report["execution_target"] = actual_target
+        report["governance_integrity"] = governance_integrity
+        report["instruction_surface_audit"] = instruction_surface
 
     print(f"\nOVERALL: {overall}")
     if args.report:
