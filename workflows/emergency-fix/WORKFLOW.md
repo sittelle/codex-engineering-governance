@@ -109,6 +109,10 @@ Obtain approval of the emergency direction before implementation when a material
 
 Do not require a full normal design package before an urgent bounded fix.
 
+### Business-led mode: Amber/Red emergencies
+
+In business-led mode (`governance.mode: business-led`), an emergency on an Amber- or Red-pathway project always produces a routing outcome of "involve IT Security" (see "Business-led mode routing outcomes" in `global/governance-standard.md`), in addition to the emergency brief above. Containment and the smallest safe action still proceed without waiting for IT Security's response, since the framework never blocks development on its own; the emergency does not become an exception to that. Record the request per "Business-led mode request records"; do not let incident urgency substitute for IT Security's eventual review of an Amber/Red emergency change.
+
 ## 7. Implement the smallest viable patch
 
 Keep the patch:
