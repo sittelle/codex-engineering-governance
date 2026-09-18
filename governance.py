@@ -923,12 +923,26 @@ def verify_project(root: Path, project: Path) -> None:
         fail("Project governance locator is not host-neutral")
 
     agents_text = read_text(agents)
-    if PROJECT_RE.search(agents_text) is None:
+    agents_block = PROJECT_RE.search(agents_text)
+    if agents_block is None:
         fail("Project AGENTS.md has no current managed governance block")
+    if agents_block.group(0) != managed_project_block(root):
+        fail(
+            "Project AGENTS.md managed governance block does not match the "
+            "pinned template for the current baseline; it was edited or "
+            "tampered with"
+        )
 
     claude_text = read_text(claude)
-    if CLAUDE_PROJECT_RE.search(claude_text) is None:
+    claude_block = CLAUDE_PROJECT_RE.search(claude_text)
+    if claude_block is None:
         fail("Project CLAUDE.md has no managed Claude adapter block")
+    if claude_block.group(0) != managed_claude_project_block(root):
+        fail(
+            "Project CLAUDE.md managed Claude adapter block does not match "
+            "the pinned template for the current baseline; it was edited or "
+            "tampered with"
+        )
     if "@AGENTS.md" not in claude_text:
         fail("Project CLAUDE.md does not import AGENTS.md")
 
