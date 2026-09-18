@@ -35,6 +35,7 @@
         "reason": "Assurance plus unified host/project lifecycle behavior are release-critical.",
         "checks": [
           "assurance-integration",
+          "governance-integrity",
           "lifecycle-common",
           "lifecycle-windows",
           "lifecycle-posix"
@@ -230,6 +231,34 @@
         "scripts/test-assurance-integration.py"
       ],
       "reason": "Generic assurance compatibility and evidence semantics.",
+      "timeout_seconds": 300,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    },
+    {
+      "id": "governance-integrity",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-governance-integrity.py"
+      ],
+      "reason": "Business-led mode governance-artifact integrity: tampered managed blocks, governed fields, plan assurance objects, swapped baseline copies, and unapproved instruction surfaces must each produce GOVERNANCE_INTEGRITY_FAILED or UNAPPROVED_INSTRUCTION_SURFACE, with schema v2/v4 projects entirely unaffected.",
       "timeout_seconds": 300,
       "working_directory": null,
       "environment": {},
