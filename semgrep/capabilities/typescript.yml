@@ -1,0 +1,112 @@
+rules:
+  - id: capability-network-connections-http-client-ts
+    languages: [typescript, javascript]
+    severity: INFO
+    message: HTTP client usage detected; maps to registration capability network_connections.
+    metadata:
+      capability: network_connections
+    patterns:
+      - pattern-either:
+          - pattern: fetch(...)
+          - pattern: axios.get(...)
+          - pattern: axios.post(...)
+          - pattern: axios.put(...)
+          - pattern: axios.delete(...)
+          - pattern: axios.request(...)
+          - pattern: http.request(...)
+          - pattern: https.request(...)
+
+  - id: capability-network-connections-listener-ts
+    languages: [typescript, javascript]
+    severity: INFO
+    message: Network listener/server usage detected; maps to registration capability network_connections.
+    metadata:
+      capability: network_connections
+    patterns:
+      - pattern-either:
+          - pattern: $APP.listen(...)
+          - pattern: http.createServer(...)
+          - pattern: https.createServer(...)
+          - pattern: net.createServer(...)
+
+  - id: capability-persistence-database-driver-ts
+    languages: [typescript, javascript]
+    severity: INFO
+    message: Database driver usage detected; maps to registration capability persistence.
+    metadata:
+      capability: persistence
+    patterns:
+      - pattern-either:
+          - pattern: require('pg')
+          - pattern: require("pg")
+          - pattern: require('mysql2')
+          - pattern: require("mysql2")
+          - pattern: require('sqlite3')
+          - pattern: require("sqlite3")
+          - pattern: mongoose.connect(...)
+          - pattern: new PrismaClient(...)
+          - pattern: new Pool(...)
+
+  - id: capability-authentication-code-ts
+    languages: [typescript, javascript]
+    severity: INFO
+    message: Authentication-related code detected; maps to registration capability authentication.
+    metadata:
+      capability: authentication
+    patterns:
+      - pattern-either:
+          - pattern: jwt.sign(...)
+          - pattern: jwt.verify(...)
+          - pattern: bcrypt.hash(...)
+          - pattern: bcrypt.compare(...)
+          - pattern: passport.authenticate(...)
+
+  - id: capability-elevated-access-subprocess-ts
+    languages: [typescript, javascript]
+    severity: INFO
+    message: Subprocess/shell execution detected; maps to registration capability elevated_access.
+    metadata:
+      capability: elevated_access
+    patterns:
+      - pattern-either:
+          - pattern: child_process.exec(...)
+          - pattern: child_process.execSync(...)
+          - pattern: child_process.spawn(...)
+          - pattern: execSync(...)
+
+  - id: capability-write-or-delete-actions-bulk-delete-ts
+    languages: [typescript, javascript]
+    severity: INFO
+    message: Bulk delete/destructive data operation detected; maps to registration capability write_or_delete_actions.
+    metadata:
+      capability: write_or_delete_actions
+    patterns:
+      - pattern-either:
+          - pattern: "fs.rmSync($PATH, { recursive: true, ... })"
+          - pattern: "fs.rmdirSync($PATH, { recursive: true, ... })"
+          - pattern: $MODEL.deleteMany(...)
+
+  - id: capability-cloud-sdk-ts
+    languages: [typescript, javascript]
+    severity: INFO
+    message: Cloud provider SDK usage detected; maps to registration capability cloud.
+    metadata:
+      capability: cloud
+    patterns:
+      - pattern-either:
+          - pattern: require('aws-sdk')
+          - pattern: require("aws-sdk")
+          - pattern: new S3Client(...)
+          - pattern: new DynamoDBClient(...)
+
+  - id: capability-external-recipients-outbound-mail-ts
+    languages: [typescript, javascript]
+    severity: INFO
+    message: Outbound mail/messaging usage detected; maps to registration capability external_recipients.
+    metadata:
+      capability: external_recipients
+    patterns:
+      - pattern-either:
+          - pattern: nodemailer.createTransport(...)
+          - pattern: sgMail.send(...)
+          - pattern: ses.sendEmail(...)
