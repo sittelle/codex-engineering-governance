@@ -33,6 +33,7 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -705,6 +706,65 @@ def verify_host(root: Path, host: Host) -> None:
                 "Claude Code: governance root is not covered by the expected "
                 "permissions.allow Read rule"
             )
+
+
+def claude_managed_settings_path() -> Path:
+    system = platform.system()
+    if system == "Darwin":
+        return Path("/Library/Application Support/ClaudeCode/managed-settings.json")
+    if system == "Windows":
+        program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
+        return Path(program_files) / "ClaudeCode" / "managed-settings.json"
+    return Path("/etc/claude-code/managed-settings.json")
+
+
+def codex_managed_requirements_path() -> Path:
+    if platform.system() == "Windows":
+        program_data = os.environ.get("ProgramData", r"C:\ProgramData")
+        return Path(program_data) / "OpenAI" / "Codex" / "requirements.toml"
+    return Path("/etc/codex/requirements.toml")
+
+
+def managed_policy_status(host: Host) -> dict:
+    """Report whether the host's IT-managed policy layer is present and, if
+    so, which enforcement mode it declares. Per the fail-closed rule: a
+    present-but-invalid managed file means block; a missing file means
+    inform, reported as ABSENT so IT Security can see clients that lack the
+    policy rather than silently assuming coverage.
+    """
+    if host.key == "claude":
+        path = claude_managed_settings_path()
+        if not path.is_file():
+            return {"source": "ABSENT", "mode": "inform", "path": str(path)}
+        try:
+            data = json.loads(read_text(path))
+        except Exception as exc:
+            return {
+                "source": "MANAGED",
+                "mode": "block",
+                "path": str(path),
+                "error": f"invalid managed settings: {exc}",
+            }
+        hooks = ((data.get("hooks") or {}).get("PreToolUse") or [{}])[0].get("hooks") or [{}]
+        command = hooks[0].get("command", "")
+        if "--enforce" in command:
+            mode = "block"
+        elif "--inform" in command:
+            mode = "inform"
+        else:
+            mode = "block"
+        return {"source": "MANAGED", "mode": mode, "path": str(path)}
+
+    if host.key == "codex":
+        path = codex_managed_requirements_path()
+        if not path.is_file():
+            return {"source": "ABSENT", "mode": "inform", "path": str(path)}
+        # Codex requirements.toml templates are a WS2 follow-up; presence is
+        # recorded without decoding TOML, since the framework adds no TOML
+        # dependency. A present file with unknown content fails closed.
+        return {"source": "MANAGED", "mode": "block", "path": str(path)}
+
+    return {"source": "ABSENT", "mode": "inform", "path": None}
 
 
 def preview_host_action(root: Path, action: str, hosts: list[Host]) -> None:
@@ -1579,6 +1639,8 @@ def main(argv: list[str] | None = None) -> int:
             if args.action == "status":
                 for host in selected_hosts(args.host):
                     print(f"{host.label}: {display_host_status(host_status(root, host))}")
+                    policy = managed_policy_status(host)
+                    print(f"  managed policy: {policy['source']} (mode={policy['mode']})")
                 return 0
 
             hosts = action_hosts(root, args.action, args.host)
@@ -1590,6 +1652,8 @@ def main(argv: list[str] | None = None) -> int:
                 for host in hosts:
                     verify_host(root, host)
                     print(f"{host.label}: verification PASS")
+                    policy = managed_policy_status(host)
+                    print(f"  managed policy: {policy['source']} (mode={policy['mode']})")
                 return 0
 
             preview_host_action(root, args.action, hosts)
