@@ -421,8 +421,20 @@ else:
             other_flag = "--enforce" if flag == "--inform" else "--inform"
             if other_flag in command:
                 errors.append(f"requirements.{variant}.toml {key} has the wrong enforcement flag")
-        if not (data.get("permissions") or {}).get("filesystem", {}).get("deny_read"):
+        deny_read_entries = (data.get("permissions") or {}).get("filesystem", {}).get("deny_read") or []
+        if not deny_read_entries:
             errors.append(f"requirements.{variant}.toml has no permissions.filesystem.deny_read entries")
+        for entry in deny_read_entries:
+            # A root-anchored recursive glob (e.g. "/**/*.env") makes Codex's sandbox
+            # builder (bubblewrap) refuse to start the session at all: "unreadable glob
+            # ... cannot be safely expanded; use a pattern with a non-root directory
+            # prefix". Confirmed live on a real Codex session (2026-09-18). This is not
+            # a style preference; it is a session-initialization-breaking defect.
+            if entry.startswith("/**"):
+                errors.append(
+                    f"requirements.{variant}.toml deny_read entry is a root-anchored recursive glob "
+                    f"and will break Codex session initialization: {entry!r}"
+                )
         if not (data.get("rules") or {}).get("prefix_rules"):
             errors.append(f"requirements.{variant}.toml has no rules.prefix_rules entries")
 

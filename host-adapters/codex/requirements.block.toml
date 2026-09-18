@@ -9,8 +9,8 @@ allowed_sandbox_modes = ["read-only", "workspace-write"]
 deny_read = [
   "~/.ssh",
   "~/.aws",
-  "/**/*.env",
-  "/**/secrets/**",
+  "**/*.env",
+  "**/secrets/**",
 ]
 
 [rules]
