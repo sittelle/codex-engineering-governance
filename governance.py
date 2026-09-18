@@ -1282,6 +1282,110 @@ def apply_project_update(root: Path, project: Path, plan: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Managed-client hook
+# ---------------------------------------------------------------------------
+
+# Names as used across the Claude Code and Codex PreToolUse hook contracts,
+# which share the same hookSpecificOutput JSON shape. Only mutating tools are
+# evaluated; Read/Grep/Glob/WebFetch/Task-style tools always pass through so
+# inspection and planning are never slowed down by this hook.
+MUTATING_TOOL_NAMES = {"Edit", "Write", "MultiEdit", "NotebookEdit", "Bash", "apply_patch"}
+
+
+def project_governance_mode(manifest_text: str) -> str:
+    match = re.search(r'(?m)^\s*mode:\s*["\']?([A-Za-z-]+)["\']?\s*$', manifest_text)
+    return match.group(1) if match else "professional"
+
+
+def registration_state(project: Path) -> tuple[bool, bool]:
+    """Return (missing, highest_risk) for the project's registration.yml.
+
+    This is a light-touch presence/field check, not the full WS4 schema
+    validation; it exists so the hook can enforce "registration missing" and
+    "Red pathway" without depending on assurance/registration.schema.json,
+    which formalizes this contract separately.
+    """
+    path = project / "registration.yml"
+    if not path.is_file():
+        return True, False
+    try:
+        text = read_text(path)
+    except Exception:
+        return True, False
+    highest_risk = bool(re.search(r'(?m)^\s*pathway:\s*["\']?red["\']?\s*$', text))
+    return False, highest_risk
+
+
+def hook_pre_tool_decision(root: Path, data: dict, *, enforce: bool) -> dict | None:
+    """Return a hookSpecificOutput payload, or None to allow silently."""
+    tool_name = data.get("tool_name")
+    if tool_name not in MUTATING_TOOL_NAMES:
+        return None
+
+    cwd = data.get("cwd")
+    project = Path(cwd).resolve() if cwd else Path.cwd()
+    manifest = project / "project-governance.yml"
+    if not manifest.is_file():
+        return None
+
+    reasons: list[str] = []
+    try:
+        verify_project(root, project)
+    except GovernanceError as exc:
+        reasons.append(f"Governance artifact integrity check failed: {exc}")
+
+    mode = project_governance_mode(read_text(manifest))
+    if mode == "business-led":
+        missing, highest_risk = registration_state(project)
+        if missing:
+            reasons.append(
+                "This project has no registration on file. Business-led mode requires "
+                "IT Security's registration before development proceeds under full assurance."
+            )
+        elif highest_risk:
+            reasons.append(
+                "This project's registration is Red pathway. IT Security ownership is "
+                "required before real use."
+            )
+
+    if not reasons:
+        return None
+
+    reason_text = " ".join(reasons)
+    decision = "deny" if enforce else "allow"
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": decision,
+            "permissionDecisionReason": reason_text,
+        },
+        "systemMessage": reason_text,
+    }
+
+
+def run_hook_pre_tool(root: Path, *, enforce: bool) -> int:
+    try:
+        data = json.loads(sys.stdin.read() or "{}")
+    except Exception as exc:
+        print(f"governance hook: malformed input, allowing: {exc}", file=sys.stderr)
+        return 0
+    if not isinstance(data, dict):
+        print("governance hook: malformed input (not an object), allowing", file=sys.stderr)
+        return 0
+
+    try:
+        payload = hook_pre_tool_decision(root, data, enforce=enforce)
+    except Exception as exc:
+        # A hook bug must never itself become an unexplained block.
+        print(f"governance hook: internal error, allowing: {exc}", file=sys.stderr)
+        return 0
+
+    if payload is not None:
+        print(json.dumps(payload))
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Interactive UI and CLI
 # ---------------------------------------------------------------------------
 
@@ -1450,6 +1554,16 @@ def build_parser() -> argparse.ArgumentParser:
     update.add_argument("--project", required=True)
     update.add_argument("-y", "--yes", action="store_true")
 
+    hook = sub.add_parser("hook", help="Managed-client hook entry points.")
+    hook_sub = hook.add_subparsers(dest="action", required=True)
+    pre_tool = hook_sub.add_parser(
+        "pre-tool",
+        help="PreToolUse hook: reads the tool-call JSON on stdin, prints a hookSpecificOutput decision.",
+    )
+    mode_group = pre_tool.add_mutually_exclusive_group(required=True)
+    mode_group.add_argument("--enforce", action="store_true")
+    mode_group.add_argument("--inform", action="store_true")
+
     return parser
 
 
@@ -1534,6 +1648,9 @@ def main(argv: list[str] | None = None) -> int:
                 print("Governance update: PASS")
                 print("Verification: PASS")
                 return 0
+
+        if args.area == "hook" and args.action == "pre-tool":
+            return run_hook_pre_tool(root, enforce=args.enforce)
 
         parser.error("Unsupported operation")
         return 2
