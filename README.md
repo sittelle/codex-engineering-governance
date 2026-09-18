@@ -2,11 +2,13 @@
 
 > **Latest stable release: v2.0.0**
 >
-> **Publication status: stable-release candidate; public tag and package are pending.**
+> This source package defines v2.0.0. Before installing it, verify that the
+> v2.0.0 ZIP and its SHA-256 sidecar are listed in the project's GitHub
+> Releases.
 >
-> Until v2.0.0 is published, use the currently published v1.0.0 release for
-> ordinary installation. The `master` branch may contain unreleased
-> framework-development changes.
+> If that v2.0.0 release asset is not yet listed, use the latest published
+> release for ordinary installation. The `master` branch may contain
+> unreleased framework-development changes.
 
 Sittelle Engineering Governance is a practical engineering-governance framework for people who build software with coding agents such as Codex and Claude Code.
 
@@ -200,9 +202,9 @@ The principle is:
 
 ## Local setup
 
-> **v2.0 interface:** the commands below describe v2.0.0. Until its public
-> release is published, use the README bundled with the published v1.0.0
-> package for ordinary v1 installation.
+> **v2.0 interface:** the commands below describe v2.0.0. If its public
+> release asset is not yet available, use the README bundled with the latest
+> published package for ordinary installation.
 
 The current setup has one management entry point:
 
