@@ -13,20 +13,20 @@ A governed project may set `governance.mode: business-led` in `project-governanc
 In business-led mode:
 
 - a C2 or C3 direction is recorded as `PENDING_IT_SECURITY` rather than approved, and development continues on the business owner's confirmation that they understand and want the direction, pending IT Security's actual review;
-- a risk acceptance the business owner makes is recorded as an owner decision awaiting IT Security confirmation, not as a governance-accepted risk, until IT Security confirms it;
-- the agent never approves a C2/C3 direction, a risk acceptance, or a policy exception on IT Security's behalf, in either mode;
+- every risk is classified `BUSINESS` or `IT_SECURITY` at recording time. A `BUSINESS` risk sits within the business owner's own responsibility (for example, incomplete automation or a remaining manual step); the owner's acceptance of it is recorded as final, with no IT Security confirmation required. An `IT_SECURITY` risk (anything touching information exposure, unsafe components, access, or effects on other systems) is recorded as `PENDING_IT_SECURITY` until IT Security confirms it. When the classification is unclear, classify as `IT_SECURITY`;
+- the agent never approves a C2/C3 direction or a risk acceptance of either classification, or a policy exception, on IT Security's behalf, in either mode; the agent also does not classify a risk as `BUSINESS` merely because that classification would let the owner resolve it without IT Security;
 - Critical and High findings remain release-blocking exactly as in professional mode; business-led mode changes who is asked to decide, not whether the decision is asked at all.
 
-This does not create a second approval model. `PENDING_IT_SECURITY` and "owner decision awaiting IT Security confirmation" are business-led-mode renderings of the same unresolved-approval and unconfirmed-risk-acceptance states that professional mode already has; they route to a different approval authority, not to a different set of governance semantics.
+This does not create a second approval model. `PENDING_IT_SECURITY`, a final `BUSINESS`-risk acceptance, and the `BUSINESS`/`IT_SECURITY` classification are business-led-mode renderings of the same approval-authority and risk-acceptance concepts professional mode already has; they route each decision to the party actually able to make it, not to a different set of governance semantics. A policy exception (as opposed to a risk acceptance) always requires IT Security in business-led mode; it is never `BUSINESS`-classified, since weakening a required control is a governance decision, not a residual-risk decision.
 
 ### Business-led mode routing outcomes
 
 Every workflow, in business-led mode, ends its material decision points in one of five routing outcomes rather than a developer approval:
 
-- **continue** — no material concern found; proceed within the registered pathway.
-- **update registration** — the work reveals a capability the current registration does not cover (WS4's conformance check surfaces this automatically once built); the business owner requests IT Security update the registration.
+- **continue** — no material concern found, or the only finding is a `BUSINESS` risk the owner accepted directly; proceed within the registered pathway.
+- **update registration** — the registration is a living project description, not a one-time form. Before building a capability the current registration does not cover, draft the registration update in plain language as part of the request record so the owner can submit it to IT Security in one step; do not wait only for WS4's conformance/drift check to catch it after the fact.
 - **obtain reassessment** — the underlying risk picture has materially changed since the pathway was assigned; the business owner requests IT Security re-run the pathway assessment.
-- **involve IT Security** — a C2/C3 direction, a security finding, or a risk acceptance needs an actual IT Security decision (`PENDING_IT_SECURITY`); record a request per "Business-led mode request records" below and continue other unaffected work.
+- **involve IT Security** — a C2/C3 direction, a security finding, or an `IT_SECURITY`-classified risk needs an actual IT Security decision (`PENDING_IT_SECURITY`); record a request per "Business-led mode request records" below and continue other unaffected work.
 - **hand over to IT** — Red-pathway work that requires professional IT ownership before real use, per the pathway table in ADR 0001; development may continue, but the readiness packet states IT ownership is required.
 
 A workflow selects among these the same way it already selects among C0-C3; it does not invent new criteria.
