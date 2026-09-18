@@ -288,11 +288,27 @@ make, and every such decision is routed to IT Security with a durable record.
 - Section "Business-led mode and approval authority" in
   `global/governance-standard.md`. C2 and C3 directions are recorded as
   `PENDING_IT_SECURITY` and development continues on the owner's
-  confirmation. Owner risk acceptances are recorded as owner decisions
-  awaiting IT Security confirmation. The agent never approves.
+  confirmation. Risks are classified at recording time as `BUSINESS` or
+  `IT_SECURITY`. The business owner may accept a `BUSINESS` risk, one that
+  sits within their own responsibility such as incomplete automation or a
+  remaining manual step, and the acceptance is recorded as final. An
+  `IT_SECURITY` risk, anything touching information exposure, unsafe
+  components, access, or effects on other systems, can only be proposed by
+  the agent or the owner and is recorded as `PENDING_IT_SECURITY`. When the
+  classification is unclear, the agent classifies as `IT_SECURITY`. The agent
+  never approves either kind. The risk register template in
+  `templates/repository/docs/risk/accepted-risks.md` gains the
+  classification field and the approver role it implies.
 - Routing outcomes used by every workflow in business-led mode: continue,
   update registration, obtain reassessment, involve IT Security, hand over to
   IT.
+- The registration is treated as a living project description, not a
+  one-time form. Whenever the agent is about to introduce a capability the
+  registration does not cover, it drafts the registration update in plain
+  language as part of the request record, so the owner can submit it to IT
+  Security with one step. Drift detection in WS4 is the safety net behind
+  this; the primary mechanism is the agent proposing the update before the
+  capability is built.
 - Request records under `docs/governance/requests/` with a template: what
   changed, why it matters, what IT Security is asked to decide.
 - Business-led rendering of the managed `AGENTS.md` block and of the kernel:

@@ -57,15 +57,20 @@ stop the AI from doing things nobody should do without asking.
 
 1. **Approve the person.** IT approves an employee for AI-assisted
    development and provides a managed client.
-2. **Assess the project.** Before code is written, the project is described
-   and its risk assessed: what data it touches, what it connects to, what it
-   can do, who uses it. The assessment result and the approved scope are
-   recorded and handed to the framework as its reference.
+2. **Describe and assess the project.** Before code is written, the project
+   is described and its risk assessed: what data it touches, what it connects
+   to, what it can do, who uses it. The assessment result and the approved
+   scope are recorded and handed to the framework as its reference. This is
+   not a one-time form. The description lives with the project and is kept
+   current as the software grows.
 3. **Develop.** The employee works with the AI agent on the managed client.
    The framework guides the agent, keeps the work inside the approved scope,
-   flags when the software gains a capability that was not assessed, and
-   turns anything that needs a decision into a plain-language action for the
-   employee and a request for IT Security.
+   notices when the software is about to gain a capability that was not
+   assessed, proposes the update to the project description, and turns
+   anything that needs a decision into a plain-language action for the
+   employee and a request for IT Security. Description and assessment are
+   therefore continuous: the framework helps the employee keep them true,
+   and IT Security reassesses when the scope changes.
 4. **Store and verify.** All code lives in the company Git. The company
    verification pipeline runs secret scanning, security analysis, package
    checks and tests. A check that did not run is never reported as passed.
@@ -78,9 +83,17 @@ stop the AI from doing things nobody should do without asking.
    The employee keeps it maintained, asks for reassessment when it changes,
    and retires it when it is no longer needed.
 
-The assessment is the anchor. Everything afterwards is compared against it:
-the framework compares the code, IT Security compares the evidence, and the
-employee keeps it current when the software changes.
+The project description and its assessment are the anchor. Everything is
+compared against them: the framework compares the code, IT Security compares
+the evidence, and the employee keeps them current, with the framework
+pointing out when an update is due.
+
+Two kinds of risk are decided by two different people. The business employee
+may accept business risks that sit within their own responsibility, for
+example that a tool covers only part of a process or that a manual fallback
+remains. IT and security risks, such as data exposure, unsafe components,
+unauthorised access or effects on other systems, are decided by IT Security
+only. The framework keeps the two apart and routes each to the right person.
 
 ## 4. Three outcomes of the risk assessment
 
@@ -100,15 +113,15 @@ something the framework enforces.
 
 ## 5. Roles and responsibilities
 
-| Role | Responsible for | Not responsible for |
-| --- | --- | --- |
-| **Business employee** (owner of the software) | Describing purpose and use truthfully; getting the project assessed before building; keeping the description current; following the framework's plain-language actions; checking that the software does what was intended; maintaining and retiring it; not giving the AI extra access or credentials | Judging security; reviewing code; accepting risk; approving exceptions; deciding on real use of risk-relevant software |
-| **IT Security** | Assessing projects and setting their scope; owning and configuring the governance framework and how strictly it enforces; deciding on requests the framework routes to them; approving real use; watching the evidence; testing that the controls work; handling incidents | Building the client; operating the Git platform; writing the software |
-| **IT** (client, network, identity, endpoint management) | Approving employees for AI-assisted development together with IT Security; providing the managed client; installing the framework read-only; deploying IT Security's settings and versions; network and package-source restrictions; keeping credentials off the client; logging; inventory; first-line support | Deciding rules, assessments, approvals or exceptions |
-| **Professional IT development** | Taking over software that must not stay with the business; bringing it into the professional lifecycle; deciding what of the prototype can be reused | Assuming that a prototype is already secure or production-ready |
-| **Git platform team** | Protected branches, required checks, and the IT Security-owned verification pipeline that projects cannot edit | Content of the checks |
-| **The AI agent with the governance framework** | Doing the engineering due diligence the employee cannot: asking before assuming, recommending technical defaults, recording decisions, running verification, flagging scope drift, routing decisions to IT Security, reporting truthfully | Accepting risk; approving exceptions; changing rules or the assessed scope; declaring unexecuted checks as passed; deciding on deployment |
-| **Management** | Adopting the model; assigning the responsibilities above; resourcing IT and IT Security; accepting the residual risks knowingly | Individual project decisions |
+| Role | Responsible for | Not responsible for | How the framework supports |
+| --- | --- | --- | --- |
+| **Business employee** (owner of the software) | Describing purpose and use truthfully, at the start and whenever the software changes; keeping the project description current; following the framework's plain-language actions; checking that the software does what was intended; accepting **business risks** within their own responsibility, for example that a report may be late or a manual step remains; maintaining and retiring the software; not giving the AI extra access or credentials | Judging security; reviewing code; accepting **IT or security risks** such as data exposure, unsafe components, unauthorised access or effects on other systems; approving exceptions; deciding on real use of risk-relevant software | Asks the right questions before building instead of assuming; keeps the project description as a living record and proposes updates when the software changes; turns technical situations into plain actions; generates the validation checklist the employee works through; records the employee's business-risk decisions so they are traceable; never asks the employee to decide a security question |
+| **IT Security** | Assessing projects and setting their scope, at the start and on every material change; accepting or rejecting IT and security risks; owning and configuring the governance framework and how strictly it enforces; deciding on requests the framework routes to them; approving real use; watching the evidence; testing that the controls work; handling incidents | Building the client; operating the Git platform; writing the software | Delivers structured requests with the facts and the recommendation already prepared; detects scope drift and proposes the reassessment; derives verification settings from the assessed scope; produces the readiness packet; protects its own files and reports tampering; records enforcement mode and evidence truthfully so IT Security can trust what it sees |
+| **IT** (client, network, identity, endpoint management) | Approving employees for AI-assisted development together with IT Security; providing the managed client; installing the framework read-only; deploying IT Security's settings and versions; network and package-source restrictions; keeping credentials off the client; logging; inventory; first-line support | Deciding rules, assessments, approvals or exceptions | Ships the templates IT deploys: managed agent settings, governance hook, pipeline definition; verifies its own installation and reports whether the managed policy is in effect; announces the minimum version so outdated clients are visible |
+| **Professional IT development** | Taking over software that must not stay with the business; bringing it into the professional lifecycle; deciding what of the prototype can be reused | Assuming that a prototype is already secure or production-ready | Hands over a repository with a current project description, recorded decisions, verification evidence and open findings, so the takeover starts from facts rather than from reverse engineering |
+| **Git platform team** | Protected branches, required checks, and the IT Security-owned verification pipeline that projects cannot edit | Content of the checks | Provides the pipeline definition and the checks it runs; binds every result to the exact commit so evidence cannot be mixed up |
+| **The AI agent with the governance framework** | Doing the engineering due diligence the employee cannot: asking before assuming, recommending technical defaults, recording decisions, running verification, flagging scope drift, routing decisions to IT Security, reporting truthfully | Accepting risk of any kind; approving exceptions; changing rules or the assessed scope; declaring unexecuted checks as passed; deciding on deployment | The framework is the agent's rulebook and toolset: it defines what the agent must ask, recommend, record and verify, and the client makes sure the agent cannot rewrite those rules |
+| **Management** | Adopting the model; assigning the responsibilities above; resourcing IT and IT Security; accepting the residual risks knowingly | Individual project decisions | Produces the evidence and the numbers management asks for: assessed projects, open requests, findings, tampering alerts, framework versions in the field |
 
 ## 6. Technical measures
 
@@ -133,9 +146,9 @@ something the framework enforces.
 | Measure | Protects against | Owner |
 | --- | --- | --- |
 | Strict approval of employees before they get a client | Uncontrolled spread of AI development | IT with IT Security |
-| Risk assessment before development | Software nobody knows about; no reference for what was intended | Business employee requests, IT Security assesses |
+| Project description and risk assessment before development and continuously as the software changes | Software nobody knows about; a description that no longer matches the software; no reference for what was intended | Business employee describes and keeps current, IT Security assesses, the framework proposes updates |
 | Ownership decided by risk: business, business with IT approval, or IT | High-risk software treated like a hobby tool | IT Security |
-| Decisions routed to IT Security, never to the AI or the employee alone | Risk accepted by someone who cannot judge it; the AI approving itself | IT Security, supported by the framework |
+| Business risks decided by the business employee, IT and security risks by IT Security, never by the AI | Security risk accepted by someone who cannot judge it; the AI approving itself | Business employee and IT Security, separated and routed by the framework |
 | Employee checks intended behaviour before real use | Software that runs but does the wrong thing | Business employee |
 | Approval for real use separate from permission to develop | "It works on my machine" becoming "it is in use" | IT Security |
 | Deployment and run-location rules | Software running where it should not | Organisational rule, not enforced by the framework |
@@ -154,9 +167,13 @@ something the framework enforces.
 - apply more engineering and security rigor as the assessed risk rises, while
   keeping trivial work lightweight;
 - translate technical situations into plain actions for the employee:
-  continue, update the assessment, obtain reassessment, involve IT Security,
-  hand over to IT;
-- compare the implementation with the assessed scope and flag drift;
+  continue, update the project description, obtain reassessment, involve IT
+  Security, hand over to IT;
+- keep the project description alive: compare the implementation with the
+  assessed scope, flag drift, and propose the description update before the
+  capability is built in;
+- separate business risks, which the employee may decide, from IT and
+  security risks, which go to IT Security;
 - run and record verification, and report truthfully what did and did not
   execute;
 - protect its own files and detect tampering;
@@ -165,7 +182,7 @@ something the framework enforces.
 
 **The framework does not:**
 
-- accept risk, approve exceptions or change the assessed scope;
+- accept any risk, approve exceptions or change the assessed scope;
 - stop development, unless IT Security chooses the stricter enforcement mode;
 - prevent deployment to a local machine, a data centre or a cloud; that is an
   organisational rule;
@@ -229,10 +246,17 @@ in how it is installed, configured and enforced, not in secrecy.
 - **Managed client.** The virtual machine or computer, provided by IT, on
   which business-led development takes place and on which the employee has no
   administrative rights.
-- **Risk assessment.** The description of what a piece of software is for,
-  what data it touches, what it connects to, what it can do and who uses it,
-  and IT Security's judgement of the consequences, made before development
-  and kept current.
+- **Project description and risk assessment.** The description of what a
+  piece of software is for, what data it touches, what it connects to, what
+  it can do and who uses it, and IT Security's judgement of the consequences.
+  Made before development and kept current throughout, with the framework
+  proposing updates when the software changes.
+- **Business risk.** A risk within the employee's own area of responsibility,
+  for example incomplete automation or a remaining manual step. The business
+  employee may accept it.
+- **IT or security risk.** A risk to information, systems, access or other
+  parties, for example data exposure or an unsafe component. Only IT Security
+  may accept it.
 - **Assessed scope.** The approved characteristics from the assessment,
   handed to the framework as the reference for what the software may do.
 - **Governance framework.** The Sittelle Engineering Governance package:
