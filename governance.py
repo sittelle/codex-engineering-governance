@@ -120,7 +120,9 @@ def framework_root() -> Path:
     required = (
         "VERSION",
         "host-adapters/operating-kernel.md",
+        "host-adapters/operating-kernel.business-led.md",
         "templates/repository/AGENTS.md",
+        "templates/repository/AGENTS.business-led.md",
         "templates/repository/CLAUDE.md",
         "templates/repository/project-governance.yml",
     )
@@ -232,8 +234,15 @@ def host_paths(host: Host) -> dict[str, Path]:
     }
 
 
-def render_host_block(root: Path, host: Host) -> str:
-    template = read_text(root / "host-adapters/operating-kernel.md")
+def kernel_template_path(root: Path, kernel_mode: str) -> Path:
+    if kernel_mode not in GOVERNANCE_MODES:
+        fail(f"Unknown governance mode: {kernel_mode}")
+    name = "operating-kernel.business-led.md" if kernel_mode == "business-led" else "operating-kernel.md"
+    return root / "host-adapters" / name
+
+
+def render_host_block(root: Path, host: Host, kernel_mode: str = "professional") -> str:
+    template = read_text(kernel_template_path(root, kernel_mode))
     locator = (
         "$CODEX_HOME/GOVERNANCE_ROOT (default: $HOME/.codex/GOVERNANCE_ROOT)"
         if host.key == "codex"
@@ -245,7 +254,7 @@ def render_host_block(root: Path, host: Host) -> str:
     if "{{" in body or "}}" in body:
         fail("Unresolved placeholder in host operating kernel")
     metadata = (
-        f"<!-- framework={FRAMEWORK_ID}; host={host.key}; version={version(root)} -->"
+        f"<!-- framework={FRAMEWORK_ID}; host={host.key}; version={version(root)}; kernel_mode={kernel_mode} -->"
     )
     return f"{HOST_BEGIN}\n{metadata}\n{body.rstrip()}\n{HOST_END}"
 
@@ -504,6 +513,7 @@ def host_install_or_update(
     host: Host,
     *,
     require_existing: bool,
+    kernel_mode: str | None = None,
 ) -> None:
     paths, legacy = preflight_host_install(root, host)
     state = load_host_state(paths["state"], host)
@@ -511,7 +521,14 @@ def host_install_or_update(
     if require_existing and not state and not legacy:
         fail(f"{host.label}: no managed installation exists to update")
 
-    block = render_host_block(root, host)
+    # An explicit --kernel-mode always wins. Otherwise preserve whatever
+    # mode this host was already installed with; only a fresh install
+    # defaults to professional.
+    effective_kernel_mode = kernel_mode or (state.get("kernel_mode") if state else None) or "professional"
+    if effective_kernel_mode not in GOVERNANCE_MODES:
+        fail(f"Unknown governance mode: {effective_kernel_mode}")
+
+    block = render_host_block(root, host, effective_kernel_mode)
 
     if legacy:
         # Proven byte-for-byte legacy framework kernel: no distinguishable custom text.
@@ -594,6 +611,7 @@ def host_install_or_update(
         "instruction_created": instruction_created,
         "locator_created": locator_created,
         "claude_settings_ownership": claude_ownership,
+        "kernel_mode": effective_kernel_mode,
     }
     save_host_state(paths["state"], new_state)
     verify_host(root, host)
@@ -805,11 +823,15 @@ def preview_host_action(root: Path, action: str, hosts: list[Host]) -> None:
 # Project lifecycle
 # ---------------------------------------------------------------------------
 
+GOVERNANCE_MODES = ("professional", "business-led")
+
+
 def template_paths(root: Path) -> dict[str, Path]:
     base = root / "templates" / "repository"
     return {
         "base": base,
         "agents": base / "AGENTS.md",
+        "agents_business_led": base / "AGENTS.business-led.md",
         "claude": base / "CLAUDE.md",
         "manifest": base / "project-governance.yml",
         "verification": base / "verification-plan.json",
@@ -819,8 +841,12 @@ def template_paths(root: Path) -> dict[str, Path]:
     }
 
 
-def managed_project_block(root: Path) -> str:
-    text = read_text(template_paths(root)["agents"])
+def agents_template_key(mode: str) -> str:
+    return "agents_business_led" if mode == "business-led" else "agents"
+
+
+def managed_project_block(root: Path, mode: str = "professional") -> str:
+    text = read_text(template_paths(root)[agents_template_key(mode)])
     match = PROJECT_RE.search(text)
     if not match:
         fail("Project AGENTS template has no managed governance block")
@@ -858,6 +884,20 @@ def set_project_name(text: str, name: str) -> str:
     )
     if count != 1:
         fail("Could not set project name in project-governance.yml")
+    return updated
+
+
+def set_governance_mode(text: str, mode: str) -> str:
+    if mode not in GOVERNANCE_MODES:
+        fail(f"Unknown governance mode: {mode}")
+    updated, count = re.subn(
+        r'(?m)^(\s*mode:\s*)["\']?[A-Za-z-]+["\']?\s*$',
+        lambda m: f'{m.group(1)}"{mode}"',
+        text,
+        count=1,
+    )
+    if count != 1:
+        fail("Could not set governance mode in project-governance.yml")
     return updated
 
 
@@ -1086,15 +1126,16 @@ def verify_project(root: Path, project: Path) -> None:
     if 'locator: "GOVERNANCE_ROOT"' not in manifest_text:
         fail("Project governance locator is not host-neutral")
 
+    mode = project_governance_mode(manifest_text)
     agents_text = read_text(agents)
     agents_block = PROJECT_RE.search(agents_text)
     if agents_block is None:
         fail("Project AGENTS.md has no current managed governance block")
-    if agents_block.group(0) != managed_project_block(root):
+    if agents_block.group(0) != managed_project_block(root, mode):
         fail(
             "Project AGENTS.md managed governance block does not match the "
-            "pinned template for the current baseline; it was edited or "
-            "tampered with"
+            "pinned template for the current baseline and mode; it was "
+            "edited or tampered with"
         )
 
     claude_text = read_text(claude)
@@ -1111,7 +1152,9 @@ def verify_project(root: Path, project: Path) -> None:
         fail("Project CLAUDE.md does not import AGENTS.md")
 
 
-def preview_project_new(root: Path, parent: Path, name: str, no_git_init: bool) -> Path:
+def preview_project_new(root: Path, parent: Path, name: str, no_git_init: bool, mode: str = "professional") -> Path:
+    if mode not in GOVERNANCE_MODES:
+        fail(f"Unknown governance mode: {mode}")
     if not parent.is_dir():
         fail(f"Parent folder does not exist: {parent}")
     if not name or any(ch in name for ch in '\\/:*?"<>|'):
@@ -1124,6 +1167,7 @@ def preview_project_new(root: Path, parent: Path, name: str, no_git_init: bool) 
         [
             f"Target: {target}",
             f"Governance baseline: {version(root)}",
+            f"Governance mode: {mode}",
             "Create: AGENTS.md, CLAUDE.md, project-governance.yml, verification-plan.json",
             "Create: docs/, src/, tests/ and available repository templates",
             "Create: .governance/integrity.json (governance artifact integrity manifest)",
@@ -1134,15 +1178,18 @@ def preview_project_new(root: Path, parent: Path, name: str, no_git_init: bool) 
     return target
 
 
-def apply_project_new(root: Path, target: Path, name: str, no_git_init: bool) -> None:
+def apply_project_new(root: Path, target: Path, name: str, no_git_init: bool, mode: str = "professional") -> None:
+    if mode not in GOVERNANCE_MODES:
+        fail(f"Unknown governance mode: {mode}")
     templates = template_paths(root)
     target.mkdir(parents=True, exist_ok=True)
     for directory in ("docs", "src", "tests"):
         (target / directory).mkdir(exist_ok=True)
 
-    write_text(target / "AGENTS.md", read_text(templates["agents"]))
+    write_text(target / "AGENTS.md", read_text(templates[agents_template_key(mode)]))
     write_text(target / "CLAUDE.md", read_text(templates["claude"]))
     manifest = set_project_name(read_text(templates["manifest"]), name)
+    manifest = set_governance_mode(manifest, mode)
     write_text(target / "project-governance.yml", manifest)
 
     for key, destination in (
@@ -1166,7 +1213,9 @@ def apply_project_new(root: Path, target: Path, name: str, no_git_init: bool) ->
     verify_project(root, target)
 
 
-def preview_project_adopt(root: Path, project: Path) -> None:
+def preview_project_adopt(root: Path, project: Path, mode: str = "professional") -> None:
+    if mode not in GOVERNANCE_MODES:
+        fail(f"Unknown governance mode: {mode}")
     if not project.is_dir():
         fail(f"Project root does not exist: {project}")
     if (project / "project-governance.yml").exists():
@@ -1177,6 +1226,7 @@ def preview_project_adopt(root: Path, project: Path) -> None:
     lines = [
         f"Project: {project}",
         f"Governance baseline: {version(root)}",
+        f"Governance mode: {mode}",
         "State: RECONCILIATION_REQUIRED",
         "Create project-governance.yml and governance adoption record",
         "Add/refresh only managed governance block in AGENTS.md",
@@ -1187,13 +1237,15 @@ def preview_project_adopt(root: Path, project: Path) -> None:
     print_preview("Adopt existing project preview", lines)
 
 
-def apply_project_adopt(root: Path, project: Path) -> None:
+def apply_project_adopt(root: Path, project: Path, mode: str = "professional") -> None:
+    if mode not in GOVERNANCE_MODES:
+        fail(f"Unknown governance mode: {mode}")
     templates = template_paths(root)
     stamp = __import__("datetime").datetime.now().strftime("%Y%m%d-%H%M%S")
 
     agents = project / "AGENTS.md"
     claude = project / "CLAUDE.md"
-    project_block = managed_project_block(root)
+    project_block = managed_project_block(root, mode)
     claude_block = managed_claude_project_block(root)
 
     if agents.exists():
@@ -1205,7 +1257,7 @@ def apply_project_adopt(root: Path, project: Path) -> None:
             legacy_pattern=OLD_PROJECT_RE,
         )
     else:
-        new_agents = read_text(templates["agents"])
+        new_agents = read_text(templates[agents_template_key(mode)])
 
     if claude.exists():
         shutil.copy2(claude, project / f"CLAUDE.md.governance-backup-{stamp}")
@@ -1221,6 +1273,7 @@ def apply_project_adopt(root: Path, project: Path) -> None:
     write_text(claude, new_claude)
 
     manifest = set_project_name(read_text(templates["manifest"]), project.name)
+    manifest = set_governance_mode(manifest, mode)
     manifest = set_adoption_state(manifest)
     write_text(project / "project-governance.yml", manifest)
 
@@ -1256,13 +1309,14 @@ def build_project_update(root: Path, project: Path) -> dict:
         fail("Git worktree is dirty; commit or stash changes before governance update")
 
     manifest_old = read_text(manifest_path)
+    mode = project_governance_mode(manifest_old)
     manifest_new = set_governance_baseline(manifest_old, version(root))
     manifest_new, technology_added = ensure_technology_baseline(manifest_new)
 
     agents_old = read_text(agents_path)
     agents_new = replace_or_append_managed(
         agents_old,
-        managed_project_block(root),
+        managed_project_block(root, mode),
         current_pattern=PROJECT_RE,
         legacy_pattern=OLD_PROJECT_RE,
     )
@@ -1298,6 +1352,7 @@ def preview_project_update(root: Path, project: Path, plan: dict) -> None:
     lines = [
         f"Project: {project}",
         f"Baseline: {old_version} -> {version(root)}",
+        f"Governance mode: {project_governance_mode(plan['manifest_old'])} (unchanged; mode is a governance decision, not a routine update)",
         "project-governance.yml: baseline/source/host-neutral locator",
         (
             "Technology Baseline: add RECONCILIATION_REQUIRED"
@@ -1588,6 +1643,8 @@ def build_parser() -> argparse.ArgumentParser:
     for action in ("status", "verify", "install", "update", "uninstall"):
         command = host_sub.add_parser(action)
         command.add_argument("--host", choices=("codex", "claude", "all"), default="all")
+        if action in {"install", "update"}:
+            command.add_argument("--kernel-mode", choices=GOVERNANCE_MODES, default=None)
         if action in {"install", "update", "uninstall"}:
             command.add_argument("-y", "--yes", action="store_true")
 
@@ -1604,10 +1661,12 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument("--parent", required=True)
     new.add_argument("--name", required=True)
     new.add_argument("--no-git-init", action="store_true")
+    new.add_argument("--mode", choices=GOVERNANCE_MODES, default="professional")
     new.add_argument("-y", "--yes", action="store_true")
 
     adopt = project_sub.add_parser("adopt")
     adopt.add_argument("--project", required=True)
+    adopt.add_argument("--mode", choices=GOVERNANCE_MODES, default="professional")
     adopt.add_argument("-y", "--yes", action="store_true")
 
     update = project_sub.add_parser("update")
@@ -1639,6 +1698,8 @@ def main(argv: list[str] | None = None) -> int:
             if args.action == "status":
                 for host in selected_hosts(args.host):
                     print(f"{host.label}: {display_host_status(host_status(root, host))}")
+                    state = load_host_state(host_paths(host)["state"], host)
+                    print(f"  kernel mode: {(state or {}).get('kernel_mode', 'professional')}")
                     policy = managed_policy_status(host)
                     print(f"  managed policy: {policy['source']} (mode={policy['mode']})")
                 return 0
@@ -1652,6 +1713,8 @@ def main(argv: list[str] | None = None) -> int:
                 for host in hosts:
                     verify_host(root, host)
                     print(f"{host.label}: verification PASS")
+                    state = load_host_state(host_paths(host)["state"], host)
+                    print(f"  kernel mode: {(state or {}).get('kernel_mode', 'professional')}")
                     policy = managed_policy_status(host)
                     print(f"  managed policy: {policy['source']} (mode={policy['mode']})")
                 return 0
@@ -1661,11 +1724,11 @@ def main(argv: list[str] | None = None) -> int:
             for host in hosts:
                 if args.action == "install":
                     host_install_or_update(
-                        root, host, require_existing=False
+                        root, host, require_existing=False, kernel_mode=args.kernel_mode
                     )
                 elif args.action == "update":
                     host_install_or_update(
-                        root, host, require_existing=True
+                        root, host, require_existing=True, kernel_mode=args.kernel_mode
                     )
                 else:
                     host_uninstall(root, host)
@@ -1688,18 +1751,18 @@ def main(argv: list[str] | None = None) -> int:
 
             if args.action == "new":
                 parent = Path(args.parent).expanduser().resolve()
-                target = preview_project_new(root, parent, args.name, args.no_git_init)
+                target = preview_project_new(root, parent, args.name, args.no_git_init, args.mode)
                 confirm(args.yes)
-                apply_project_new(root, target, args.name, args.no_git_init)
+                apply_project_new(root, target, args.name, args.no_git_init, args.mode)
                 print(f"Created governed project: {target}")
                 print("Verification: PASS")
                 return 0
 
             project = Path(args.project).expanduser().resolve()
             if args.action == "adopt":
-                preview_project_adopt(root, project)
+                preview_project_adopt(root, project, args.mode)
                 confirm(args.yes)
-                apply_project_adopt(root, project)
+                apply_project_adopt(root, project, args.mode)
                 print("Governance adoption: PASS")
                 print("Verification: PASS")
                 return 0

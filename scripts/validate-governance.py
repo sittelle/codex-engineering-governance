@@ -47,7 +47,7 @@ required = [
     "scripts/bootstrap-assurance.py", "scripts/bootstrap-assurance.ps1", "scripts/bootstrap-assurance.sh",
     "governance.py", "scripts/manual-behavioral-campaign.py", "scripts/test-management.py", "scripts/test-assurance-integration.py", "scripts/test-governance-integrity.py", "workflows/refactor/WORKFLOW.md",
     "workflows/emergency-fix/WORKFLOW.md", "workflows/dependency-change/WORKFLOW.md", "workflows/data-migration/WORKFLOW.md",
-    "codex-home/AGENTS.md", "host-adapters/operating-kernel.md", "host-adapters/claude/README.md", "host-adapters/claude/managed-settings.inform.json", "host-adapters/claude/managed-settings.block.json", "host-adapters/codex/README.md", "host-adapters/codex/requirements.inform.toml", "host-adapters/codex/requirements.block.toml", "CLAUDE.md", "templates/repository/AGENTS.md",
+    "codex-home/AGENTS.md", "host-adapters/operating-kernel.md", "host-adapters/operating-kernel.business-led.md", "host-adapters/claude/README.md", "host-adapters/claude/managed-settings.inform.json", "host-adapters/claude/managed-settings.block.json", "host-adapters/codex/README.md", "host-adapters/codex/requirements.inform.toml", "host-adapters/codex/requirements.block.toml", "CLAUDE.md", "templates/repository/AGENTS.md", "templates/repository/AGENTS.business-led.md",
     "templates/repository/CLAUDE.md", "templates/repository/project-governance.yml",
     "tests/governance/TEST-CONTEXTS.json", "tests/governance/TEST-CONTEXTS.md",
     "tests/governance/evaluations/README.md", "global/operating-contract.md", "global/engineering-constitution.md",
@@ -435,6 +435,18 @@ else:
             hooks[0]["command_windows"] = ""
         if inform_copy != block_copy:
             errors.append("requirements.inform.toml and requirements.block.toml differ by more than the hook enforcement parameter")
+
+business_led_kernel = (root / "host-adapters/operating-kernel.business-led.md").read_text(encoding="utf-8")
+business_led_agents = (root / "templates/repository/AGENTS.business-led.md").read_text(encoding="utf-8")
+JARGON_TERMS = ("C0", "C1", "C2", "C3", "SA0", "SA1", "SA2", "SA3", "M0", "M1", "M2", "M3", "INCOMPLETE_ASSURANCE", "DID_NOT_EXECUTE", "NOT_APPLICABLE")
+for label, text in (("host-adapters/operating-kernel.business-led.md", business_led_kernel), ("templates/repository/AGENTS.business-led.md", business_led_agents)):
+    for term in JARGON_TERMS:
+        if re.search(rf"\b{re.escape(term)}\b", text):
+            errors.append(f"{label} leaks assurance-internals jargon: {term}")
+if "{{HOST_NAME}}" not in business_led_kernel or "{{LOCATOR_DISPLAY}}" not in business_led_kernel:
+    errors.append("host-adapters/operating-kernel.business-led.md is missing a required placeholder")
+if "<!-- BEGIN ENGINEERING-GOVERNANCE-MANAGED -->" not in business_led_agents or "<!-- END ENGINEERING-GOVERNANCE-MANAGED -->" not in business_led_agents:
+    errors.append("templates/repository/AGENTS.business-led.md has no managed governance block markers")
 
 if "permissions.additionalDirectories" in management_source:
     errors.append("Claude adapter uses broad additionalDirectories instead of a least-privilege Read allow rule")
