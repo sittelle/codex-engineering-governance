@@ -38,6 +38,17 @@ verification:
   evidence_directory: ".governance/evidence"
   local_ci_parity_required: true
 
+# Declared, not verified: the SCM platform (GitLab/GitHub) is the actual
+# enforcement point. This block records what was configured there so intent
+# and evidence stay visible together in the repository; editing it here does
+# not change platform behavior, and it is not cross-checked against the
+# platform's actual settings.
+platform_controls:
+  protected_branch: null
+  merge_request_required: false
+  required_governance_check: false
+  force_push_disabled: false
+
 security:
   threat_model_required: false
   sbom_required: false
