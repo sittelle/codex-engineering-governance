@@ -42,6 +42,10 @@ For the current framework facts and ZIP publication model:
 
 These are applicability decisions, not permission to mark a required control PASS when it did not execute.
 
+## Internal company distribution
+
+Business-led mode (`docs/business-led/implementation-plan.md`) distributes the framework to a company's own IT-managed clients as a read-only install, separately from the public ZIP publication model above. Internal company distribution is an approved trigger to reassess release signing and stronger provenance before the first internal rollout: the reassessment is required at that point, not deferred indefinitely as a hypothetical future channel change. It does not itself change today's SBOM or signing applicability decisions above.
+
 ## Release topology and publication authority
 
 Stable release tags must identify an evidence-bearing commit reachable from the repository's canonical/default branch. The public history begins from the accepted sanitized 1.0 baseline; the private pre-1.0 development history is not part of the public compatibility contract. Later stable lines, including v2, retain the same source, evidence, artifact-binding, and explicit-publication requirements.
