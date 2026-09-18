@@ -62,6 +62,30 @@ def _head_tree(repo: Path) -> dict[str, str]:
     return result
 
 
+def _require_release_baseline_hash(repo: Path, version: str, files: list[str]) -> None:
+    # Only the framework's own distribution ships assurance/capability-baseline.json;
+    # a generic MANIFEST-declared distribution without that file has nothing to pin.
+    if 'assurance/capability-baseline.json' not in files:
+        return
+    try:
+        hashes = json.loads(_head_bytes(repo, 'assurance/release-baseline-hashes.json').decode('utf-8'))
+    except PackageBuildError:
+        raise PackageBuildError('assurance/release-baseline-hashes.json is missing at Git HEAD')
+    except Exception as exc:
+        raise PackageBuildError(f'assurance/release-baseline-hashes.json is invalid JSON: {exc}')
+    recorded = (hashes.get('releases') or {}).get(version)
+    if not recorded:
+        raise PackageBuildError(
+            f'no release-baseline hash is recorded for {version} in assurance/release-baseline-hashes.json; '
+            'record it before building'
+        )
+    current = hashlib.sha256(_head_bytes(repo, 'assurance/capability-baseline.json')).hexdigest()
+    if recorded != current:
+        raise PackageBuildError(
+            f'assurance/capability-baseline.json does not match the recorded release hash for {version}'
+        )
+
+
 def _load_distribution(repo: Path) -> tuple[str, list[str], dict[str, str]]:
     version = _head_bytes(repo, 'VERSION').decode('utf-8-sig').strip()
     if not version or '/' in version or '\\' in version:
@@ -74,6 +98,7 @@ def _load_distribution(repo: Path) -> tuple[str, list[str], dict[str, str]]:
         raise PackageBuildError('MANIFEST files must be a non-empty string list')
     if len(files) != len(set(files)):
         raise PackageBuildError('MANIFEST contains duplicate paths')
+    _require_release_baseline_hash(repo, version, files)
     for rel in files:
         p = PurePosixPath(rel)
         if p.is_absolute() or '..' in p.parts or rel.startswith('.git/') or rel == '.git':

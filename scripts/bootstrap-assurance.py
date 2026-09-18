@@ -71,6 +71,21 @@ def add_manifest_metadata(text: str) -> str:
     lines=text.splitlines(); start=next(i for i,l in enumerate(lines) if l.strip()=="verification:"); end=start+1
     while end<len(lines) and (not lines[end] or lines[end].startswith((" ","\t"))): end+=1
     lines[end:end]=additions; return "\n".join(lines).rstrip()+"\n"
+def require_release_baseline_hash(root: Path, version: str, baseline_source: Path) -> None:
+    hashes_path = root / 'assurance/release-baseline-hashes.json'
+    if not hashes_path.is_file():
+        fail('assurance/release-baseline-hashes.json is missing; cannot verify the baseline being copied')
+    try:
+        hashes = json.loads(hashes_path.read_text(encoding='utf-8'))
+    except Exception as exc:
+        fail(f'assurance/release-baseline-hashes.json is invalid JSON: {exc}')
+    recorded = (hashes.get('releases') or {}).get(version)
+    if not recorded:
+        fail(f'no release-baseline hash is recorded for {version} in assurance/release-baseline-hashes.json')
+    current = sha(baseline_source.read_bytes())
+    if recorded != current:
+        fail(f'assurance/capability-baseline.json does not match the recorded release hash for {version}; refusing to copy an unverified baseline')
+
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--project-root'); ap.add_argument('--apply',action='store_true'); ap.add_argument('--skip-ci',action='store_true'); ap.add_argument('--allow-unconfigured-ci',action='store_true'); args=ap.parse_args()
     root=Path(__file__).resolve().parents[1]; version=(root/'VERSION').read_text().strip()
@@ -80,6 +95,7 @@ def main():
     if not manifest.exists(): fail('project-governance.yml required; adopt project first')
     pv=baseline_version(manifest)
     if pv!=version: fail(f"project baseline {pv} != central governance {version}; update project first")
+    require_release_baseline_hash(root, version, root/'assurance/capability-baseline.json')
     plan=project/'verification-plan.json'; central_plan=root/'templates/repository/verification-plan.json'; create_plan=not plan.exists(); effective=plan if plan.exists() else central_plan
     plan_version,configured=plan_state(effective)
     if plan_version!='2': configured=False

@@ -742,16 +742,63 @@ def load_governed_json(path: Path) -> dict | None:
         return {"_error": f"cannot parse {path.name}: {exc}"}
 
 
-def governance_integrity_preflight(project_root: Path) -> dict:
-    """Cross-check the two existing governance-tooling hash records against
-    live bytes: .governance/integrity.json (governance.py-owned content) and
+def release_baseline_preflight(project_root: Path, baseline_path: Path | None) -> list[dict]:
+    """When the resolved baseline sits centrally next to
+    release-baseline-hashes.json (true for the framework's own
+    self-verification; a project-local .governance/ copy has no such
+    sibling), reject a baseline whose content hash is not the recorded
+    release hash for the project's own VERSION. This closes the gap where a
+    baseline copy's hash was recorded but never compared to a release.
+    A project-local copy is instead verified at copy time by
+    scripts/bootstrap-assurance.py, which has central-root access; any
+    later drift of that copy is caught by governance_integrity_preflight's
+    assurance-bootstrap.json cross-check.
+    """
+    if baseline_path is None or not baseline_path.is_file():
+        return []
+    hashes_path = baseline_path.parent / "release-baseline-hashes.json"
+    version_path = project_root / "VERSION"
+    if not hashes_path.is_file() or not version_path.is_file():
+        return []
+    pinned_version = read_text_lenient(version_path).strip()
+    hashes = load_governed_json(hashes_path)
+    if hashes is None:
+        return []
+    if "_error" in hashes:
+        return [{"code": "GOVERNANCE_INTEGRITY_FAILED", "path": "assurance/release-baseline-hashes.json", "message": hashes["_error"]}]
+    recorded = (hashes.get("releases") or {}).get(pinned_version)
+    current = sha256_bytes(baseline_path.read_bytes())
+    if not recorded:
+        return [
+            {
+                "code": "GOVERNANCE_INTEGRITY_FAILED",
+                "path": baseline_path.name,
+                "message": f"no release-baseline hash is recorded for pinned version {pinned_version}",
+            }
+        ]
+    if recorded != current:
+        return [
+            {
+                "code": "GOVERNANCE_INTEGRITY_FAILED",
+                "path": baseline_path.name,
+                "message": f"{baseline_path.name} does not match the recorded release hash for {pinned_version}; it was edited or tampered with",
+            }
+        ]
+    return []
+
+
+def governance_integrity_preflight(project_root: Path, baseline_path: Path | None = None) -> dict:
+    """Cross-check the existing governance-tooling hash records against live
+    bytes: .governance/integrity.json (governance.py-owned content),
     .governance/assurance-bootstrap.json (bootstrap-assurance.py-owned
-    baseline/runner/CI-workflow copies). Absent records are not an error;
-    they simply mean that governance-artifact tracking has not been
-    bootstrapped for this project yet.
+    baseline/runner/CI-workflow copies), and, when applicable,
+    release-baseline-hashes.json (release_baseline_preflight). Absent
+    records are not an error; they simply mean that governance-artifact
+    tracking has not been bootstrapped for this project yet.
     """
     issues: list[dict] = []
     checked: list[dict] = []
+    issues.extend(release_baseline_preflight(project_root, baseline_path))
 
     manifest = load_governed_json(project_root / ".governance" / "integrity.json")
     if manifest is not None:
@@ -973,7 +1020,7 @@ def main() -> int:
     governance_integrity = None
     instruction_surface = None
     if plan_version == "3":
-        governance_integrity = governance_integrity_preflight(project_root)
+        governance_integrity = governance_integrity_preflight(project_root, baseline_path)
         instruction_surface = instruction_surface_audit(project_root)
         if governance_integrity["issues"]:
             print("[governance-integrity] INCOMPLETE_ASSURANCE")

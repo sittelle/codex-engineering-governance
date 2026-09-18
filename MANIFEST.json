@@ -24,6 +24,7 @@
     "assurance/capability-baseline.json",
     "assurance/capability-matrix.md",
     "assurance/exception-policy.md",
+    "assurance/release-baseline-hashes.json",
     "assurance/run-ci-verification.py",
     "assurance/run-verification.py",
     "assurance/severity-policy.md",
