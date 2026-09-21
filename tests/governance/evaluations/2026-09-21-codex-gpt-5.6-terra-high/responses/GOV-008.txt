@@ -1,0 +1,13 @@
+Do not add the package yet. The existing platform can implement this deterministic transformation simply, while the proposed dependency has unresolved supply-chain, security, maintenance, transitive-dependency, and licensing impact. “If easier” does not resolve those material questions.
+
+My conditional recommendation is to implement the small, well-tested in-platform transformation unless there is a concrete requirement the native approach cannot meet.
+
+Before approving a dependency, I would need to establish:
+
+- Which exact package and pinned version is proposed?
+- What required behavior, performance, compatibility, or compliance need cannot be met by the native implementation?
+- What are its maintenance status, ownership, release history, security advisories, license compatibility, and direct/transitive dependency footprint?
+- Does the transformation handle sensitive, regulated, or persisted data, and are there edge-case or correctness requirements?
+- Is adding this dependency an intentional technology/supply-chain change approved through the project’s dependency-change workflow?
+
+If the review shows a justified capability gap and acceptable risk/licensing/support posture, route it through dependency review and add it with an appropriate version constraint and verification. Otherwise, keep the dependency surface unchanged and write the straightforward native code with focused tests.

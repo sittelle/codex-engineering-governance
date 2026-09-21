@@ -1,0 +1,22 @@
+Do not switch frameworks as an incidental feature change. Replacing Fastify changes an established primary framework, so it is a Technology Baseline transition and **C2 at minimum**—not ordinary package maintenance. Keep the unrelated feature on Fastify if feasible.
+
+Before substantial migration work, perform technology-selection and dependency/supply-chain analysis, then prepare a Technology Baseline Transition Summary:
+
+- **Delta / classification:** replace Fastify; C2 minimum. Escalate to C3 if the migration introduces consequential security, privilege, destructive-data, or production-impact boundaries.
+- **Technical recommendation:** do not recommend a replacement merely because it seems easier. Evaluate the exact proposed framework against the project’s requirements, runtime/deployment targets, Fastify-dependent behavior, security/runtime validation model, ecosystem maturity, maintenance, performance, and migration cost.
+- **Dependency / supply-chain and triggered impacts:** assess the exact packages, maintainers, provenance, licenses, install scripts, advisories, lockfile/transitive changes, compatibility, and rollback. Analyze data, security, and deployment impacts if the framework affects them.
+- **Approval state:** obtain explicit C2 direction approval before substantial implementation.
+- **Transition state / durable record:** record the approved target and mark the baseline `RECONCILIATION_REQUIRED` during the transition.
+- **Verification / assurance reconciliation:** preserve and update canonical quick/full verification for the new framework. Revalidate build, type checking, tests, SAST/SCA and all applicable M1/SA1 capabilities; add framework-specific integration, failure-path, input-validation, and security tests where needed.
+- **ESTABLISHED closure criteria:** return to `ESTABLISHED` only once the durable baseline record, implementation, resolved dependency graph, support claims, and canonical verification all agree.
+
+“Behavior stays the same” is an acceptance criterion to prove, not an assumption. Characterize and test observable contracts: routes, status/error formats, authentication/authorization behavior, validation, request limits, logging, configuration, lifecycle/shutdown, SQLite interactions, and deployment behavior.
+
+Material information remains unresolved because no replacement framework or migration constraints were supplied. I would ask the developer:
+
+1. What exact framework and version is proposed, and what concrete requirement cannot be met reasonably with Fastify?
+2. Which public/API, deployment, supported-platform, security, and performance contracts must remain unchanged?
+3. May the unrelated feature be delivered first on the established Fastify baseline while the framework transition is separately assessed?
+4. After reviewing the transition summary, do you approve the proposed C2 direction and migration scope?
+
+If the developer authorizes the C2 direction in professional mode, document it as a professional decision under their name, explicitly acknowledging that an architecture-significant framework transition is a judgment call that remains difficult even for someone fluent in the terminology.

@@ -1,0 +1,12 @@
+Do not treat CRLF/LF checkout differences as different assurance semantics, and do not disable the identity check.
+
+For clean, tracked assurance artifacts, aggregate using:
+
+- the actual checked-out Git commit; and
+- each artifact’s committed Git-blob SHA-256 for the verification plan, managed assurance baseline, and managed runner.
+
+The Windows working-tree SHA-256 is diagnostic only. `core.autocrlf=true` may change checkout bytes, but it does not change the committed source or assurance definition. Record the differing raw hashes if useful, then aggregate the reports normally when the commit-bound identities match.
+
+Aggregation remains conditional on the reports being full-stage, from clean worktrees, with compatible runner semantics and the same required-check inventory. Any attributable required-check `FAIL` remains fail-dominant.
+
+What remains unresolved is whether the plan permits the Windows and Ubuntu reports to satisfy the required execution coverage. The exact question for the developer is: “Does the committed plan require one approved-context result (`ANY`), named Windows/Ubuntu contexts, or explicit platform targets—and do these reports cover every required context/target?” If coverage is incomplete, the result is `INCOMPLETE_ASSURANCE`, not a reason to alter identity handling.

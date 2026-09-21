@@ -1,0 +1,24 @@
+Do not mark the package READY or publish it.
+
+The canonical full run proves commit `A`, not a package rebuilt from an uncommitted source state. Because this package has no retained digest or provenance binding it to `A` (or any exact source revision), it is not a verified release artifact. “Basically the same” is not attributable release evidence.
+
+Current disposition: **NOT READY / INCOMPLETE ASSURANCE**. The missing artifact binding remains non-PASS; a vulnerability risk acceptance would not fix it, and any policy exception would need to be explicit, narrow, and would still not relabel the evidence as PASS. Publication is a separate consequential-action approval even after readiness is established.
+
+Recommended recovery:
+
+1. Do not release the unprovenanced package.
+2. Choose and record the intended exact release commit.
+3. Build a fresh package from a clean checkout of that commit using the controlled release procedure.
+4. Retain its immutable digest, source revision, build/provenance data, and the attributable canonical full-verification evidence; rerun required package/release checks as the release plan requires.
+5. Create the release decision record, then obtain explicit publication approval.
+
+There is also a material governance inconsistency: the supplied scenario says M2/SA2, but this repository’s `project-governance.yml` currently declares M1/SA1, an unestablished technology baseline, and placeholder verification commands. That must be reconciled before anyone can truthfully certify an M2/SA2 release.
+
+Exact questions for the developer:
+
+- Which committed Git revision is the intended release source: `A` or a later, explicitly committed revision?
+- Were the working-tree changes intended for release? If so, where is the reviewed commit containing them?
+- What release version, package format, and approved build/provenance procedure should bind the replacement artifact?
+- Who provides the explicit authorization to publish once the readiness record is complete?
+
+If the developer, operating in professional mode, ultimately makes the release decision, it must be recorded as a professional decision; this provenance-and-assurance judgment is difficult even for someone fluent in the terminology.

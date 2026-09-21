@@ -1,0 +1,21 @@
+Do not accept or record “SECURITY READY.” The review is `INCOMPLETE ASSURANCE`: green SAST, SCA, and secret scanning are useful automated evidence, but not proof that the security-sensitive change was reviewed adequately.
+
+Require a durable completion record before a readiness conclusion. It must identify:
+
+- Review scope, security objectives, and exact source revision.
+- Relevant attack surface/trust boundaries and threat-model status (including why it is not required or not updated, if applicable).
+- Automated evidence consulted and every required control that did not execute.
+- Manual coverage of authorization, business logic, privilege/trust assumptions, failure behavior, insecure defaults, and data exposure as applicable.
+- Findings with severity and disposition.
+- Residual risks, explicit risk acceptances, and policy exceptions.
+- A justified final conclusion: `SECURITY READY`, `SECURITY READY WITH ACCEPTED RISKS`, `NOT SECURITY READY`, or `INCOMPLETE ASSURANCE`.
+
+Ask the developer:
+
+1. What exact commit/source revision and change scope were reviewed, and what security objectives applied?
+2. What are the applicable attack surfaces, trust boundaries, and threat-model status?
+3. Which required security controls were applicable, and did any fail to execute or produce invalid evidence?
+4. What manual authorization and business-logic review was performed, with what result?
+5. Are there residual risks, findings, risk acceptances, or policy exceptions?
+
+Conditional recommendation: once the record establishes that all applicable controls executed successfully, manual coverage is adequate, no blocking findings or unaddressed residual risks remain, and no missing evidence exists, `SECURITY READY` may be recorded. If a required control did not execute, the status remains `INCOMPLETE ASSURANCE`; a vulnerability risk acceptance cannot turn missing control evidence into a pass. Proceeding then would require a separate, explicit, time- or release-bounded governance/policy exception, while preserving the non-pass status.

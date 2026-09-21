@@ -1,0 +1,13 @@
+Do not mark SAST `NOT_APPLICABLE` or let local `full` pass. SAST remains required for this M1/SA1 project; Windows tool support does not determine applicability.
+
+The Windows local report must record SAST as `DID_NOT_EXECUTE` and the overall result as `INCOMPLETE_ASSURANCE` until attributable Ubuntu CI evidence is combined. `NOT_APPLICABLE` is only for a capability that genuinely does not apply to the system, not an unavailable local tool.
+
+A CI SAST pass may complete the evidence only if it is for the same clean checked-out commit and binds to the committed verification plan, managed assurance baseline, runner identity/semantics, and required-check inventory. Any attributable SAST `FAIL` remains fail-dominant, even if another context passes.
+
+The stated shared plan and baseline are insufficient to claim completion. I would ask:
+
+1. Does the plan authorize Ubuntu CI for SAST and specify whether one approved-context pass is sufficient or named contexts are required?
+2. Can CI produce attributable evidence for the same clean commit and matching committed plan, baseline, runner, and check inventory?
+3. Has that CI SAST run passed, and are there any attributable failures?
+
+If those conditions are met and every other required control passes, the combined result can pass. Otherwise it remains `INCOMPLETE_ASSURANCE`. A vulnerability/finding risk acceptance cannot substitute for missing SAST evidence; proceeding without the required control, if policy permits at all, needs a separate explicit governance/policy exception and still does not relabel the local or combined result as `PASS`.

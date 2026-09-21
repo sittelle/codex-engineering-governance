@@ -1,0 +1,20 @@
+No. Login establishes identity; it does not establish that this user may read this record. Access control is incomplete until the application has an explicit, deny-by-default authorization policy and evidence it is enforced.
+
+Require:
+
+- A resource-authorization model for each endpoint: **who** may perform which **action** on which **record**, under which **conditions**. Define ownership, tenant boundaries, roles, sharing/delegation, privileged support/admin access, record lifecycle, and any field-level restrictions.
+- Server-side enforcement at the authoritative service/data boundary, on every direct and indirect path—not just UI hiding or unguessable IDs. Validate the requested record’s relationship to the authenticated actor before returning it.
+- Deliberate behavior for unauthorized and nonexistent records, including whether responses may disclose record existence.
+- Negative authorization tests, at minimum: anonymous access; authenticated wrong-user/cross-tenant access; insufficient-role access; manipulated identifiers; revoked/disabled identity; and applicable bulk, search, export, nested, or background-operation paths. Tests should prove denial and no sensitive data leakage.
+- A proportionate threat/security review covering object-level authorization (including IDOR/BOLA), trust boundaries, and residual risks.
+
+I would not mark these endpoints secure or access control complete until the developer resolves these material questions:
+
+1. Who can read each record: only its owner, members of a tenant/project, explicitly shared users, certain roles, or administrators?
+2. What tenant/organization and ownership relationship binds a user to a record, and where is that relationship authoritatively checked?
+3. Are there delegated, support, admin, or break-glass access paths? If so, what scope, approval, audit, and expiry rules apply?
+4. Which related endpoints can expose the same records—lists, search, export, bulk APIs, nested resources, jobs, or caches—and must they follow the same rule?
+5. Is disclosure that a record exists itself sensitive, and what response behavior is required for denied versus missing records?
+6. Are any record fields more restricted than the record itself?
+
+If the application is internet-reachable or these are user-specific/protected records, the stated multi-user model likely warrants reassessing the project from SA-1 to at least SA-2 and creating a proportionate threat model.

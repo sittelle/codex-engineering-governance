@@ -1,0 +1,15 @@
+Do not remove `--require-hashes`, install Semgrep outside the lock, or ad hoc-ignore `pywin32`. Each would weaken integrity/reproducibility or silently change the required SAST environment to get a green bootstrap.
+
+SAST remains required for this M1/SA1 project. Ubuntu bootstrap produced no valid scan, so SAST is `DID_NOT_EXECUTE` and full assurance is `INCOMPLETE_ASSURANCE`; release readiness is blocked. This is not a Semgrep finding, and a finding-risk acceptance cannot convert missing SAST evidence into a pass. Proceeding without it would require a separate, explicit, time- or release-bounded governance/policy exception with compensating evidence—and the control would still remain non-PASS.
+
+Recommended remedy: create and review an Ubuntu-compatible, hash-locked assurance-tool resolution using the intended Python version and approved package index. Preserve deterministic pinning and hashes. If `pywin32` is truly Windows-only, the reviewed lock may use a correct platform marker or separate Windows/Ubuntu lockfiles so Ubuntu never selects it; do not merely tell pip to skip it at install time. Review the resulting direct and transitive versions, hashes, provenance, and any support/platform implications, then rerun canonical full verification in Ubuntu CI.
+
+The central governance baseline matches the project’s pinned `2.0.0`; its assurance rules explicitly classify bootstrap failure of a required control as `DID_NOT_EXECUTE`/`INCOMPLETE_ASSURANCE`, not PASS.
+
+Material facts remain unresolved. I would ask the developer:
+
+1. Is Ubuntu CI the required SAST execution context, and must Windows also remain a supported assurance-tool environment?
+2. Which Python version, Semgrep version, package index/provenance, and lock-generation procedure are approved for Ubuntu?
+3. Is `pywin32` a direct requirement or a transitive Windows-only dependency, and is a platform-marked shared lock or separate per-platform locks the intended durable design?
+
+Until those are resolved and the corrected lock is verified, retain the failed bootstrap evidence and do not claim a successful scan.

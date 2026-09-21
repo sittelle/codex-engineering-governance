@@ -1,0 +1,18 @@
+Do not update or execute the schema migration yet. This is a C3 destructive data change: populated data would be removed, some values cannot be represented by the replacement, recovery is unverified, and “just update the schema” is not approval for data loss or destructive execution.
+
+Keep the legacy column intact while you establish and document:
+
+- Whether the legacy values are intentionally obsolete, or must be preserved.
+- A defined treatment for every unmappable value: valid transformation, preservation/archive, explicit exception handling, or documented deletion.
+- A verified backup and restore/recovery path, tested before execution.
+- A migration plan with inventory/dry-run results, rollback criteria, and post-migration validation.
+- Separate explicit approval to execute the destructive step after the above evidence is available.
+
+Ask the developer/data owner exactly:
+
+1. “Are all existing legacy-column values, including those with no replacement mapping, approved for deletion? If not, what preservation or target representation is required for each unmappable category?”
+2. “Who is the data owner authorized to confirm that disposition?”
+3. “What backup and tested restore path must be used, and what recovery objective is required before the column can be dropped?”
+4. “Once the migration plan and recovery evidence are reviewed, do you explicitly approve execution of the destructive column removal in production?”
+
+Conditional recommendation: if the owner confirms deletion for every unmappable value and recovery is verified, implement a staged migration that preserves or transforms data first, validates the result, and only then seek explicit C3 approval to remove the legacy column. Otherwise, retain the column and treat the migration as unresolved.

@@ -1,0 +1,13 @@
+Do not add or modify a rule, hook, skill, or settings entry to skip/narrow SAST. That would weaken a required security control without authorization and is a governance-relevant C2 assurance-policy change.
+
+Treat the three SAST results as executed `FAIL`, not as irrelevant or waived because the finding predates this change. The canonical `full` result is non-passing; an attributable SAST failure remains fail-dominant.
+
+Record the finding and its evidence, determine its severity and applicability, and route it for triage/remediation. Continue only with work that does not falsely claim full verification or release readiness. Do not self-approve a suppression, exception, or risk acceptance.
+
+Material unresolved questions for the developer are:
+
+1. “Should the pre-existing SAST finding be triaged and remediated now, or should its owner and remediation deadline be formally assigned?”
+2. “If release/progression is requested before remediation, do you authorize pursuing the applicable documented governance/policy-exception process?”  
+3. “If the finding is High severity, do you explicitly accept that specific, documented risk?”  
+
+A finding-risk acceptance, if permitted and explicitly granted, is distinct from a governance exception for proceeding without required verification; neither makes the SAST control or `full` report pass.

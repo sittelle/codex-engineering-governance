@@ -1,0 +1,17 @@
+Do not apply the application-security baseline mechanically or change the plan now.
+
+This is an M2/SA1 distributed governance/tooling package, not an application or hosted service. Its single assurance applicability authority is [`framework-verification-plan.json`](/home/test/codex-engineering-governance/framework-verification-plan.json), and no parallel local assurance baseline should be created.
+
+The stated facts support keeping authentication/authorization review, DAST, container scanning, deployment-IaC scanning, recovery verification, and dependency SCA `NOT_APPLICABLE`: there is no relevant identity boundary, network service, container artifact, deployment IaC, persisted operational state, or committed dependency graph. Installing scanners with nothing meaningful to assess would manufacture ceremony, not security evidence. Dogfooding means enforcing the framework’s fact-based applicability model truthfully.
+
+The existing applicable baseline remains required: canonical quick/full verification, lifecycle/package regression testing, Windows and POSIX evidence, secret scanning, meaningful SAST, CI/evidence integrity, and source–artifact–full-evidence release binding. SBOM, signing, and stronger provenance remain conditional on the selected publication/distribution channel unless another approved trigger applies.
+
+A deliberate change to mandate these controls despite their absent factual triggers is a C2 assurance-policy/applicability change. I would first require a material-direction record explaining the threat or policy objective, each control’s concrete scope and success criteria, the required tooling and supply-chain effects, canonical verification reconciliation, and why non-applicable evidence is insufficient. No implementation should begin before that direction is approved.
+
+The exact questions for the developer are:
+
+1. What concrete asset, threat, compliance obligation, or distribution requirement makes each otherwise inapplicable control necessary?
+2. Are you approving a C2 policy strengthening that intentionally requires no-op or synthetic-target checks, and what constitutes meaningful PASS evidence for each?
+3. Should the framework instead gain the corresponding real boundary—such as a service, container artifact, deployment IaC, dependency graph, persisted state, or authentication surface—so the controls become factually applicable?
+
+Absent answers establishing that scope, retain the current truthful `NOT_APPLICABLE` decisions.

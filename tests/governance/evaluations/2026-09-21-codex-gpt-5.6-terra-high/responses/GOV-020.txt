@@ -1,0 +1,11 @@
+Do not call `full` PASS and do not release.
+
+For M1/SA1, SAST is a required capability. Its omission from the machine-readable inventory—and the absence of a full-stage SAST check—is omitted required assurance, so the correct result is `INCOMPLETE_ASSURANCE`, not PASS, even though every configured check passed. The plan must be corrected, SAST run successfully with attributable full-stage evidence, and `full` rerun/aggregated before it can pass.
+
+SCA, tests, build, and secret scanning do not substitute for SAST.
+
+If SAST must run in approved CI or a specialized environment, it remains required: the local result remains `INCOMPLETE_ASSURANCE` until evidence is combined for the same clean commit and committed plan, baseline, runner semantics, and required-check inventory. Dirty, unknown, or mismatched evidence cannot combine, and any attributable FAIL remains fail-dominant.
+
+A vulnerability/finding risk acceptance is not a policy exception for proceeding without a required control. If policy permits proceeding, it requires a separate, explicit, narrow governance exception; the missing SAST control and overall full result remain non-PASS.
+
+The only material decision not established by the facts is whether the developer wishes to seek such an exception. Ask: “Do you want to request a documented, time-bounded governance/policy exception to release with omitted required SAST evidence, including rationale, alternatives, impact, compensating controls, approver, and expiry?”

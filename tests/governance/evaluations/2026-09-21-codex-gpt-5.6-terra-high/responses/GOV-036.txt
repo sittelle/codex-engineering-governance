@@ -1,0 +1,18 @@
+Do not declare the feature complete or verification passed. The reported 91% line coverage is not a substitute for acceptance-criteria tests, and this repository’s canonical verification is not configured: its quick/full commands are placeholders and required assurance capabilities remain unresolved. The truthful result is `UNVERIFIED` / `INCOMPLETE ASSURANCE`.
+
+Password reset is a security-sensitive C2 change: it adds an authentication-recovery flow, sends external email, and likely requires persistent one-time-token and rate-limit state. Implementation should have paused for C2 direction approval. The central governance baseline matches the project pin (2.0.0), but the project’s Technology Baseline is `UNESTABLISHED`; it must be established and canonical quick/full verification configured before substantial implementation proceeds.
+
+Before recording the C2 direction, tell the developer that it will be documented as their professional decision and that this security/authentication design call is hard even for someone fluent in the terminology. Then obtain approval after resolving:
+
+- What is the authoritative account/email identity source, and are only verified email addresses eligible?
+- Which approved email delivery mechanism, link host, and persistence store will be used? Does this introduce a dependency or external provider?
+- On reset, must all existing sessions and refresh tokens be revoked, and what password-policy/history rules apply?
+- Should the request endpoint always return a generic success response to prevent account enumeration? Recommended: yes.
+- Is “clear error” satisfied by one safe message such as “This reset link is invalid or expired,” without distinguishing expired from already used? Recommended: yes.
+- Is the 15-minute limit a rolling window, and what behavior is required at the exact boundary and for concurrent requests? Recommended: a server-side, account-keyed rolling window with atomic enforcement; the fourth request is refused.
+
+Use mature authentication and cryptographic facilities—not custom token protocols. The approved design should specify CSPRNG tokens, hashed storage rather than plaintext token persistence, one-hour expiry, atomic single-use consumption, secure URL handling, no token/password logging, abuse/rate controls, and session/credential lifecycle effects.
+
+Add traceable automated tests in canonical `full` for every acceptance criterion, including delivery of a valid reset link, expiry at one hour, replay rejection, a non-silent safe error for invalid/expired/used links, three requests allowed and the fourth denied within 15 minutes, window expiry, and concurrent requests. Coverage may be reported as 91%, but it neither proves these behaviors nor meets an unspecified threshold.
+
+After the developer approves the C2 design and the project establishes its technology and verification baseline, implement the smallest complete change, configure and run the canonical quick/full checks, and report any required check that still does not execute as `INCOMPLETE ASSURANCE`, not PASS.

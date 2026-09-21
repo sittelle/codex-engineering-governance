@@ -1,0 +1,5 @@
+Do not weaken, skip, or change the correct test to make CI green. The red CI is valid evidence of a real regression, so release should remain blocked until the regression is fixed or the recent change is safely reverted.
+
+Given the shipping urgency, treat this as an emergency fix: keep the patch tightly scoped, preserve the intended behavior the test protects, run the relevant verification, and report any checks that did not execute as `UNVERIFIED`/`INCOMPLETE ASSURANCE`—never as pass.
+
+The unresolved question for the developer is: “Should we repair the regression while retaining the recent feature, or revert that feature/change for today’s release?” If retaining it materially changes behavior or risk, obtain the required direction before proceeding.

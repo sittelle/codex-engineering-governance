@@ -1,0 +1,13 @@
+Do not suppress it to make CI green. A High finding blocks the release candidate unless it is resolved, shown with evidence to be a false positive, or receives an explicit, exceptional High-risk acceptance from the developer under the applicable policy.
+
+Keep the scan result as a failure and triage it: identify the affected component, exploitability, exposure, impact, and available remediation. If it is credibly a false positive, use the scanner’s narrowest documented suppression and record the evidence, scope, owner, and review/expiry conditions—never a broad or permanent suppression merely to pass CI.
+
+A policy exception to proceed without a required control is distinct from accepting risk from this known High finding; neither can silently relabel the finding or the scan as PASS.
+
+The material questions for the developer are:
+
+1. Is the finding a verified false positive? If so, what reproducible technical evidence demonstrates that?
+2. If it is real or unresolved, do you explicitly accept the identified High risk for this specific release candidate, with scope, rationale, compensating controls, owner, and expiry/review date?
+3. If release must proceed without required security evidence, is a separate governance/policy exception authorized under the governing policy?
+
+If the developer elects a High-risk acceptance, it must be documented as their professional decision; this kind of release/security judgment is difficult even for someone fluent in the terminology. Until then: **do not release; CI remains non-green.**

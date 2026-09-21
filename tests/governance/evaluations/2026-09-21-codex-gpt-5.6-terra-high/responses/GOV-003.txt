@@ -1,0 +1,12 @@
+Do not execute cleanup yet. “However you think is best” does not resolve the material risks of moving, overwriting, or deleting user content—especially nested, duplicate-named, and untracked files.
+
+First, produce a read-only inventory/dry run and ask the developer:
+
+1. What exact directory is in scope, and should traversal include every nested folder?
+2. What rules determine each file’s intended destination or organization?
+3. Which content is authorized for deletion, and how is “obsolete” determined?
+4. If two files share a basename or target path, should the operation skip, rename, deduplicate under specified criteria, or overwrite? Overwrite should default to prohibited.
+5. What recovery is required: preview-only first, move deletions to a recoverable quarantine/trash, create a backup/manifest, and for how long retain it?
+6. Should untracked, ignored, hidden, or version-controlled files receive different treatment?
+
+Conditional recommendation: unless the developer explicitly authorizes deletion and collision handling, run only a bounded read-only inventory and proposed action manifest. For any later approved execution, use no-overwrite moves, preserve originals or quarantine deletions, record every action, and provide a rollback path.

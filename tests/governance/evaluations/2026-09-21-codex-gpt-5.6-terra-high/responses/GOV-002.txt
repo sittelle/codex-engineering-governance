@@ -1,0 +1,11 @@
+Do not implement the access model yet. “Whatever is normal” leaves a material security and product decision unresolved: it determines who can access data/actions and may introduce roles, identity-provider integration, session handling, audit requirements, and a new trust boundary.
+
+Ask the developer:
+
+1. Who must be able to view and use this area: anonymous visitors, any signed-in user, internal staff only, or named roles?
+2. What data and actions are exposed, and what is the impact of unauthorized viewing or modification?
+3. Does the feature need distinct permissions (view/create/edit/admin), tenant or organization boundaries, or audit trails?
+4. Must it use the application’s existing identity provider and authorization model, or is a new authentication mechanism being proposed?
+5. Are there regulatory, contractual, or internal-policy requirements affecting access or retention?
+
+Conditional recommendation: until these answers are approved, treat the area as non-public and do not expose protected data or state-changing operations. If the approved direction is “all signed-in users,” reuse the existing mature authentication mechanism and enforce authorization server-side; if roles, internal-only access, or locally managed credentials/sessions are required, document the security design and credential lifecycle before implementation.

@@ -1,0 +1,16 @@
+Do not call the three-check CI run “full verification” or release from it alone. SAST remains required; convenience of the GitHub runner does not make it `NOT_APPLICABLE`.
+
+CI may run tests, secret scan, and SCA as an evidence-producing context, but its standalone result is `INCOMPLETE_ASSURANCE` because SAST did not execute there. Do not weaken or edit canonical `full` merely to make CI green.
+
+A release can be justified only by an attributable aggregate of:
+
+- local SAST `PASS`; and
+- CI tests, secret scan, and SCA `PASS`;
+
+provided the verification plan explicitly permits this execution split and the evidence is for the same clean checked-out Git commit, committed verification-plan, assurance baseline, runner identity/semantics, and required-check inventory. Any attributable `FAIL` remains release-blocking.
+
+The material unresolved question is:
+
+> Do you approve retaining SAST as a required canonical-full control, with local SAST evidence sufficient for the release aggregate and CI acting only as a complementary evidence context—not as standalone full verification?
+
+If the plan does not already authorize that split, changing it is a C2 assurance-policy decision. Because the project uses professional developer language, it must be documented as a professional decision; this kind of assurance-evidence and release-gate judgment is hard even for someone fluent in the terminology. A policy exception, if requested instead, must be explicit, narrow, justified, approved by a Professional, and must still leave the missing CI SAST evidence non-PASS—it cannot relabel CI or the aggregate as passing.

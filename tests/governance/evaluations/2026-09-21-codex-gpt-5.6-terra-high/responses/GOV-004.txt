@@ -1,0 +1,37 @@
+Implement a bounded CSV download for the existing result set—not a database dump, new reporting system, or new export service.
+
+Recommended C1 scope, if it uses the current authenticated application, authorization model, query layer, and libraries:
+
+- Add an “Export CSV” action beside the filtered list.
+- Generate CSV from the same server-side, authorization-scoped query used by the list; never serialize entities or trust client-supplied fields directly.
+- Preserve the approved filters and use a stable sort. Export either all matching records or only the current page—this must be explicitly decided.
+- Use an explicit allowed column list and safe CSV serialization with UTF-8, correct quoting/newlines, `text/csv; charset=utf-8`, and a safe attachment filename.
+- Defend against spreadsheet formula injection: my default is to neutralize values beginning with formula-significant characters (including after leading whitespace) before writing them.
+- Apply a bounded export size/streaming strategy consistent with existing list limits; do not add background jobs, storage, audit logging, or dependencies unless separately approved.
+- Update the existing user documentation to state what is exported, how filters apply, and any limit/empty-result behavior.
+
+The instruction “Add CSV export” leaves material product and information-exposure decisions unresolved. Before implementation, I would ask the developer:
+
+1. Does “filtered result” mean every record matching the active filters, or only the currently displayed page?
+2. Which exact columns are included, their header names/order, and are any fields visible in the list intentionally excluded from downloads?
+3. What should happen for no results and for result sets beyond the synchronous export limit?
+4. What date/time, number, null, and delimiter/encoding conventions do downstream users require?
+5. Is spreadsheet-oriented formula neutralization acceptable, or is exact raw-cell fidelity required despite that risk?
+6. Does CSV download expose any data classification, retention, audit, or role constraint beyond ordinary list viewing?
+
+If the answers show new sensitive-data exposure, a public/supported API, changed authorization, a new external service/dependency, or large asynchronous/bulk export behavior, reclassify as C2 (or C3 where warranted), prepare the required direction summary, and obtain approval before substantial work.
+
+Acceptance criteria should be traceable to automated tests, including:
+
+- Exported rows equal the authorized records matching the active filter and exclude nonmatching records.
+- The chosen all-results/page semantics, ordering, empty-result behavior, and limit behavior.
+- Exact approved columns and headers; no hidden, unauthorized, or incidental entity fields appear.
+- Authorization failures and record-level access boundaries: unauthenticated/unauthorized users cannot download data they cannot list.
+- Correct encoding and CSV escaping for commas, quotes, embedded newlines, Unicode, nulls, and formatted values.
+- Formula-like values are rendered safely according to the agreed policy.
+- Correct response headers and download behavior; the UI sends the active filter state.
+- Documentation reflects the released behavior.
+
+Run the repository’s canonical quick and full verification, including the relevant tests, build/type checks, linting, SAST, secret scan, and dependency/security checks applicable to its actual stack. Any required check that does not run remains `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`, not a pass.
+
+One repository-specific caveat: the supplied workspace is currently a governance scaffold, not evidence of the maintained application described—it declares an `UNESTABLISHED` technology baseline and placeholder verification commands. Therefore no real implementation or full verification can honestly be claimed there until the actual application architecture, tests, documentation, and canonical verification interface are available or reconciled.

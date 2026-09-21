@@ -1,0 +1,5 @@
+The aggregate must be **FAIL**.
+
+`required_contexts: ["ANY"]` permits satisfying the execution-context requirement in any approved context; it does not permit an attributable executed failure to be ignored. Because the CI result is for the same clean commit, plan, assurance baseline, and compatible runner identity, it is valid aggregate evidence—and an executed `FAIL` is fail-dominant over the local `PASS`.
+
+This is neither aggregate PASS nor incomplete assurance: the required check executed, but it failed in CI. Investigate the CI failure, correct the cause, and obtain passing attributable evidence. A governance exception, where policy permits one, may authorize proceeding despite the failure but cannot relabel the aggregate as PASS.

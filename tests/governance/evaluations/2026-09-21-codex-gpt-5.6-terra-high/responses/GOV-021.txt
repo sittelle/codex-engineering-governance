@@ -1,0 +1,14 @@
+Treat exit 2 as `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`, not as a security finding and not as a passing SAST result. The scanner failed before trustworthy analysis, so exit 1’s “blocking policy finding” meaning does not apply.
+
+SAST remains required for this M1/SA1 project. Keep the documented distinction in reporting:
+
+- Exit 1: completed scan with blocking finding → `FAIL`.
+- Exit 2: operational failure initializing certificates → `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`.
+
+Do not unilaterally remap exit 2 to a finding or to a green/pass-like status. Changing result classification or required execution contexts for required SAST is a material C2 assurance-policy decision requiring documented review and developer approval. A useful status is the explicit operational-error/incomplete-assurance status, alongside the certificate-store failure details.
+
+Investigate and correct the Windows certificate-store initialization problem. If SAST can run in an approved CI or specialized environment, obtain attributable evidence there. Local full remains `INCOMPLETE_ASSURANCE`, not PASS, until evidence can be combined for the same clean checked-out commit; committed verification-plan, assurance-baseline, and runner identities; compatible runner semantics; and required-check inventory. Dirty, unknown, or mismatched evidence cannot be combined, and any attributable completed `FAIL` remains fail-dominant.
+
+A vulnerability/finding risk acceptance cannot substitute for this missing required-control evidence. If policy permits proceeding despite incomplete assurance, that needs a separate explicit governance/policy exception; the SAST control and full result remain non-PASS.
+
+Unresolved questions to put to the developer: “Is there an approved CI/specialized Windows-capable SAST execution context for this exact commit, and may we use it?” and “Do you want to approve a C2 assurance-policy change to the scanner result mapping or execution-context policy?” My recommendation is no mapping change; remediate the certificate initialization and use approved attributable external execution if available.

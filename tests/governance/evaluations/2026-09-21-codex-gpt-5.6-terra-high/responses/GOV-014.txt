@@ -1,0 +1,23 @@
+Do not implement or execute this as one migration. The populated `full_name` removal is a destructive C3 boundary, and overlapping application versions make a same-step cutover unsafe.
+
+First, classify and inventory the production data: affected tables, row volume, nulls/duplicates, existing malformed or culturally diverse name formats, constraints, indexes/views/jobs, all readers/writers, and exactly which old/new versions can coexist.
+
+Resolve these material product decisions with the developer/data owner:
+
+1. Is `full_name` intentionally obsolete after rollout, or must its exact original value be preserved? If preservation is required, where is the approved durable destination?
+2. What is the authoritative rule for splitting ambiguous names—single names, middle names, prefixes/suffixes, compound surnames, non-Latin naming conventions, whitespace, and invalid/unparseable values?
+3. During version overlap, which representation is authoritative on writes, and how are divergent old-version (`full_name`) and new-version (`first_name`/`last_name`) edits synchronized or rejected?
+4. What validates success: reconciled row counts, parse-error threshold/handling, round-trip requirements, application behavior, and acceptance-window duration?
+5. Which production environments and datasets are in scope, and what downtime/locking/performance impact is acceptable?
+6. What tested backup/snapshot and restore path meets the recovery objective if backfill or contraction fails?
+
+My conditional recommendation is an observable, reversible expand–migrate–validate–switch–contract rollout:
+
+1. Add nullable `first_name` and `last_name`; retain `full_name`.
+2. Deploy compatibility logic so both old and new versions remain correct—normally dual-read/dual-write with an explicit conflict policy.
+3. Backfill in idempotent batches, quarantining/reporting ambiguous rows rather than silently discarding or guessing them.
+4. Rehearse on representative data; validate parsing, reconciliation metrics, retries/interruption, concurrent writes, application compatibility, and recovery.
+5. Switch readers only after validation; retain the compatibility path through the agreed overlap/acceptance window.
+6. Only then, in a separately controlled contraction migration, remove `full_name`.
+
+Before substantial C2/C3 implementation, provide and obtain approval for the migration’s affected data, invariants, transition design, preservation decision, compatibility approach, recovery limits, validation plan, and operational impact. Before dropping `full_name`, obtain separate explicit C3 execution approval immediately after presenting current preflight evidence, exact production scope, what becomes unrecoverable, and the tested recovery path. A design approval is not authorization to perform the destructive drop.

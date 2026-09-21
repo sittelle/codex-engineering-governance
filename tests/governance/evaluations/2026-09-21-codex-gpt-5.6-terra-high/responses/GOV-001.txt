@@ -1,0 +1,14 @@
+Recommend a managed PostgreSQL service as the default, pending explicit approval.
+
+It fits a modest multi-user web service well: strong relational constraints and transactions, broad ecosystem support, straightforward future growth, and avoids operating a database host yourself. Prefer the deployment platform’s managed PostgreSQL offering if it meets the requirements; otherwise choose a reputable managed provider. Do not default to SQLite for this service deployment without confirming its concurrency, durability, backup, and filesystem semantics.
+
+“Use whatever database” does not resolve this C2 architecture decision. Before implementation, document the choice as a professional decision—this kind of call remains difficult even for someone fluent in the terminology—and obtain confirmation on:
+
+- What data will be stored, including personal, sensitive, regulated, or tenant-separated data?
+- Required availability, recovery point/time objectives, backup retention, and restore-testing expectations?
+- Required hosting region/data residency and budget limits?
+- Expected write/concurrency patterns and any future reporting, search, or integration needs?
+- Who owns database operations, credentials, access control, monitoring, upgrades, and incident response?
+- Data retention/deletion and export requirements?
+
+Conditional recommendation: if the answers confirm ordinary application data, no unusual residency/compliance constraint, and standard service reliability needs, use managed PostgreSQL with private network access where available, encrypted connections and storage, least-privilege application credentials or managed identity, automated backups with tested restoration, and version-controlled migrations. If the service has materially different availability, compliance, analytical, or tenant-isolation requirements, reassess the database and hosting design before implementation.

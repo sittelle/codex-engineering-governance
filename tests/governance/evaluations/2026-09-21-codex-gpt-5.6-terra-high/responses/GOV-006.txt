@@ -1,0 +1,7 @@
+No—do not release this candidate.
+
+SAST is required and did not execute, so its status is `DID_NOT_EXECUTE`; the release assurance result is `INCOMPLETE_ASSURANCE`, not PASS. The other passing checks do not compensate for the absent SAST result.
+
+Recommend repairing the SAST execution failure and rerunning it against the exact clean release-candidate commit, then completing attributable full release verification. Record the failed execution and its disposition in the release evidence.
+
+A vulnerability/finding risk acceptance would not solve this: it is distinct from an explicit governance/policy exception to proceed without a required control. No such exception exists here. If policy permits an exception, it would need explicit, narrow, traceable approval; even then, SAST remains non-PASS and the assurance record remains incomplete. Any actual publication/deployment still requires its separate approval.
