@@ -1,0 +1,148 @@
+# ADR 0003: Automated behavioral campaign on an isolated test VM
+
+## Status
+
+Accepted. Approved by Gregor Kleiber, framework maintainer, on 2026-09-21, in
+conversation on `feature/business-led-mode`. Extends the existing manual
+campaign kit (`scripts/manual-behavioral-campaign.py`) and
+`docs/evaluation-vm-bootstrap.md`; does not replace either.
+
+## Context
+
+The framework's manual behavioral campaign kit was deliberately built to
+never call an AI, never hold credentials, and never push raw response data
+to Git — appropriate for a maintainer's own machine, where a captured
+response could contain anything from a real working session. The maintainer
+now has a dedicated, isolated Ubuntu test VM used for nothing else, and
+wants a fully automated campaign path for it: the VM's isolation, not
+per-response review, is the control that makes automation and raw-response
+retention safe there. This ADR records that as a deliberate, scoped
+exception to the existing kit's constraints, not a change to them — the
+manual kit's behavior on a maintainer's own machine is unchanged.
+
+## Decision
+
+### Two new tools, reusing the existing kit's infrastructure
+
+- `scripts/bootstrap-test-vm.py` (Ubuntu-only): verifies the framework
+  checkout is current against its remote, ensures VS Code is installed,
+  resets (renames with a timestamp, does not delete) any pre-existing
+  `~/.codex` and `~/.claude` configuration so the bootstrapper establishes
+  known test configuration itself, creates the dedicated test VS Code
+  profile with the Codex and Claude extensions
+  (`manual-behavioral-campaign.py vscode-profile-init`), verifies both CLI
+  executables resolve, checks sign-in state, and if needed launches VS Code
+  for interactive sign-in with a bounded retry (3 attempts) before a fatal
+  error. It does not create the three scenario contexts itself; that reuses
+  `scenario_rows()`/`create_governed_context()` from the existing kit at
+  run time, the same functions `prepare` already uses for the manual path.
+- `scripts/run-behavioral-campaign-auto.py`: offers the operator a choice
+  of manual (hands off to the existing `conduct` command) or automated. The
+  automated path prompts for a model (initially GPT-5.6 Terra / High effort,
+  Claude Sonnet 5 / High effort; list is extensible), then for every
+  scenario from `scenario_rows()`, invokes the corresponding CLI
+  non-interactively with its working directory set to that scenario's
+  context directory (`contexts/global-kernel`, `contexts/governed-project`,
+  or the framework root for `GOVERNANCE_FRAMEWORK_REPOSITORY`), captures the
+  plain-text response, and writes campaign evidence.
+
+### CLI invocation
+
+Sourced from each vendor's own current documentation (see References), not
+assumed from memory, because getting a sandbox/approval flag wrong on an
+unattended automated run is a real safety risk:
+
+```
+codex exec --sandbox workspace-write --ask-for-approval never \
+  --model <model> -c model_reasoning_effort="high" \
+  --skip-git-repo-check --output-last-message <file> "<prompt>"
+
+claude -p --restricted --model <model> --effort high "<prompt>"
+```
+
+`workspace-write` (Codex) and `--restricted` (Claude Code, keeps file tools
+scoped to the working directory, removes command execution and WebFetch;
+requires Claude Code >= v2.1.248) were chosen over a fully read-only
+sandbox deliberately: several scenarios (GOV-031, GOV-032, and others)
+specifically test whether the agent *attempts* a forbidden file edit. A
+sandbox that made the action physically impossible would validate the
+sandbox, not the model's judgment. Both invocations run with their working
+directory confined to the single scenario context directory, never the
+operator's home directory or the wider filesystem.
+
+### Evidence storage: dedicated orphan branch, path-confined
+
+- A dedicated branch, `evaluation-evidence`, orphaned (no shared commit
+  history with `main` or any feature branch). Chosen because this
+  framework already correlates evidence to source via an explicit field
+  (`campaign_source_commit`) rather than via git ancestry everywhere else
+  (release records, evaluation records, the aggregate bundle) — an orphan
+  branch keeps that pattern consistent rather than introducing a second way
+  to bind evidence to source.
+- Evidence lands at `tests/governance/evaluations/<date>-<host>-<model>/`
+  on that branch — the same path convention the existing manual campaign
+  kit's durable evaluation records already use, so nothing new has to be
+  learned, and content there is not release evidence (see below).
+- Before every push, the script verifies the new commit's diff touches only
+  paths under that dedicated directory and aborts the push if not. This
+  turns "confine evidence to one place" from a convention into an enforced
+  safety check: any file the automated run touched outside its own
+  evidence folder — for example if a scenario response somehow caused a
+  stray write elsewhere in the framework checkout — fails the push loudly
+  instead of silently landing in history.
+- Deliberately **not** under `release-evidence/`: that directory has one
+  meaning throughout this project, actual release decisions, and has been
+  an explicitly protected, hands-off directory all through this
+  framework's development for exactly that reason. Behavioral campaign
+  responses are a different kind of evidence and would blur a distinction
+  this repository has otherwise kept sharp.
+- The push is fully automatic (no per-run confirmation prompt); the branch
+  isolation is the safety control, consistent with how this framework
+  already prefers containing blast radius structurally over gating with a
+  prompt (the `inform`/`block` enforcement switch, Layer 1/2/3). On a
+  rejected (non-fast-forward) push, fetch and retry once; never force-push.
+
+### What is retained, and the explicit exception this represents
+
+Both the metadata (`EVALUATION-METADATA.json`, extending the kit's existing
+Metadata v2 shape with the CLI version, exact invocation flags used, and
+tool-access mode) and the raw plain-text responses are pushed. This is an
+explicit, reasoned exception to `docs/evaluation-vm-bootstrap.md`'s
+existing "never copy raw response data into Git" rule: that rule protects
+against a captured response containing something from a real session on a
+real machine. On this dedicated, isolated test VM, used for nothing else,
+running only synthetic GOV scenario prompts against fresh project fixtures,
+that risk does not apply. The rule is unchanged for the existing
+maintainer-machine manual/checksum-locked path; `docs/evaluation-vm-bootstrap.md`
+is updated to state the scope of the exception explicitly rather than read
+as contradicted by it.
+
+## Consequences
+
+- The framework now has three campaign-evidence paths with different trust
+  models: the maintainer-machine manual kit (no AI calls, nothing pushed),
+  the checksum-locked VM route (reproducible provisioning, still manual),
+  and this automated isolated-VM route (AI calls, full retention, pushed
+  automatically). Each is documented with which risk model justifies it;
+  none of the three is silently assumed to justify another's behavior.
+- CLI flags for non-interactive invocation are vendor surface the framework
+  does not control and can change. `bootstrap-test-vm.py` should record the
+  installed `codex --version`/`claude --version` in the campaign metadata
+  precisely so a flag behavior change is attributable to a version, not
+  silently absorbed as a changed response.
+- The path-confinement push check is a safety backstop, not a substitute
+  for the working-directory sandboxing above; both apply.
+
+## References
+
+- `docs/evaluation-vm-bootstrap.md` — the existing checksum-locked/manual
+  VM provisioning this extends.
+- `scripts/manual-behavioral-campaign.py` — `scenario_rows()`,
+  `create_governed_context()`, `context_identities()`, `vscode-profile-init`,
+  and the Metadata v2 shape (`collected_metadata`), all reused rather than
+  duplicated.
+- Codex CLI non-interactive mode: https://learn.chatgpt.com/docs/non-interactive-mode ,
+  https://learn.chatgpt.com/codex/developer-commands
+- Codex reasoning effort override: https://dev.to/aicoding-guide/how-to-change-reasoning-effort-in-codex-cli-modelreasoningeffort-values-and-one-off-overrides-2bf4
+- Claude Code CLI reference: https://code.claude.com/docs/en/cli-reference
+- Claude Code permission modes: https://code.claude.com/docs/en/permission-modes
