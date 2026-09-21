@@ -94,9 +94,9 @@ For C2/C3 migrations, present:
 
 Obtain material-direction approval before substantial migration implementation.
 
-## Business-led mode routing
+## Developer language routing
 
-In business-led mode (`governance.mode: business-led`), route this workflow's material decision points through the five outcomes in "Business-led mode routing outcomes" (`global/governance-standard.md`) instead of developer approval: continue, update registration, obtain reassessment, involve IT Security, or hand over to IT. Record a request per "Business-led mode request records" when the outcome is "involve IT Security" or "obtain reassessment". A migration with destructive/irreversible steps always routes to "involve IT Security" at minimum.
+When `developer_language` is non-professional, route this workflow's material decision points through the five outcomes in "Routing outcomes" (`global/governance-standard.md`) instead of developer approval: continue, update registration, obtain reassessment, involve a Professional, or hand over to a Professional. When it is professional, a decision that would route to "involve a Professional" instead self-certifies with the explicit acknowledgment mechanism in the kernel. Record a request per "Request records" when the outcome is "involve a Professional" (non-professional) or "obtain reassessment". A migration with destructive/irreversible steps always routes to "involve a Professional" at minimum.
 
 ## 7. Implement migration mechanics
 

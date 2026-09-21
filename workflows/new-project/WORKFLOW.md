@@ -30,9 +30,9 @@ If the project is SA-2/SA-3 and will locally manage authentication, sessions, en
 - resolve material recovery/revocation/bootstrap questions;
 - approve the security direction before implementing auth plumbing.
 
-## Business-led mode routing
+## Developer language routing
 
-In business-led mode (`governance.mode: business-led`), route this workflow's material decision points through the five outcomes in "Business-led mode routing outcomes" (`global/governance-standard.md`) instead of developer approval: continue, update registration, obtain reassessment, involve IT Security, or hand over to IT. A new project requires IT Security's registration before proceeding; its absence is itself an "involve IT Security" routing outcome, recorded as a request.
+When `developer_language` is non-professional, route this workflow's material decision points through the five outcomes in "Routing outcomes" (`global/governance-standard.md`) instead of developer approval: continue, update registration, obtain reassessment, involve a Professional, or hand over to a Professional. A new project requires a Professional's registration before proceeding; its absence is itself an "involve a Professional" routing outcome, recorded as a request.
 
 ## Version-control baseline
 
