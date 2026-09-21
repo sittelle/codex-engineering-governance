@@ -49,7 +49,18 @@ Do not add a dependency merely because it saves generated lines.
 
 ## 3. Assess dependency trust and provenance
 
-As applicable, inspect:
+### Existence and authenticity
+
+Before trusting a package name suggested by the agent itself (including by an earlier turn in the same session), confirm it as applicable:
+- the package actually exists on the authoritative registry for its ecosystem, under exactly that name;
+- the name is not a plausible near-miss of an intended/well-known package (typosquatting, namespace confusion, or a name the agent could have hallucinated because it sounds right);
+- the publisher/maintainer identity is the one actually associated with the real project, not merely a similarly-named account;
+- the package's publication age and history are consistent with an established project, or the newness is itself understood and accounted for;
+- the package does not run unexpected install/build-time scripts.
+
+Do not add an agent-suggested dependency to a manifest before this step passes. A name that does not resolve on the registry, or resolves to something unexpected, is a stop condition, not a detail to fix by trying a nearby spelling.
+
+As applicable, also inspect:
 - authoritative package/project source;
 - maintainer/project continuity;
 - release history and maintenance activity;
@@ -165,6 +176,8 @@ Keep the dependency change scoped:
 - preserve reproducibility and committed lockfiles where the ecosystem expects them;
 - do not bypass integrity/provenance checks just to complete installation.
 
+Install through the ecosystem's lockfile-aware resolution/install command, not an ad hoc unpinned install of an exact version outside that flow. After installation, confirm the resolved entry in the lockfile actually matches the intended package (name, source, version) rather than trusting that the install command succeeded silently.
+
 ## 10. Verify
 
 Run the project canonical verification interface.
@@ -209,6 +222,7 @@ Use `VERIFIED`, `UNVERIFIED`, `KNOWN RISK`, `ACCEPTED RISK`, `NOT APPLICABLE`, a
 ## Stop conditions
 
 Stop and surface the issue when:
+- a package name does not resolve on the authoritative registry, or resolves to something other than the intended project (possible hallucination, typosquatting, or namespace confusion);
 - package identity/provenance is unclear;
 - a material license conflict is unresolved;
 - a security advisory is not understood enough to characterize;
@@ -223,6 +237,7 @@ Stop and surface the issue when:
 
 Do not:
 - install a package only because it is convenient;
+- install a package name you (the agent) generated or recalled without confirming it actually exists on the registry under that name;
 - equate popularity with trust;
 - ignore transitive or lockfile changes;
 - mark a vulnerability false-positive without evidence;

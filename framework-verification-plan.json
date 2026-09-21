@@ -10,7 +10,8 @@
       "has_container_artifact": false,
       "has_iac": false,
       "has_persisted_data": false,
-      "ships_distributable_artifact": true
+      "ships_distributable_artifact": true,
+      "has_license_policy": false
     },
     "capabilities": [
       {
