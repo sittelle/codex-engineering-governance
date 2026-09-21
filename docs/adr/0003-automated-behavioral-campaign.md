@@ -74,17 +74,28 @@ manual kit's behavior on a maintainer's own machine is unchanged.
 
 ### CLI invocation
 
-Sourced from each vendor's own current documentation (see References), not
-assumed from memory, because getting a sandbox/approval flag wrong on an
-unattended automated run is a real safety risk:
+Originally sourced from each vendor's own current documentation (see
+References). That did not hold up against the real, live test VM: the
+first live run failed outright because `codex exec` (codex-cli 0.155.1)
+has no `--ask-for-approval` flag at all -- that flag belongs to the
+top-level/interactive TUI parser only, and `exec`'s own subcommand parser
+(confirmed directly against `codex exec --help` on the VM) rejects it.
+`exec` is inherently non-interactive -- there is no human to prompt for
+approval -- so any action beyond the `--sandbox workspace-write` boundary
+simply fails back to the model rather than blocking. The corrected,
+VM-verified invocation:
 
 ```
-codex exec --sandbox workspace-write --ask-for-approval never \
+codex exec --sandbox workspace-write \
   --model <model> -c model_reasoning_effort="high" \
   --skip-git-repo-check --output-last-message <file> "<prompt>"
 
 claude -p --restricted --model <model> --effort high "<prompt>"
 ```
+
+The Claude Code invocation has not yet been exercised against a live run
+on the test VM the way the Codex one now has; treat it as unverified
+until it is.
 
 `workspace-write` (Codex) and `--restricted` (Claude Code, keeps file tools
 scoped to the working directory, removes command execution and WebFetch;

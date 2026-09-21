@@ -99,10 +99,16 @@ def invoke_codex(prompt: str, cwd: Path, model: str, effort: str) -> dict:
         raise Error("'codex' executable is not on PATH")
     with tempfile.TemporaryDirectory() as tmp:
         output_file = Path(tmp) / "response.txt"
+        # `--ask-for-approval` is a top-level/interactive-TUI flag only; the
+        # `exec` subcommand's own parser (confirmed against a real
+        # `codex exec --help` on codex-cli 0.155.1) does not accept it and
+        # rejects the invocation outright. `exec` is inherently
+        # non-interactive -- there is no human to prompt -- so any action
+        # beyond the `--sandbox workspace-write` boundary simply fails back
+        # to the model rather than blocking on approval.
         argv = [
             executable, "exec",
             "--sandbox", "workspace-write",
-            "--ask-for-approval", "never",
             "--model", model,
             "-c", f'model_reasoning_effort="{effort}"',
             "--skip-git-repo-check",
