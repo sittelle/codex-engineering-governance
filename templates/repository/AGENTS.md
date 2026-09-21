@@ -88,6 +88,8 @@ Do not create a parallel technology registry or duplicate the complete dependenc
 
 ## Central governance loading matrix
 
+A request to recommend, evaluate, or decide is governed the same as a request to do the work: load the routed workflow/skill first, then check the finished response against every field, label, or status term it names as explicitly required, rather than trusting overall judgment to imply coverage.
+
 Use the minimum relevant detailed context.
 
 - New project: `workflows/new-project/WORKFLOW.md`; technology-selection and architecture-design; threat/authentication/security skills when triggered.

@@ -236,6 +236,52 @@ a genuinely independent reviewer checks it — most importantly the GOV-029/
 GOV-030 mandatory-2 misses that decide Claude's FAIL outcome, and any
 close 1-vs-2 call elsewhere in either host's set.
 
+## Follow-up: diagnosing and closing the Claude gap
+
+Read against the 11 sub-2 scenarios' own rationale, a pattern emerged: for
+10 of 11 (all but GOV-015, not directly checked against
+`workflows/dependency-change/WORKFLOW.md`), the exact missing element was
+already present, explicitly and often as a named/numbered field, in the
+kernel or the routed workflow/skill the scenario should have triggered —
+`workflows/data-migration/WORKFLOW.md`'s "Prove backup and recovery" step for
+GOV-014, `skills/authentication-design/SKILL.md`'s explicit "CA rotation"
+and "recovery/re-enrollment" for GOV-011, the kernel's own
+"Required-control response completeness" and "Required local/CI split
+response checklist" for GOV-006/020/022, the "Emergency-response
+completeness" pairing for GOV-016, and the project template's "Material
+Technology Baseline transition completeness" fields for GOV-030. This was
+not a missing-instruction problem for those scenarios; Codex's responses to
+the same prompts read like close paraphrases of these exact documents.
+
+The likely root cause: several of the kernel's own workflow/skill-routing
+triggers are phrased around *doing* the work ("before implementing the
+mechanism", "work that moves, transforms...") rather than *being asked to
+decide or recommend* on it, and all 36 GOV scenarios are pure decision
+probes, never implementation tasks. A literal reading could treat that as
+out of scope for loading the full routed document, defaulting instead to
+general judgment — which stayed correct in substance but dropped one
+explicitly-named field the loaded document would have supplied.
+
+Fix: added one clarifying sentence, in `host-adapters/operating-kernel.md`
+(under "Detailed governance loading", ahead of "Workflow routing") and in
+`templates/repository/AGENTS.md` (leading "Central governance loading
+matrix") — both well within their token budgets (kernel: 18,426/20,000;
+project template's own loading-matrix section is outside the budgeted
+managed block): *"A request to recommend, evaluate, or decide is governed
+the same as a request to do the work: load the applicable routed
+workflow/skill first, then check the finished response against every
+field, label, or status term it names as explicitly required, rather than
+trusting overall judgment to imply coverage."* `codex-home/AGENTS.md`
+regenerated to match. Deliberately general, not scenario-specific: it
+closes the loading/completeness gap the evidence actually showed without
+encoding any GOV-file wording into the kernel, which would corrupt a
+future re-run's validity.
+
+This is unverified until re-tested: the 2026-09-21 evaluation records
+remain unchanged (historical evidence is immutable per
+`tests/governance/evaluations/README.md`), and a fresh campaign is needed
+to confirm the fix actually moves the affected scores.
+
 ## References
 
 - `docs/evaluation-vm-bootstrap.md` — the existing checksum-locked/manual
