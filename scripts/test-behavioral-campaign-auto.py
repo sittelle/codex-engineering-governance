@@ -271,6 +271,69 @@ def test_git_remote_access_gives_up_after_retry_limit(failures: list[str]) -> No
             failures.append("ensure_git_remote_access should raise when the remote never becomes reachable")
 
 
+def test_push_existing_accepts_a_full_path_by_mistake(failures: list[str]) -> None:
+    """--push-existing is documented as a bare folder name, but pathlib
+    silently discards the workspace base if a full/absolute path is passed
+    instead (Path("a") / "/abs/b" == Path("/abs/b")), which previously
+    surfaced as a confusing "evidence folder already exists" error instead
+    of doing what the operator obviously meant."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        origin, work = make_scratch_repo(tmp)
+        mod = load_runner_with_scratch_root(work)
+        workspace = tmp / "workspace"
+        campaign_dir = workspace / "campaign-runs" / "run-pathcase"
+        (campaign_dir / "responses").mkdir(parents=True)
+        (campaign_dir / "responses" / "GOV-001.txt").write_text("response\n", encoding="utf-8")
+        (campaign_dir / "EVALUATION-METADATA.json").write_text("{}", encoding="utf-8")
+
+        # Simulate pasting a full path instead of the bare folder name.
+        mistaken_arg = "/some/unrelated/evaluation-evidence-worktree/tests/governance/evaluations/run-pathcase"
+        exit_code = mod.push_existing(workspace, mistaken_arg)
+        assert_true(exit_code == 0, "push_existing should recover from a full-path argument, not fail", failures)
+        assert_true(not campaign_dir.exists(), "campaign_dir should be cleaned up after a successful push", failures)
+
+        run(["git", "-C", str(work), "fetch", "origin", mod.EVIDENCE_BRANCH])
+        log = run(["git", "-C", str(work), "log", f"origin/{mod.EVIDENCE_BRANCH}", "--oneline"]).stdout
+        assert_true("run-pathcase" in log, "the corrected folder name's evidence did not land on the evidence branch", failures)
+
+
+def test_push_existing_recovers_from_worktree_alone(failures: list[str]) -> None:
+    """If campaign_dir is already gone (older script version, or a
+    since-cleaned workspace) but the evidence worktree still has a local,
+    not-yet-pushed commit for that folder from a prior failed push,
+    push_existing must still be able to push it -- not require the local
+    source copy to exist."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        origin, work = make_scratch_repo(tmp)
+        mod = load_runner_with_scratch_root(work)
+        workspace = tmp / "workspace"
+        workspace.mkdir()
+        worktree_dir = workspace / "evaluation-evidence-worktree"
+
+        # Build the "prior failed attempt already committed, but its local
+        # source copy is gone" state directly.
+        campaign_dir = tmp / "throwaway-source"
+        (campaign_dir / "responses").mkdir(parents=True)
+        (campaign_dir / "responses" / "GOV-001.txt").write_text("response\n", encoding="utf-8")
+        mod.ensure_evidence_worktree(worktree_dir)
+        target = worktree_dir / mod.EVIDENCE_ROOT / "run-worktree-only"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(campaign_dir, target)
+        run(["git", "-C", str(worktree_dir), "add", "--", f"{mod.EVIDENCE_ROOT}/run-worktree-only"])
+        run(["git", "-C", str(worktree_dir), "-c", "user.email=t@t.com", "-c", "user.name=t",
+             "commit", "-m", mod._commit_subject("run-worktree-only")])
+        shutil.rmtree(campaign_dir)  # the local source copy is gone
+
+        exit_code = mod.push_existing(workspace, "run-worktree-only")
+        assert_true(exit_code == 0, "push_existing should recover from the worktree's own commit alone", failures)
+
+        run(["git", "-C", str(work), "fetch", "origin", mod.EVIDENCE_BRANCH])
+        log = run(["git", "-C", str(work), "log", f"origin/{mod.EVIDENCE_BRANCH}", "--oneline"]).stdout
+        assert_true("run-worktree-only" in log, "the worktree-only recovery evidence did not land on the evidence branch", failures)
+
+
 def test_path_confinement_guard_refuses_stray_changes(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -308,6 +371,8 @@ def main() -> int:
     test_multi_model_session_continues_without_restart(failures)
     test_git_remote_access_retries_through_browser_auth(failures)
     test_git_remote_access_gives_up_after_retry_limit(failures)
+    test_push_existing_accepts_a_full_path_by_mistake(failures)
+    test_push_existing_recovers_from_worktree_alone(failures)
     test_path_confinement_guard_refuses_stray_changes(failures)
 
     if failures:
@@ -324,6 +389,8 @@ def main() -> int:
     print("- a multi-model session continues to the next model without restarting or re-verifying access")
     print("- unreachable git remote access retries through browser authorization until reachable")
     print("- unreachable git remote access gives up with a clear error after the retry limit")
+    print("- push-existing recovers when a full path is passed instead of a bare folder name")
+    print("- push-existing recovers from the evidence worktree's own commit alone, no local source copy needed")
     print("- a commit touching anything outside the dedicated evidence folder is refused before it can be pushed")
     return 0
 

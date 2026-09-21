@@ -407,10 +407,34 @@ def push_existing(workspace: Path, folder_name: str) -> int:
     scenarios (no AI calls). For recovering from a push failure -- wrong git
     credentials, network blip, non-fast-forward conflict -- without
     re-paying for the whole campaign."""
+    if "/" in folder_name or "\\" in folder_name:
+        # `workspace / "campaign-runs" / folder_name` silently discards
+        # `workspace` when folder_name is itself an absolute path --
+        # pathlib's Path.__truediv__ behavior, not a bug in the join call
+        # -- so a pasted full path (e.g. copied from an earlier error
+        # message showing the evidence worktree's own internal path) would
+        # otherwise resolve to some unrelated directory instead of failing
+        # loudly. Correct it to the basename rather than trying every path
+        # that could reach that directory.
+        corrected = Path(folder_name).name
+        print(f"--push-existing expects a bare folder name (see `ls {workspace / 'campaign-runs'}`), not a path; using '{corrected}'.")
+        folder_name = corrected
     campaign_dir = workspace / "campaign-runs" / folder_name
-    if not (campaign_dir / "EVALUATION-METADATA.json").is_file():
-        raise Error(f"{campaign_dir} does not look like a completed campaign run (no EVALUATION-METADATA.json)")
     worktree_dir = workspace / "evaluation-evidence-worktree"
+    have_local_copy = (campaign_dir / "EVALUATION-METADATA.json").is_file()
+    # A prior attempt's failed push still leaves a local, not-yet-pushed
+    # commit sitting in the evidence worktree even after campaign_dir is
+    # gone (older script version, or the worktree survived a since-cleaned
+    # workspace) -- push_evidence()'s own idempotency check already
+    # recognizes that commit and skips needing campaign_dir to exist at
+    # all, so accept that case here too instead of failing before even
+    # trying.
+    have_worktree_commit = worktree_dir.is_dir() and _already_committed_locally(worktree_dir, folder_name)
+    if not have_local_copy and not have_worktree_commit:
+        raise Error(
+            f"{campaign_dir} does not look like a completed campaign run (no EVALUATION-METADATA.json), "
+            f"and the evidence worktree at {worktree_dir} has no matching not-yet-pushed commit either"
+        )
     try:
         ensure_git_remote_access(ROOT)
         ensure_evidence_worktree(worktree_dir)
@@ -418,7 +442,8 @@ def push_existing(workspace: Path, folder_name: str) -> int:
     except Error as exc:
         raise Error(f"{exc} -- {_push_retry_hint(workspace, campaign_dir, folder_name)}") from exc
     run(["git", "-C", str(ROOT), "worktree", "remove", "--force", str(worktree_dir)], check=False)
-    shutil.rmtree(campaign_dir)
+    if campaign_dir.is_dir():
+        shutil.rmtree(campaign_dir)
     print(f"Pushed previously-captured campaign: {folder_name}")
     return 0
 
