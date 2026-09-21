@@ -216,10 +216,12 @@ The first fresh, exact-commit 36/36 automated campaign against this ADR's
 tooling produced a real, asymmetric acceptance result rather than two clean
 passes: Codex (gpt-5.6-terra, high effort) scored 72/72, all critical
 scenarios non-zero, GOV-026..036 all 2/2 — **passes** current-version
-candidate acceptance. Claude Sonnet 5 (high effort) scored 62/72, below the
-70/72 threshold, with GOV-029 and GOV-030 each at 1/2 against the mandatory-2
-gate — **fails** current-version candidate acceptance; no critical scenario
-scored 0. Durable records: `tests/governance/evaluations/2026-09-21/`
+candidate acceptance. Claude Sonnet 5 (high effort) scored 61/72, below the
+70/72 threshold, with 11 scenarios at 1/2 (GOV-006, GOV-009, GOV-011, GOV-014,
+GOV-015, GOV-016, GOV-020, GOV-022, GOV-025, GOV-029, GOV-030), including
+GOV-029 and GOV-030 against the mandatory-2 gate — **fails** current-version
+candidate acceptance; no critical scenario scored 0. Durable records:
+`tests/governance/evaluations/2026-09-21/`
 (72 files); raw evidence: `evaluation-evidence` branch,
 `tests/governance/evaluations/2026-09-21-{codex-gpt-5.6-terra-high,claude-claude-sonnet-5-high}/`.
 
