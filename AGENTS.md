@@ -9,6 +9,8 @@ This repository is the source package for the Sittelle Engineering Governance Fr
 3. Treat `framework-verification-plan.json` as the single source of assurance applicability, stages, checks, execution targets, and N/A rationales for this repository.
 4. Use `python scripts/verify-framework.py quick` for ordinary feedback and canonical `full`/aggregate evidence for release readiness.
 
+A request to recommend, evaluate, or decide is governed the same as a request to do the work: apply every applicable response-completeness checklist in this file in full, and check the finished response against each of its numbered items individually before finishing, rather than trusting overall judgment to imply coverage.
+
 ## Framework-specific boundaries
 
 - Normative policy, assurance semantics/schema/runner/aggregator, installer/updater/bootstrap behavior, release controls, and security-control weakening are material changes. Route them through C2/C3 as defined by the global governance standard.
