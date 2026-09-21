@@ -82,7 +82,7 @@ For a governed repository:
 
 If the locator or required governance material is unavailable, surface that as incomplete governance context before C2/C3 or release work. Do not silently substitute memory for missing normative material.
 
-A request to recommend, evaluate, or decide is governed the same as a request to do the work: load the applicable routed workflow/skill first, then check the finished response against every field, label, or status term it names as explicitly required, rather than trusting overall judgment to imply coverage.
+A request to recommend, evaluate, or decide is governed the same as a request to do the work: load the applicable routed workflow/skill first, then check the finished response against every field, label, or status term it names as explicitly required, rather than trusting overall judgment to imply coverage. When repository files define a specific status/state term for the exact situation described, name and use that actual term rather than a generic paraphrase or hedging about whether one exists. When a request bundles several items and only some should proceed, state the disposition of every item explicitly, not only the ones being declined or qualified.
 
 ## Workflow routing
 

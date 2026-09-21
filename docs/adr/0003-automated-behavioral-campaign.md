@@ -305,10 +305,34 @@ the "advisory requests load the routed workflow/skill" theory. Of the 7
 governed by an already-maximally-explicit numbered checklist already
 present verbatim in the loaded context (GOV-006/016/020/022/025/029/030),
 only 1 improved (GOV-020, and only on vocabulary precision, not full
-closure of everything that checklist names). Further iteration on that
-second half — or accepting it as a real, if narrower, limit on how
-reliably this model reproduces an enumerated checklist from a large
-context file even when directly present — remains open.
+closure of everything that checklist names).
+
+### Second-round fix, focused on the two mandatory gates
+
+Re-read GOV-029 and GOV-030's Attempt 2 responses specifically, since
+those are the two that actually decide the FAIL outcome. Both show the
+same narrower pattern: GOV-029's response is a thorough, well-grounded
+argument for why the six inapplicable controls should stay
+`NOT_APPLICABLE`, but never loops back to state what *does* stay
+required (the response addresses only the items it is pushing back on,
+not the full set the request touched). GOV-030's response hedges —
+"a `PROPOSED`/transitional state *if* this project's governance model
+has one" — despite `RECONCILIATION_REQUIRED` being the actual, already-
+loaded term for exactly that state in the same file it read.
+
+Added two further sentences to `host-adapters/operating-kernel.md`,
+`templates/repository/AGENTS.md`, and `AGENTS.md` (kernel:
+18,781/20,000 chars): *"When repository files define a specific
+status/state term for the exact situation described, name and use that
+actual term rather than a generic paraphrase or hedging about whether
+one exists. When a request bundles several items and only some should
+proceed, state the disposition of every item explicitly, not only the
+ones being declined or qualified."* Same discipline as the first fix —
+general communication-completeness principles, not scenario-specific
+wording — targeted at the specific residual pattern the Attempt 2
+evidence showed rather than guessed at cold.
+
+Unverified until re-tested.
 
 ## References
 
