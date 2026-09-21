@@ -1,0 +1,17 @@
+# Fast local pre-flight only. This is not the project's canonical quick/full
+# verification interface and does not replace it; see project-governance.yml.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-yaml
+      - id: check-json
+      - id: mixed-line-ending
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks

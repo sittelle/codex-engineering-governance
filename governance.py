@@ -837,6 +837,8 @@ def template_paths(root: Path) -> dict[str, Path]:
         "verification": base / "verification-plan.json",
         "editorconfig": base / ".editorconfig",
         "gitignore": base / ".gitignore",
+        "gitleaks": base / ".gitleaks.toml",
+        "precommit": base / ".pre-commit-config.yaml",
         "design": base / "docs" / "design.md",
     }
 
@@ -1543,6 +1545,8 @@ def apply_project_new(
         ("verification", "verification-plan.json"),
         ("editorconfig", ".editorconfig"),
         ("gitignore", ".gitignore"),
+        ("gitleaks", ".gitleaks.toml"),
+        ("precommit", ".pre-commit-config.yaml"),
         ("design", "docs/design.md"),
     ):
         source = templates[key]
