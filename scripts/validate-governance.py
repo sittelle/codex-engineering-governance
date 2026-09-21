@@ -464,6 +464,24 @@ if "{{HOST_NAME}}" not in business_led_kernel or "{{LOCATOR_DISPLAY}}" not in bu
 if "<!-- BEGIN ENGINEERING-GOVERNANCE-MANAGED -->" not in business_led_agents or "<!-- END ENGINEERING-GOVERNANCE-MANAGED -->" not in business_led_agents:
     errors.append("templates/repository/AGENTS.business-led.md has no managed governance block markers")
 
+business_led_managed_match = managed_pattern.search(business_led_agents)
+managed_business_led_agents = business_led_managed_match.group(0) if business_led_managed_match else ""
+
+# WS6 proportionality: every governed session loads the kernel plus, for a
+# governed project, its managed AGENTS block. These budgets are a character-count
+# proxy for token cost (this tooling is dependency-free and does not vendor a
+# tokenizer); they exist to catch runaway growth, not to micro-optimize wording.
+# Raise a budget only with a deliberate reason, not merely to silence this check.
+TOKEN_BUDGETS = (
+    ("host-adapters/operating-kernel.md (professional kernel)", host_kernel_template, 20000),
+    ("host-adapters/operating-kernel.business-led.md (business-led kernel)", business_led_kernel, 6000),
+    ("templates/repository/AGENTS.md managed block (professional)", managed_project_agents, 10000),
+    ("templates/repository/AGENTS.business-led.md managed block (business-led)", managed_business_led_agents, 2500),
+)
+for label, text, budget in TOKEN_BUDGETS:
+    if len(text) > budget:
+        errors.append(f"{label} exceeds its token budget: {len(text)} chars > {budget} chars")
+
 registration_schema = json.loads((root / "assurance/registration.schema.json").read_text(encoding="utf-8"))
 registration_template = (root / "templates/repository/registration.yml").read_text(encoding="utf-8")
 for key in registration_schema.get("required", []):
@@ -793,3 +811,4 @@ print(
 )
 print("- central governance locator referenced by global/project instructions")
 print("- assurance completeness and outcome invariants present")
+print("- kernel and managed-block token budgets met")

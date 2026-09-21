@@ -10,7 +10,7 @@ Required tool startup/crash/service failure/malformed evidence => DID_NOT_EXECUT
 
 Required applicable capability missing/nonexecuting => INCOMPLETE_ASSURANCE, not PASS.
 
-Codex uses quick verification during ordinary changes and full verification for release, C2/C3 completion when required, security-sensitive completion, or project policy.
+The agent uses quick verification during ordinary changes and full verification for release, C2/C3 completion when required, security-sensitive completion, or project policy, on any supported host.
 
 Never modify verification merely to obtain green status without a governance decision.
 

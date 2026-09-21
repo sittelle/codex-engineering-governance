@@ -182,7 +182,7 @@ Adding a small library normally does not mean redesigning the Technology Baselin
 
 Replacing the database, application framework, runtime, or another architecture-shaping component usually does.
 
-Codex should not silently make that kind of transition as a side effect of another task.
+The agent should not silently make that kind of transition as a side effect of another task, on Codex or Claude Code.
 
 ### What this framework is not
 

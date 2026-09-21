@@ -152,6 +152,8 @@ A required capability may be evidenced in an approved CI or specialized environm
 
 Assurance tool locks are environment-bound unless demonstrated universal. A lock resolved for one OS/runtime must not be silently reused for an incompatible environment. Missing/incompatible lock or bootstrap failure is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`; never remove integrity hashes, float versions, or mark a required capability N/A merely to make CI green. When the managed runner is available, CI bootstrap failure must invoke its canonical precondition-failure/report path and produce an attributable machine-readable incomplete-assurance report for the same commit/plan/baseline/runner state. The CI job remains non-green; a generic red job is not a substitute for that evidence.
 
+For the full evidence-aggregation, commit-bound-identity, and platform-tool-locking mechanics behind the assurance invariants above, read `assurance/architecture.md` before release/aggregation work; the rules above are the obligation, that document is the reference.
+
 ## Repository context
 
 Read the repository-root host instruction files and follow their workflow/context pointers. Durable decisions belong in the repository, not only in chat.
