@@ -210,6 +210,30 @@ as contradicted by it.
 - The path-confinement push check is a safety backstop, not a substitute
   for the working-directory sandboxing above; both apply.
 
+## First campaign result (2026-09-21)
+
+The first fresh, exact-commit 36/36 automated campaign against this ADR's
+tooling produced a real, asymmetric acceptance result rather than two clean
+passes: Codex (gpt-5.6-terra, high effort) scored 72/72, all critical
+scenarios non-zero, GOV-026..036 all 2/2 — **passes** current-version
+candidate acceptance. Claude Sonnet 5 (high effort) scored 62/72, below the
+70/72 threshold, with GOV-029 and GOV-030 each at 1/2 against the mandatory-2
+gate — **fails** current-version candidate acceptance; no critical scenario
+scored 0. Durable records: `tests/governance/evaluations/2026-09-21/`
+(72 files); raw evidence: `evaluation-evidence` branch,
+`tests/governance/evaluations/2026-09-21-{codex-gpt-5.6-terra-high,claude-claude-sonnet-5-high}/`.
+
+Scoring was AI-assisted first-pass by Claude Sonnet 5 — this framework's own
+maintainer session, which designed this campaign tooling and is the same
+model family as the Claude Sonnet 5 candidate, not an independent scorer per
+this kit's own `INDEPENDENT-SCORING-PACKET.md` methodology ("score every case
+independently against its included rubric"). Every one of the 72 records
+states this caveat explicitly. This result should be treated as a documented,
+auditable first pass, not confirmed release-grade acceptance evidence, until
+a genuinely independent reviewer checks it — most importantly the GOV-029/
+GOV-030 mandatory-2 misses that decide Claude's FAIL outcome, and any
+close 1-vs-2 call elsewhere in either host's set.
+
 ## References
 
 - `docs/evaluation-vm-bootstrap.md` — the existing checksum-locked/manual
