@@ -64,10 +64,13 @@ manual kit's behavior on a maintainer's own machine is unchanged.
   existing `prepare`/`conduct` commands unchanged.
 - `scripts/run-behavioral-campaign-auto.py`: offers the operator a choice
   of manual (hands off to the existing `conduct` command) or automated. The
-  automated path verifies evidence-branch access once, then loops: prompts
-  for a model (initially GPT-5.6 Terra / High effort, Claude Sonnet 5 /
-  High effort; list is extensible), runs every scenario from
-  `scenario_rows()` against it, invokes the corresponding CLI
+  automated path verifies evidence-branch access once, then prompts for a
+  scenario selection (all 36, or the manual conductor's own `GOV-NNN`
+  single/comma-list/`GOV-NNN-GOV-MMM`-range syntax, reused via
+  `selected_rows()`; retries on an invalid selection rather than aborting
+  the whole session), then loops: prompts for a model (initially GPT-5.6
+  Terra / High effort, Claude Sonnet 5 / High effort; list is extensible),
+  runs every selected scenario against it, invokes the corresponding CLI
   non-interactively with its working directory set to that scenario's
   context directory (`contexts/global-kernel`, `contexts/governed-project`,
   or the framework root for `GOVERNANCE_FRAMEWORK_REPOSITORY`), captures the

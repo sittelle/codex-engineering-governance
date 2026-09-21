@@ -173,6 +173,36 @@ def test_failed_push_preserves_evidence_and_retries_cleanly(failures: list[str])
         assert_true(count == 1, f"retry should not duplicate the evidence commit, found {count}", failures)
 
 
+def test_interactive_selection_retries_on_invalid_input(failures: list[str]) -> None:
+    """choose_selection() with no --select must prompt interactively, accept
+    the manual conductor's own selection syntax, and retry rather than crash
+    the whole session on a typo."""
+    mod = load_runner_with_scratch_root(ROOT)  # ROOT here is irrelevant; scenario_rows() reads the real framework
+    kit = mod.load_campaign_kit()
+
+    answers = iter(["GOV-999", "GOV-001,GOV-003"])
+    prompts_seen = []
+
+    def fake_input(prompt=""):
+        prompts_seen.append(prompt)
+        return next(answers)
+
+    mod.input = fake_input
+    rows = mod.choose_selection(kit, None)
+    assert_true(len(prompts_seen) == 2, f"an invalid selection should re-prompt, saw {len(prompts_seen)} prompt(s)", failures)
+    assert_true(sorted(r["test_id"] for r in rows) == ["GOV-001", "GOV-003"], f"selection should resolve to exactly GOV-001 and GOV-003, got {[r['test_id'] for r in rows]}", failures)
+
+    # A blank answer (just Enter) means "all".
+    mod.input = lambda prompt="": ""
+    all_rows = mod.choose_selection(kit, None)
+    assert_true(len(all_rows) == len(kit.scenario_rows()), "a blank interactive answer should select all scenarios", failures)
+
+    # --select on the command line skips the prompt entirely.
+    mod.input = lambda prompt="": (_ for _ in ()).throw(AssertionError("should not prompt when --select is given"))
+    explicit_rows = mod.choose_selection(kit, "GOV-002-GOV-004")
+    assert_true(sorted(r["test_id"] for r in explicit_rows) == ["GOV-002", "GOV-003", "GOV-004"], f"explicit --select should resolve the same range syntax, got {[r['test_id'] for r in explicit_rows]}", failures)
+
+
 def test_multi_model_session_continues_without_restart(failures: list[str]) -> None:
     """After one model's scenarios are captured and pushed, the operator
     must be able to continue straight into the next model within the same
@@ -369,6 +399,7 @@ def main() -> int:
     test_stale_worktree_registry_self_heals(failures)
     test_failed_push_preserves_evidence_and_retries_cleanly(failures)
     test_multi_model_session_continues_without_restart(failures)
+    test_interactive_selection_retries_on_invalid_input(failures)
     test_git_remote_access_retries_through_browser_auth(failures)
     test_git_remote_access_gives_up_after_retry_limit(failures)
     test_push_existing_accepts_a_full_path_by_mistake(failures)
@@ -387,6 +418,7 @@ def main() -> int:
     print("- a worktree directory removed without `git worktree remove` self-heals via `git worktree prune`")
     print("- a failed push preserves the captured campaign directory and retries cleanly, no duplicate commit")
     print("- a multi-model session continues to the next model without restarting or re-verifying access")
+    print("- interactive scenario selection retries on invalid input and --select skips the prompt")
     print("- unreachable git remote access retries through browser authorization until reachable")
     print("- unreachable git remote access gives up with a clear error after the retry limit")
     print("- push-existing recovers when a full path is passed instead of a bare folder name")

@@ -537,7 +537,35 @@ def run_one_model(kit, model_entry: dict, rows: list[dict], folders: dict, sourc
     return True
 
 
-def run_automated(kit, workspace: Path, selection: str) -> int:
+def choose_selection(kit, explicit: str | None) -> list[dict]:
+    """--select on the command line skips this and is used directly (still
+    validated, so a typo fails the same way either path). Otherwise prompt
+    interactively, same syntax the manual conductor and --select already
+    use (`all`, a single GOV-NNN, a comma list, or a GOV-NNN-GOV-MMM range),
+    retrying on an invalid selection rather than failing the whole session
+    over a typo."""
+    all_rows = kit.scenario_rows()
+    if explicit is not None:
+        rows = kit.selected_rows(all_rows, explicit)
+        print(f"Scenario selection: {explicit} ({len(rows)} of {len(all_rows)} scenarios).")
+        return rows
+    while True:
+        answer = input(
+            f"\nRun all {len(all_rows)} scenarios, or restrict to specific ones "
+            f"(e.g. GOV-001, or GOV-005-GOV-010)? [all] "
+        ).strip()
+        if not answer or answer.lower() == "all":
+            return all_rows
+        try:
+            rows = kit.selected_rows(all_rows, answer)
+        except kit.Error as exc:
+            print(f"  {exc}")
+            continue
+        print(f"Scenario selection: {answer} ({len(rows)} of {len(all_rows)} scenarios).")
+        return rows
+
+
+def run_automated(kit, workspace: Path, selection: str | None) -> int:
     folders_path = workspace / "folders.json"
     if not folders_path.is_file():
         raise Error(f"{folders_path} not found; run bootstrap-test-vm.py first")
@@ -557,7 +585,7 @@ def run_automated(kit, workspace: Path, selection: str) -> int:
     ensure_evidence_worktree(worktree_dir)
     print("Evidence-branch access OK.")
 
-    rows = kit.selected_rows(kit.scenario_rows(), selection)
+    rows = choose_selection(kit, selection)
     source = kit.source_state()
 
     # One model at a time, but without leaving the session: once a model's
@@ -589,7 +617,7 @@ def run_automated(kit, workspace: Path, selection: str) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workspace", required=True, type=Path, help="the workspace bootstrap-test-vm.py created (contains folders.json and the three context directories)")
-    parser.add_argument("--select", default="all", help="all, or a GOV-NNN[-GOV-MMM] range/list, same syntax as the manual conductor")
+    parser.add_argument("--select", default=None, help="all, or a GOV-NNN[-GOV-MMM] range/list, same syntax as the manual conductor; omit to be prompted interactively")
     parser.add_argument("--manual-args", nargs=argparse.REMAINDER, help="arguments forwarded to manual-behavioral-campaign.py conduct when manual mode is chosen")
     parser.add_argument("--push-existing", metavar="FOLDER_NAME", help="skip mode selection and scenario invocation; push a previously-captured campaign-runs/<FOLDER_NAME> that failed to push earlier (e.g. after a git credential problem), with no AI calls")
     args = parser.parse_args()
