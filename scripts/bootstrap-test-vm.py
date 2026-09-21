@@ -211,15 +211,34 @@ def cli_version(executable: str) -> str | None:
     return proc.stdout.strip() or None
 
 
+def _codex_auth_file() -> Path:
+    return (Path(os.environ["CODEX_HOME"]) if os.environ.get("CODEX_HOME") else Path.home() / ".codex") / "auth.json"
+
+
 def codex_signed_in() -> bool:
-    """codex login status exits 0 when credentials are present, per OpenAI's
-    own CLI reference (https://developers.openai.com/codex/cli/reference).
-    Codex also authenticates directly off OPENAI_API_KEY/CODEX_API_KEY when
-    either is set, bypassing stored login state entirely, so treat those the
-    same as a confirmed login rather than relying on the status subcommand
-    alone."""
+    """Check ~/.codex/auth.json (or $CODEX_HOME/auth.json) directly for a
+    stored API key or OAuth tokens, the same file-based approach
+    claude_signed_in() uses below. This file's shape is confirmed against a
+    real signed-in Codex on the test VM (codex-cli 0.155.1):
+    {"auth_mode": "chatgpt", "OPENAI_API_KEY": null, "tokens": {"id_token":
+    ...}}, per https://learn.chatgpt.com/docs/auth. Originally this shelled
+    out to `codex login status` per the CLI reference's documented exit-code
+    contract, but that did not agree with a real signed-in VM in practice --
+    it reported not-signed-in against a valid auth.json -- so this checks
+    the file directly instead of trusting the subcommand's exit code. Falls
+    back to the subcommand only when no file-based credential is found, in
+    case this Codex install uses the OS keyring credential store instead of
+    the plaintext file."""
     if os.environ.get("OPENAI_API_KEY") or os.environ.get("CODEX_API_KEY"):
         return True
+    auth_file = _codex_auth_file()
+    if auth_file.is_file():
+        try:
+            data = json.loads(auth_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = None
+        if isinstance(data, dict) and (data.get("OPENAI_API_KEY") or data.get("tokens")):
+            return True
     proc = run(["codex", "login", "status"], check=False)
     return proc.returncode == 0
 
@@ -288,6 +307,16 @@ def prompt_sign_in_terminal() -> None:
     input("Press Enter once you have signed in to both Codex and Claude... ")
 
 
+def _print_sign_in_diagnostics(home: Path) -> None:
+    """Print exactly which credential file each check looked at and whether
+    it found one, so a detection mismatch is diagnosable from the VM's own
+    output instead of requiring a round trip back through chat."""
+    codex_auth = _codex_auth_file()
+    print(f"  Codex:  {codex_auth} {'exists' if codex_auth.is_file() else 'MISSING'}")
+    claude_creds = (Path(os.environ["CLAUDE_CONFIG_DIR"]) if os.environ.get("CLAUDE_CONFIG_DIR") else home / ".claude") / ".credentials.json"
+    print(f"  Claude: {claude_creds} {'exists' if claude_creds.is_file() else 'MISSING'}")
+
+
 def ensure_signed_in(home: Path, mode: str, profile: Path | None) -> None:
     if codex_signed_in() and claude_signed_in(home):
         print("Sign-in: both Codex and Claude already signed in.")
@@ -302,9 +331,11 @@ def ensure_signed_in(home: Path, mode: str, profile: Path | None) -> None:
             print("Sign-in: confirmed for both Codex and Claude.")
             return
         missing = [name for name, ok in (("Codex", codex_ok), ("Claude", claude_ok)) if not ok]
+        print(f"Not yet signed in to: {', '.join(missing)}. Checked:")
+        _print_sign_in_diagnostics(home)
         if attempts >= SIGN_IN_RETRY_LIMIT:
             raise Error(f"still not signed in after {SIGN_IN_RETRY_LIMIT} attempts ({', '.join(missing)}); unable to proceed with the test")
-        answer = input(f"Not yet signed in to: {', '.join(missing)}. Try again? [y/N] ").strip().lower()
+        answer = input("Try again? [y/N] ").strip().lower()
         if answer != "y":
             raise Error("sign-in declined; unable to proceed with the test")
         prompt()
