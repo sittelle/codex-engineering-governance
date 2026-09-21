@@ -30,7 +30,16 @@ manual kit's behavior on a maintainer's own machine is unchanged.
   doing anything mode-specific, since the two setups are mutually
   exclusive by design. Resets (renames with a timestamp, does not delete)
   any pre-existing `~/.codex` and `~/.claude` configuration either way, so
-  the bootstrapper establishes known test configuration itself. **Manual**
+  the bootstrapper establishes known test configuration itself -- stray
+  settings, MCP server config, project instructions, and session history
+  should not leak into a test run. Stored auth credentials
+  (`~/.codex/auth.json`, `~/.claude/.credentials.json`, or their
+  `CODEX_HOME`/`CLAUDE_CONFIG_DIR` equivalents) are the one exception:
+  they are carried forward into the fresh directory rather than reset, so
+  the operator does not have to re-authenticate on every single bootstrap
+  run -- discovered live, on the test VM, when the first version reset
+  credentials along with everything else and the operator's already-valid
+  Console sign-in was wiped out from under them mid-run. **Manual**
   mode installs VS Code, the dedicated test profile, and the Codex/Claude
   extensions (via the existing `scripts/bootstrap-evaluation-vm.py latest`
   route, which bundles the host-adapter install too), and signs in through

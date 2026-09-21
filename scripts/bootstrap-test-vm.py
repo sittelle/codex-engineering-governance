@@ -97,17 +97,41 @@ def choose_test_mode(explicit: str | None) -> str:
 
 def backup_existing_config(home: Path) -> list[str]:
     """Rename (never delete) pre-existing Codex/Claude configuration so the
-    bootstrapper establishes known test configuration itself. Timestamped,
-    reversible -- matches this framework's general preference for
-    reversible actions over destructive ones."""
+    bootstrapper establishes known test configuration itself -- stray
+    settings, MCP server config, project instructions, and session history
+    should not leak into a test run. Timestamped, reversible -- matches this
+    framework's general preference for reversible actions over destructive
+    ones.
+
+    Stored auth credentials are the one exception: they are carried forward
+    into the fresh directory rather than reset, so the operator does not
+    have to re-authenticate on every single bootstrap run. Codex stores its
+    login at <CODEX_HOME or ~/.codex>/auth.json
+    (https://learn.chatgpt.com/docs/auth); Claude Code stores its login at
+    <CLAUDE_CONFIG_DIR or ~/.claude>/.credentials.json, mode 0600
+    (https://code.claude.com/docs/en/authentication). A Console sign-in
+    stored as an Anthropic profile lives under a separate directory
+    (~/.config/anthropic, see _anthropic_profile_signed_in) that this reset
+    never touches at all."""
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    codex_home = Path(os.environ["CODEX_HOME"]) if os.environ.get("CODEX_HOME") else home / ".codex"
+    claude_config_dir = Path(os.environ["CLAUDE_CONFIG_DIR"]) if os.environ.get("CLAUDE_CONFIG_DIR") else home / ".claude"
     backed_up = []
-    for name in (".codex", ".claude"):
-        existing = home / name
-        if existing.exists():
-            backup = home / f"{name}.pre-test-backup-{stamp}"
-            existing.rename(backup)
-            backed_up.append(str(backup))
+    for existing, credential_name in ((codex_home, "auth.json"), (claude_config_dir, ".credentials.json")):
+        if not existing.exists():
+            continue
+        backup = existing.parent / f"{existing.name}.pre-test-backup-{stamp}"
+        existing.rename(backup)
+        backed_up.append(str(backup))
+        credential_file = backup / credential_name
+        if credential_file.is_file():
+            existing.mkdir(parents=True, exist_ok=True)
+            restored = existing / credential_name
+            shutil.copy2(credential_file, restored)
+            try:
+                restored.chmod(0o600)
+            except OSError:
+                pass
     return backed_up
 
 
@@ -338,7 +362,7 @@ def main() -> int:
         home = Path.home()
         backed_up = backup_existing_config(home)
         if backed_up:
-            print("Reset pre-existing configuration (renamed, not deleted):")
+            print("Reset pre-existing configuration (renamed, not deleted; stored auth credentials carried forward):")
             for path in backed_up:
                 print(f"  - {path}")
         else:
