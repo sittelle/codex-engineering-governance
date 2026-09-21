@@ -23,6 +23,7 @@ This matrix is a default. Profiles, threat model, workflow, change class, and re
 | fuzzing | N/A/C | N/A/C | C | C | R when warranted |
 | recovery verification | N/A/C | C for persisted data | C | R for material operated data | R |
 | provenance/signing | N/A/C | C | C/R for distribution | R where ecosystem supports | R |
+| mutation testing | N/A/C | N/A/C | N/A/C | C | R when warranted |
 
 ## Notes
 
@@ -32,6 +33,7 @@ This matrix is a default. Profiles, threat model, workflow, change class, and re
 - A container/IaC capability becomes required because that artifact/boundary exists, not because the project uses GitHub.
 - SA2/SA3 required controls that cannot execute produce incomplete assurance, not a lower assurance level.
 - The matrix defines assurance capability, not a mandatory vendor/tool.
+- Mutation testing checks whether the test suite actually detects deliberately introduced defects, distinct from coverage (which only measures whether code executed, not whether a test would fail if the code were wrong). CONDITIONAL at SA2, REQUIRED where warranted at SA3, NOT_APPLICABLE elsewhere with reason -- `capability-baseline.json`'s own machine-readable entry for it is deferred to the next version cut for the same release-hash-pinning reason `has_license_policy`'s was (see WS5 history); not yet enforceable, but the decision policy is documented here now rather than left undecided.
 
 
 ## Machine-readable companion

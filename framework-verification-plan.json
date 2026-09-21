@@ -39,6 +39,7 @@
           "governance-integrity",
           "registration-conformance",
           "coverage-semantics",
+          "validation-checklist-heuristic",
           "lifecycle-common",
           "lifecycle-windows",
           "lifecycle-posix"
@@ -322,6 +323,34 @@
         "scripts/test-coverage-semantics.py"
       ],
       "reason": "WS7 coverage-floor semantics: above/below-floor measurement, a missing coverage report as a diagnostic-only DID_NOT_EXECUTE that does not affect the decorated check's own result, an unconfigured coverage block behaving exactly as before, and verification-plan schema v2 / report schema v4 carrying no coverage field at all.",
+      "timeout_seconds": 120,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    },
+    {
+      "id": "validation-checklist-heuristic",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-validation-checklist.py"
+      ],
+      "reason": "WS7 business-led link: governance.py project validation-checklist's automated_test keyword heuristic finds a plausibly related test file for an approved capability, does not false-match an unrelated test file, and never matches the purpose item.",
       "timeout_seconds": 120,
       "working_directory": null,
       "environment": {},

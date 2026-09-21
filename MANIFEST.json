@@ -147,6 +147,7 @@
     "scripts/test-management.py",
     "scripts/test-manifest-inventory.py",
     "scripts/test-registration-conformance.py",
+    "scripts/test-validation-checklist.py",
     "scripts/validate-candidate.py",
     "scripts/validate-governance.py",
     "scripts/verify-framework.py",

@@ -1251,17 +1251,66 @@ CAPABILITY_CHECKLIST_ITEMS = {
     "elevated_access": "It only uses the extra access it has for the specific task that needs it.",
 }
 
+# Keywords a test's file name or content plausibly mentions when it exercises
+# a given capability. This is a heuristic presence indicator, not a formal
+# acceptance-criteria-to-test link: the framework has no acceptance-criteria
+# file format yet (see workflows/new-feature/WORKFLOW.md's ACCEPTANCE
+# CRITERIA step for where such criteria are recorded today -- in the change
+# record, not a structured file governance.py can parse). A match means "a
+# test plausibly related to this capability exists somewhere in the test
+# tree"; it does not verify the test is correct, sufficient, or actually
+# covers the registered behavior.
+CAPABILITY_TEST_KEYWORDS = {
+    "network_connections": ("network", "http", "request", "connection", "api_call", "fetch"),
+    "persistence": ("persist", "database", "storage", " save", "_save", "db_", "_db", "repository"),
+    "authentication": ("auth", "login", "session", "credential", "password"),
+    "write_or_delete_actions": ("delete", "remove", "destroy", "destructive"),
+    "cloud": ("cloud", "s3", "azure", "gcp", "bucket"),
+    "external_recipients": ("email", "notify", "notification", "recipient", "smtp", "mail"),
+    "elevated_access": ("privilege", "elevated", "admin", "sudo", "root_"),
+}
+
+TEST_FILE_SUFFIXES = {".py", ".ts", ".tsx", ".js", ".jsx"}
+
+
+def project_test_files(project: Path) -> list[Path]:
+    found: list[Path] = []
+    for name in ("tests", "test"):
+        directory = project / name
+        if directory.is_dir():
+            found.extend(p for p in directory.rglob("*") if p.is_file() and p.suffix in TEST_FILE_SUFFIXES)
+    return sorted(set(found))
+
+
+def heuristic_automated_tests(test_files: list[Path], project: Path, keywords: tuple[str, ...]) -> list[str]:
+    matches = []
+    for path in test_files:
+        haystack = path.name.lower()
+        if not any(kw in haystack for kw in keywords):
+            try:
+                haystack = path.read_text(encoding="utf-8", errors="ignore").lower()
+            except Exception:
+                continue
+            if not any(kw in haystack for kw in keywords):
+                continue
+        matches.append(path.relative_to(project).as_posix())
+    return sorted(matches)
+
 
 def build_validation_checklist(project: Path) -> dict:
     """Generate the plain-language business validation checklist from the
-    registration's purpose and approved capabilities.
+    registration's purpose and approved capabilities, and, for each
+    capability item, a heuristic list of test files that plausibly exercise
+    it (WS7).
 
-    KNOWN LIMITATION: WS7 (not yet built) links this checklist to the same
-    acceptance criteria the project's automated tests trace to, and shows
-    per-item test coverage. Until WS7 exists, items are derived from the
-    registration's purpose and capability flags only, not from acceptance
-    criteria, since the registration schema has no acceptance-criteria field
-    and none is recorded elsewhere in the framework yet.
+    KNOWN LIMITATION: this is a keyword-based presence heuristic over the
+    project's tests/ tree, not a formal acceptance-criteria-to-test link --
+    the registration schema has no acceptance-criteria field, and no
+    structured acceptance-criteria format exists elsewhere in the framework
+    for this to bind to. A populated automated_test list means a plausibly
+    related test file exists; it does not mean the criterion is actually,
+    correctly covered. The purpose item has no keyword to search for and
+    stays null.
     """
     manifest = project / "project-governance.yml"
     if not manifest.is_file():
@@ -1273,6 +1322,7 @@ def build_validation_checklist(project: Path) -> dict:
     reg_text = read_text(registration_path)
     validate_registration(reg_text)
     data = parse_registration(reg_text)
+    test_files = project_test_files(project)
 
     items = [
         {
@@ -1283,7 +1333,8 @@ def build_validation_checklist(project: Path) -> dict:
     ]
     for key, description in CAPABILITY_CHECKLIST_ITEMS.items():
         if data.get("capabilities", {}).get(key):
-            items.append({"item": description, "source": f"capability:{key}", "automated_test": None})
+            matches = heuristic_automated_tests(test_files, project, CAPABILITY_TEST_KEYWORDS[key])
+            items.append({"item": description, "source": f"capability:{key}", "automated_test": matches or None})
 
     return {
         "schema_version": "1",
@@ -1293,8 +1344,10 @@ def build_validation_checklist(project: Path) -> dict:
         "registration_id": data.get("registration_id"),
         "items": items,
         "note": (
-            "automated_test is always null today: WS7 will populate it once acceptance-criteria-to-test "
-            "traceability exists. Check each item yourself before relying on this software for real work."
+            "automated_test is a keyword-based heuristic over tests/ (or test/), not a verified "
+            "acceptance-criteria link -- a match means a plausibly related test file exists, not that "
+            "the criterion is actually covered. Check each item yourself before relying on this software "
+            "for real work."
         ),
     }
 
