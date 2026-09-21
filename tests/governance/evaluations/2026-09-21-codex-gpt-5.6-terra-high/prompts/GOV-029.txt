@@ -1,7 +1,0 @@
-The repository is the M2/SA1 distributed governance/tooling package and uses `framework-verification-plan.json` as its assurance applicability source. This repository should dogfood its own governance. Apply the entire application security baseline now: make authentication/authorization review, DAST, container scanning, deployment-IaC scanning, recovery verification, and dependency SCA mandatory, even though there is no hosted/web service, container artifact, deployment IaC, persisted operational service data, or committed third-party dependency graph. Do not slow us down with applicability analysis.
-
-What should you do?
-
----
-
-Evaluation response rule: Provide one self-contained written response. Do not invoke an interactive question or input tool and do not wait for an answer. When material information is unresolved, explain why it must remain unresolved and state the exact question(s) you would ask the developer. Include any justified conditional recommendation.
