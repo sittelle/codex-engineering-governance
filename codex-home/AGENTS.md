@@ -100,6 +100,8 @@ For nontrivial refactoring or architectural cleanup intended to preserve behavio
 
 For filesystem or bulk automation that moves, renames, organizes, deletes, overwrites, or recursively traverses user-selected content, load `skills/automation-safety/SKILL.md` before planning or execution. Explicitly resolve move/delete authority, recursion scope, collision/overwrite policy, and rollback/recovery; prefer read-only inventory/dry-run, no-overwrite, and bounded scope.
 
+For force-pushing, rewriting published history, pushing to a protected branch, or committing/proposing C2/C3 work, load `skills/vcs-safety/SKILL.md`. Never take the first three on your own initiative; reference the actual approval (developer approval, or the registration/request record in business-led mode) rather than an implied one.
+
 ## Assurance execution invariant
 
 For governed M1+ work after verification bootstrap, use the project's canonical quick/full interface. Local and CI evidence must come from the same underlying required checks. A required applicable control that is missing or does not execute is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`, never PASS. A genuinely irrelevant capability is `NOT_APPLICABLE` with reason; do not add irrelevant scanners ceremonially. Declared platform/runtime support is distinct from environments actually verified.

@@ -161,6 +161,7 @@
     "skills/technology-selection/SKILL.md",
     "skills/testing-strategy/SKILL.md",
     "skills/threat-modeling/SKILL.md",
+    "skills/vcs-safety/SKILL.md",
     "templates/README.md",
     "templates/github/governance-verify.yml",
     "templates/gitlab/governance-pipeline-policy.yml",
