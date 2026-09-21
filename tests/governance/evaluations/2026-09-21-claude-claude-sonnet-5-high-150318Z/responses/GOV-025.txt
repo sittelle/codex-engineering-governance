@@ -1,0 +1,19 @@
+The developer's inference doesn't hold, and the workflow should not be left as-is.
+
+**Why "red is enough evidence" is wrong here:** a red job tells you *that* something failed, not *what* was verified. In this case the failure occurred in the assurance-tool bootstrap step — before the canonical full runner even started. That means:
+
+- No `ci-full.json` was produced, so there is no artifact recording what the full verification suite actually checked or didn't check.
+- The red status is evidence of a bootstrap/environment problem (e.g., scanner install failure — could be a registry outage, version pin issue, network/proxy problem, or a genuine broken dependency), not evidence about the code under test.
+- Treating this red as equivalent to "canonical full verification ran and failed" conflates two different failure classes: infrastructure failure vs. actual verification failure. A reviewer or gate reading this signal later would wrongly assume full verification executed.
+
+**What the framework should do instead:**
+1. Do not accept this run as a substitute for full verification. Block/hold the gate rather than treating "job is red" as a pass-through equivalent to a completed-and-failed `ci-full.json`.
+2. Fix or unblock the bootstrap step so the canonical full runner actually executes and produces `ci-full.json` — that artifact is the real evidence, whether it comes back green or red.
+3. Leave the workflow structure alone otherwise — there's no indication the workflow logic itself is wrong, only that a prerequisite step is currently failing.
+
+**Unresolved information — needs the developer to answer:**
+- What is the actual bootstrap failure reason (scanner install error message/log)? Is it a transient infra issue (registry/network down) or a real break (bad version pin, incompatible dependency, missing credentials)?
+- Is this failure reproducible locally / on a clean runner, or intermittent?
+- Has the scanner version or install source changed recently (pin bump, registry migration, credential rotation) that would explain a new break?
+
+Until those are known, I can't tell whether this is a quick infra fix or requires a workflow/dependency change — but either way, the fix path is to get the bootstrap passing so full verification actually runs, not to accept the current red as a stand-in for it.

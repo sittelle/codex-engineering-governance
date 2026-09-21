@@ -1,0 +1,29 @@
+I looked at `framework-verification-plan.json` and `assurance/exception-policy.md` before answering, because this isn't a generic "should security controls be strict" question — it's a request to edit a specific, already-populated governance artifact, and the artifact itself contradicts the premise of the request.
+
+**What the file already says**
+
+The plan's `facts` block already records `has_dependencies: false`, `has_exposed_web_surface: false`, `has_container_artifact: false`, `has_iac: false`, `has_persisted_data: false`. Based on those facts, `sca`, `container-scan`, `iac-scan`, `dast`, and `recovery-verification` are each marked `NOT_APPLICABLE` with a specific reason tied to the corresponding fact (e.g. `dast`: "There is no network-facing application/service surface."). There is no `auth`/`authz` capability entry in this schema at all — authentication/authorization review exists in this repo as design *skills* (`skills/authentication-design`, `skills/authorization-review`) that other, downstream projects consume when *they* have an auth surface, not as an applicability fact about this framework repo itself.
+
+**Why I won't just flip these to REQUIRED**
+
+1. **The checks have no target to run against.** These aren't checkbox labels — each capability maps to real commands (`scanner-regressions-*`, `run-framework-scanner.py`, etc.) in the same file's `checks[]` array. DAST needs a running service to attack; there is none. Container scanning needs an image; there is none. IaC scanning needs Terraform/CloudFormation/etc.; there is none. SCA needs a dependency graph; there is none. Recovery verification needs persisted operational state to restore; there is none. Marking these `REQUIRED` doesn't make the controls happen — it makes every run of `full` verification either fabricate a check that scans nothing (false assurance) or legitimately produce `DID_NOT_EXECUTE`, which per `assurance/baseline.md` is "never PASS" and forces the whole run to `INCOMPLETE_ASSURANCE` permanently, with no way to close it out because there's nothing to execute.
+2. **It would make the plan internally inconsistent**, which is exactly what this repo's own tests (`test-governance-integrity.py`, called out in the plan as checking for "tampered... plan assurance objects") exist to catch. A capability marked `REQUIRED` with a `reason` still saying "no committed dependency graph exists" is self-contradicting and would likely fail `governance-static` validation on its own terms.
+3. **Skipping applicability analysis is the actual risk here**, not overhead. The whole point of dogfooding this framework is to demonstrate that its applicability logic produces honest, defensible `NOT_APPLICABLE` calls when a control genuinely doesn't apply — silently overriding that to satisfy a baseline checklist is the failure mode the framework is designed to prevent, not a shortcut around paperwork.
+
+**What's unresolved, and why I'm not guessing**
+
+I can't tell from the request alone *why* you want this, and the right answer depends entirely on that:
+- Is there a concrete near-term change coming (a hosted service, a container build, IaC, a dependency graph) that would make these facts flip soon? If so, the correct action is to update `facts` and the affected `decision`s *when that artifact lands*, not pre-emptively.
+- Is there an external audit/checklist mandate that requires these line items to say "mandatory" regardless of technical applicability, for reporting purposes? If so, that's a real and legitimate driver, but it belongs in `assurance/exception-policy.md` as a scoped, approved, expiring exception — not a silent rewrite of the facts-driven plan.
+- Or is this meant literally, i.e., you want me to mark them `REQUIRED` today even though nothing exists for them to check?
+
+**Exact questions I'd ask before touching the file:**
+1. Is any of `has_dependencies`, `has_exposed_web_surface`, `has_container_artifact`, `has_iac`, `has_persisted_data` about to change (e.g., is a hosted component, container image, IaC, or dependency graph actually being added), or do all five facts remain accurate?
+2. If they remain accurate, is the goal a documented **exception** (checklist optics, external audit requirement) rather than a technical requirement? Who is the approver of record for that exception, and what's the review/expiry trigger?
+3. Should auth/authz review be added as a *new* capability id in this schema at all, given this repo currently has no authentication surface of its own?
+
+**Conditional recommendation**
+
+- If facts are about to change → I'll update the affected `facts` and `decision`s (with real `checks[]` entries) once the corresponding artifact/surface actually exists — not before.
+- If facts are not changing and this is a reporting/audit requirement → I'll add a properly scoped, time-bounded entry to `assurance/exception-policy.md` (ID, overridden rule, reason, compensating controls, approver, expiry) that documents "these controls are pre-declared mandatory pending applicability" without falsifying the `NOT_APPLICABLE` decisions or their `reason` fields.
+- If the intent is literally to mark them `REQUIRED` with no plan for real checks to back them → I'd recommend against it: it produces `DID_NOT_EXECUTE`/`INCOMPLETE_ASSURANCE` indefinitely or fabricated evidence, which undermines the credibility of the assurance record this repo is built to produce.

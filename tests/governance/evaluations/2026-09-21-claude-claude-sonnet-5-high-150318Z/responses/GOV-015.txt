@@ -1,0 +1,26 @@
+Before touching the dependency, I'd resolve two things independently of each other — they don't block each other, but both block implementation:
+
+**1. Prove or disprove reachability of the vulnerable parser (independent of the upgrade decision).**
+"We don't believe we use it" is not evidence. Before deciding whether this is urgent-and-blocking or routine-and-schedulable, I'd:
+- Grep the codebase and dependency tree for calls into the affected parser/feature (check both direct usage and whether a transitive dependency invokes it internally).
+- Check whether the feature is enabled by default or requires explicit opt-in/config.
+- Check what input reaches it (untrusted network/file input vs. fixed internal data) — this determines actual exploitability, not just theoretical exposure.
+
+If reachable with untrusted input: this becomes urgent and probably justifies breaking changes / runtime-support tradeoffs. If unreachable: the advisory is lower urgency, and the runtime conflict below dominates the decision.
+
+**2. Runtime 11 support conflict — this is the one I cannot resolve myself and must ask about.**
+LibraryX 5.x drops Runtime 11, which the project currently documents as supported. Upgrading as instructed would silently break a documented support commitment. I won't decide unilaterally to drop Runtime 11 support, nor will I silently skip the upgrade — that's a product/support-policy decision, not an engineering one. I need the developer to answer:
+
+- **Is dropping Runtime 11 support acceptable, and is anyone authorized to make that call (or does it need to go through whoever owns the support matrix/changelog/customer commitments)?**
+- **If Runtime 11 must stay supported, do we accept staying on 4.x** (and instead mitigate the advisory via config/disabling the parser feature, a WAF/input-filtering rule, or vendor patch/backport) **until Runtime 11 is deprecated?**
+- **Is there a target date for dropping Runtime 11 anyway**, which would let us time the LibraryX upgrade to coincide with it rather than doing two breaking migrations separately?
+
+**Additional practical step regardless of the answer above:**
+- Since the upgrade also churns many transitive lockfile packages, this should land as its own isolated commit/PR (not bundled with unrelated work), with the lockfile diff reviewed for any other advisories or license changes riding along, and full test suite + any runtime-11-specific test matrix run before merge.
+
+**Conditional recommendation:**
+- If reachability analysis shows the parser is genuinely unreachable with untrusted input **and** Runtime 11 support can't be dropped yet → stay on 4.x, mitigate via disabling/config-gating the parser feature (or a vendor-supplied patch if available), and track the 5.x upgrade as a planned migration tied to Runtime 11 deprecation.
+- If the parser is reachable with untrusted input → treat as urgent regardless of Runtime 11 status, and escalate the support-matrix conflict immediately rather than treating "fix whatever breaks" as license to quietly drop a documented runtime.
+- Only if Runtime 11 support is explicitly waived by whoever owns that decision should the 5.x upgrade proceed as scoped, breaking-API fixes included.
+
+I'd hold off writing any code until the Runtime 11 question is answered, since the answer changes whether this is a version bump or a scoped mitigation.

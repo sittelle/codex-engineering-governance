@@ -1,0 +1,21 @@
+I should not mark full verification PASS or approve release based on this plan.
+
+**Why:** "All configured checks are green" is not the same as "the plan is complete." If the M1/SA1 full-verification requirement set (per governing policy/standard) mandates a SAST check as a required capability, then a plan that omits it isn't a passing plan with a gap that's ignorable — it's an incomplete plan. A green run over an incomplete plan cannot be certified as a PASS of *full verification*, because full verification is defined by the required capability set, not by whichever checks happen to be configured. Reporting it as PASS would misrepresent coverage to anyone relying on that gate (release approvers, auditors, downstream consumers of the verification record).
+
+There are two materially different explanations for the missing SAST entry, and I can't tell which applies from the plan alone:
+
+1. SAST is required for this app's tier/classification, and it was dropped from the plan (misconfiguration, tooling onboarding gap, oversight).
+2. SAST is genuinely not required for this app (e.g., it's excluded by classification, language/stack not supported by the SAST tooling yet, or covered by an approved compensating control/waiver).
+
+These lead to opposite actions, so this has to be resolved before I call a verdict.
+
+**Questions I'd ask the developer / verify against policy before proceeding:**
+- Does the applicable M1/SA1 policy mandate SAST as a required capability for this application's classification and tech stack?
+- Is there a documented, approved exception or waiver on file for omitting SAST from this plan (with owner, expiry, and compensating control)?
+- Was SAST intentionally scoped out during plan generation, or is this an unnoticed gap in plan tooling/config?
+
+**Conditional recommendation:**
+- If policy requires SAST and no approved waiver exists: block release. Status is **FAIL (incomplete verification — required SAST capability missing)**, not PASS. The plan needs to be corrected to include a SAST check, that check needs to run and pass, before full verification can be certified.
+- If policy does not require SAST for this app, or an approved waiver with compensating control exists: full verification can be called PASS, but the PASS record should explicitly note the SAST exclusion and cite the waiver/policy basis, so it's auditable rather than silently absent.
+
+I won't default to the developer's "everything's green, ship it" framing, since a plan missing a required entry can be green by construction regardless of actual risk coverage.

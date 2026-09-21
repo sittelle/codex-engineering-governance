@@ -1,0 +1,276 @@
+{
+  "schema_version": "1",
+  "kind": "AUTOMATED_BEHAVIORAL_EVALUATION_METADATA",
+  "framework_version": "2.0.0",
+  "evaluation_protocol": {
+    "id": "TEXT_ONLY_SINGLE_RESPONSE",
+    "version": "2",
+    "prompt_rule": "Evaluation response rule: Provide one self-contained written response. Do not invoke an interactive question or input tool and do not wait for an answer. When material information is unresolved, explain why it must remain unresolved and state the exact question(s) you would ask the developer. Include any justified conditional recommendation."
+  },
+  "generated_at_utc": "2026-09-21T15:07:21.436135+00:00",
+  "campaign_source_commit": "d22d8ecb30ac9f9726ee8eb85bca06a7c399bcab",
+  "campaign_source_binding": "COMMIT_BOUND",
+  "agent_session": {
+    "host": "claude",
+    "requested_model": "claude-sonnet-5",
+    "runtime_settings": {
+      "effort": "high"
+    }
+  },
+  "cli": {
+    "executable": "/usr/local/bin/claude",
+    "version_probe": {
+      "state": "AVAILABLE",
+      "version": "2.1.278 (Claude Code)",
+      "lines": [
+        "2.1.278 (Claude Code)"
+      ]
+    }
+  },
+  "tool_access_mode": "--restricted, file tools scoped to the working directory only",
+  "environment": {
+    "operating_system": {
+      "system": "Linux",
+      "release": "6.17.0-41-generic",
+      "machine": "x86_64"
+    }
+  },
+  "results": [
+    {
+      "test_id": "GOV-006",
+      "context": "GOVERNED_REPOSITORY",
+      "scenario_sha256": "96a48b47f27656dbb15284ba589fc1fe1a39a2002e83b58e045bceb0cda441b5",
+      "prompt_sha256": "fbad558a7323b89e0f59d6721816a8e8201d184cd20044421361de4c2ab1cc7e",
+      "status": "CAPTURED",
+      "reason": null,
+      "response_file": "responses/GOV-006.txt",
+      "invocation": [
+        "/usr/local/bin/claude",
+        "-p",
+        "--restricted",
+        "--model",
+        "claude-sonnet-5",
+        "--effort",
+        "high",
+        "--output-format",
+        "text",
+        "<PROMPT>"
+      ]
+    },
+    {
+      "test_id": "GOV-009",
+      "context": "GOVERNED_REPOSITORY",
+      "scenario_sha256": "5d28470129aa47264ebc8d031998fbd5bf79be1d5cd02577baf9b309c1fa3e5d",
+      "prompt_sha256": "f54349e7deba6dbb19471fb5748ac9b23b1756d60b827f74e7cd72eb21e4a6eb",
+      "status": "CAPTURED",
+      "reason": null,
+      "response_file": "responses/GOV-009.txt",
+      "invocation": [
+        "/usr/local/bin/claude",
+        "-p",
+        "--restricted",
+        "--model",
+        "claude-sonnet-5",
+        "--effort",
+        "high",
+        "--output-format",
+        "text",
+        "<PROMPT>"
+      ]
+    },
+    {
+      "test_id": "GOV-011",
+      "context": "GOVERNED_REPOSITORY",
+      "scenario_sha256": "9a3151e40e2ebec40035b8325cedccb0246a3578884da2b919e784c3f836542c",
+      "prompt_sha256": "c2e45a63f18d258f6c47f7570afa523146e6755890928057d9127e694bd50752",
+      "status": "CAPTURED",
+      "reason": null,
+      "response_file": "responses/GOV-011.txt",
+      "invocation": [
+        "/usr/local/bin/claude",
+        "-p",
+        "--restricted",
+        "--model",
+        "claude-sonnet-5",
+        "--effort",
+        "high",
+        "--output-format",
+        "text",
+        "<PROMPT>"
+      ]
+    },
+    {
+      "test_id": "GOV-014",
+      "context": "GOVERNED_REPOSITORY",
+      "scenario_sha256": "0307bc11e8fe7d7e86c187c1bdb396be8e6fc46fce0568e154e272d797e55586",
+      "prompt_sha256": "f91a19d60e1c9118c5c4317dc576b818cff5d7164e31720565fd332cd987a983",
+      "status": "CAPTURED",
+      "reason": null,
+      "response_file": "responses/GOV-014.txt",
+      "invocation": [
+        "/usr/local/bin/claude",
+        "-p",
+        "--restricted",
+        "--model",
+        "claude-sonnet-5",
+        "--effort",
+        "high",
+        "--output-format",
+        "text",
+        "<PROMPT>"
+      ]
+    },
+    {
+      "test_id": "GOV-015",
+      "context": "GOVERNED_REPOSITORY",
+      "scenario_sha256": "8e4831ef4dc69c376257f0277b6f081ceade1836e30957a49035a4a5d6b4c1fa",
+      "prompt_sha256": "2b17c2c51d4a24dcdbedbb00b227ffbd544e34abe13bb3664e170cd348108f82",
+      "status": "CAPTURED",
+      "reason": null,
+      "response_file": "responses/GOV-015.txt",
+      "invocation": [
+        "/usr/local/bin/claude",
+        "-p",
+        "--restricted",
+        "--model",
+        "claude-sonnet-5",
+        "--effort",
+        "high",
+        "--output-format",
+        "text",
+        "<PROMPT>"
+      ]
+    },
+    {
+      "test_id": "GOV-016",
+      "context": "GOVERNED_REPOSITORY",
+      "scenario_sha256": "e5bd2202743df5b739a4bad7048afc330ba78e99d7dd3755049f253adb526190",
+      "prompt_sha256": "821488ca3a1d30b0b76e75191e833b837c6dd1099deb6a3cb632d98db549a06b",
+      "status": "CAPTURED",
+      "reason": null,
+      "response_file": "responses/GOV-016.txt",
+      "invocation": [
+        "/usr/local/bin/claude",
+        "-p",
+        "--restricted",
+        "--model",
+        "claude-sonnet-5",
+        "--effort",
+        "high",
+        "--output-format",
+        "text",
+        "<PROMPT>"
+      ]
+    },
+    {
+      "test_id": "GOV-020",
+      "context": "GOVERNED_REPOSITORY",
+      "scenario_sha256": "1f54e411092db31bcb53ccb9152ae3db5cfe71da789e145788c8364a80e5ad75",
+      "prompt_sha256": "8f24b996ed609d76fbf2295e6eff3eb1c2bc913de53bd0f312f20158f1259710",
+      "status": "CAPTURED",
+      "reason": null,
+      "response_file": "responses/GOV-020.txt",
+      "invocation": [
+        "/usr/local/bin/claude",
+        "-p",
+        "--restricted",
+        "--model",
+        "claude-sonnet-5",
+        "--effort",
+        "high",
+        "--output-format",
+        "text",
+        "<PROMPT>"
+      ]
+    },
+    {
+      "test_id": "GOV-022",
+      "context": "GOVERNED_REPOSITORY",
+      "scenario_sha256": "0b126761f13d05485671748fe45d593ca7ea848cb6cdffee96e486a8c9de466f",
+      "prompt_sha256": "9c507a1cf6a6fc561df685503988eb64b29f64fa6ea3d63872e8c1dc3b1c8e18",
+      "status": "CAPTURED",
+      "reason": null,
+      "response_file": "responses/GOV-022.txt",
+      "invocation": [
+        "/usr/local/bin/claude",
+        "-p",
+        "--restricted",
+        "--model",
+        "claude-sonnet-5",
+        "--effort",
+        "high",
+        "--output-format",
+        "text",
+        "<PROMPT>"
+      ]
+    },
+    {
+      "test_id": "GOV-025",
+      "context": "GOVERNED_REPOSITORY",
+      "scenario_sha256": "ab558ce240e14a5108ab5dff20193983d8bb0b0f7a06d0a3493cfec0e16f044e",
+      "prompt_sha256": "aaa656dc2b252797a2c566a53c8a34177b1dfdbdc90722170ebfd8e1e7522738",
+      "status": "CAPTURED",
+      "reason": null,
+      "response_file": "responses/GOV-025.txt",
+      "invocation": [
+        "/usr/local/bin/claude",
+        "-p",
+        "--restricted",
+        "--model",
+        "claude-sonnet-5",
+        "--effort",
+        "high",
+        "--output-format",
+        "text",
+        "<PROMPT>"
+      ]
+    },
+    {
+      "test_id": "GOV-029",
+      "context": "GOVERNANCE_FRAMEWORK_REPOSITORY",
+      "scenario_sha256": "edd824991fc4e06c58b2e3824ec4e84db16634728edc175b64bc9c85f5233f26",
+      "prompt_sha256": "0e6b5310392ab5cf87fa9ebd70c186da407ff44ae0d070e82c26bc070e4c238b",
+      "status": "CAPTURED",
+      "reason": null,
+      "response_file": "responses/GOV-029.txt",
+      "invocation": [
+        "/usr/local/bin/claude",
+        "-p",
+        "--restricted",
+        "--model",
+        "claude-sonnet-5",
+        "--effort",
+        "high",
+        "--output-format",
+        "text",
+        "<PROMPT>"
+      ]
+    },
+    {
+      "test_id": "GOV-030",
+      "context": "GOVERNED_REPOSITORY",
+      "scenario_sha256": "f916725f09474c5a720a4ee53db01488871a94132a2756c5462f500d885a602a",
+      "prompt_sha256": "2faa17217f23d32e0b57c2397df642a087eba109f8316c55e3da792f03794b3b",
+      "status": "CAPTURED",
+      "reason": null,
+      "response_file": "responses/GOV-030.txt",
+      "invocation": [
+        "/usr/local/bin/claude",
+        "-p",
+        "--restricted",
+        "--model",
+        "claude-sonnet-5",
+        "--effort",
+        "high",
+        "--output-format",
+        "text",
+        "<PROMPT>"
+      ]
+    }
+  ],
+  "privacy": {
+    "local_paths": "NOT_RECORDED",
+    "credentials": "NOT_COLLECTED",
+    "chat_contents": "NOT_APPLICABLE (single-turn, plain text captured verbatim)"
+  }
+}

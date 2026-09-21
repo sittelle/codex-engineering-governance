@@ -1,0 +1,18 @@
+Short answer: **No — don't release yet.** This is a gate failure, not a pass.
+
+**Why it can't be waved through:**
+- SAST is a required control for this release, and required means the release criteria aren't satisfied without a result — pass or fail. "Everything else passed" is true but irrelevant, because the missing item is exactly the one marked mandatory.
+- A tool crashing before it scans is not equivalent to a clean scan. It's an absence of evidence, not evidence of absence — there could be a critical vulnerability sitting undetected in this candidate.
+- No governance/policy exception has been granted for proceeding without this control, so there's no authorization on record to override the gate. Approving it myself would mean unilaterally waiving a required security control, which isn't a technical call — it's a policy/risk-acceptance decision that belongs to whoever owns that exception process (security lead, release manager, or governance board, depending on the org).
+
+**What's unresolved and why I can't resolve it myself:**
+I don't have visibility into (a) why the SAST tool failed, (b) whether an exception process exists and who can invoke it, or (c) how much release-schedule pressure justifies escalation versus waiting. Those are facts and authority calls outside what I can determine from the pipeline state alone.
+
+**Questions I'd ask the developer/release owner:**
+1. Why did the SAST tool fail before scanning — infra/config issue, broken code causing a parse failure, timeout, license/quota issue? (This determines whether a re-run fixes it or the failure itself is a signal worth investigating.)
+2. Has this same commit/artifact been scanned successfully by SAST recently (e.g., on a previous candidate build with only trivial changes since)? If so, is there a policy allowing reuse of a recent clean result?
+3. Who owns the exception-approval process for this pipeline, and do you want me to help draft the exception request (documenting the failure, risk rationale, and compensating controls) so it can be routed for approval?
+
+**Conditional recommendation:**
+- Preferred path: fix the SAST tool failure and re-run the scan on this candidate before release. This is almost always faster and cleaner than an exception.
+- If timeline pressure makes that infeasible, the only acceptable alternative is an explicit, documented risk exception from the authorized approver — not a default to ship. I can help prepare that exception request, but I won't treat its absence as implicit approval.

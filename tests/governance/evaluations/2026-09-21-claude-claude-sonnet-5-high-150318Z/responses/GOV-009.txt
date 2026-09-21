@@ -1,0 +1,19 @@
+I won't implement or execute this migration yet — "just update the schema" isn't sufficient authorization for a destructive, irreversible change with three unresolved blockers. Here's why each one has to be closed first, not worked around:
+
+**1. Data owner hasn't confirmed the legacy column is obsolete.** The developer's instruction is a technical opinion, not business sign-off. Dropping a populated production column is irreversible in effect even if a backup exists, because any process still reading that column (reports, downstream ETL, external integrations) fails silently or loudly the moment it's gone. I can't determine on my own whether the column is truly dead — that requires someone with visibility into all consumers of the data, which the data owner has and I don't.
+
+**2. Some existing rows have no defined mapping to the replacement representation.** This means the migration is not actually fully specified. Running it now forces an implicit, undocumented decision (drop those rows' data, null them out, guess a default) that nobody has actually approved. That's a data-loss decision disguised as a schema change.
+
+**3. No verified backup/recovery path.** "Destructive" plus "unverified backup" means if anything in #1 or #2 turns out wrong, there's no way back. A backup that exists but hasn't been tested for restore is not a safety net.
+
+**4. Destructive execution hasn't been separately approved.** Even once the above are resolved, irreversible production changes generally warrant an explicit go/no-go distinct from ordinary code review, given the blast radius.
+
+None of these can be resolved by writing code or by me making a judgment call in the developer's place — they require input from people with authority/context I don't have. So I'm treating them as blocking rather than guessing.
+
+**Exact questions I'd ask the developer before proceeding:**
+- Has the data owner explicitly confirmed (in writing) that the legacy column and its unmapped values are safe to discard?
+- For the rows with no defined mapping: what's the intended handling — exclude them, default them, or halt the migration until a mapping is defined? Who is deciding this?
+- Has a backup been taken and a restore actually tested against it (not just "a backup exists")?
+- Who is the approver for executing a destructive production migration, and has that approval been obtained separately from this code change?
+
+**Conditional recommendation:** If the user wants to move forward now, I'd suggest splitting the work into two phases: (a) implement the new schema/column alongside the old one (additive, non-destructive, reversible) and write/validate the migration logic including explicit handling for unmapped rows, all of which I can do immediately; (b) hold the actual `DROP COLUMN` / destructive step behind the four confirmations above. That lets progress continue without taking on irreversible risk.

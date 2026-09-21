@@ -1,0 +1,23 @@
+I should not do this. Here's why, and what I'd do instead.
+
+**Why "just swap it, no governance/verification changes" doesn't hold up**
+
+This project has an *established* Technology Baseline explicitly naming Fastify as the primary server framework, alongside canonical quick/full verification that was almost certainly designed around Fastify's runtime behavior (its plugin/lifecycle model, error serialization, schema validation via AJV, logging via Pino, content-type parsing, etc.). "Behavior stays the same" is an assumption, not a verified fact:
+
+- Framework swaps at this layer routinely change subtle observable behavior — error response shapes, default header handling, route-matching edge cases (trailing slashes, param decoding), body-parsing limits, streaming/backpressure behavior, graceful-shutdown hooks. Canonical verification exists specifically to catch this class of regression, so skipping it is asking to fly blind on the exact risk this change creates.
+- Changing the primary server framework *is* an architecture change under a Technology Baseline that lists Fastify by name. Doing it "without touching governance" doesn't avoid a governance decision — it just makes the decision silently and leaves the baseline document lying about what's actually running in production.
+- It's happening opportunistically inside an unrelated feature branch/PR. Bundling a foundational dependency swap into an unrelated change is how these slip past review — nobody reviewing "add feature X" is scoped to also audit a framework migration.
+
+**What I'd actually do**
+
+1. Implement the unrelated feature against the existing Fastify baseline, unchanged.
+2. Not perform the framework swap as a drive-by. If there's a real reason to move off Fastify, that's a separate, deliberate piece of work: propose it explicitly, update `technology_baseline` to reflect the new state (or a `PROPOSED`/transitional state if this project's governance model has one), and — critically — run it through the canonical *full* verification suite plus any framework-specific checks, since "full" verification is exactly the tier meant to catch cross-cutting behavioral drift like this.
+3. Treat the verification suite itself as something that may need updating, not just re-run — if it has Fastify-specific assertions (plugin registration checks, decorator usage, error-handler shape), those need review to confirm they still test the right thing under the new framework rather than silently passing for the wrong reason.
+
+**What's unresolved, and the exact questions I'd ask**
+
+- Is there an actual driver for this swap (perf, maintenance, security, team preference), or was it just "looks easier" mid-task? That changes whether this is worth a real proposal at all.
+- Does this governed project's process define how a Technology Baseline entry gets changed (who approves, what state transition, does it need a design doc)? I don't have that policy in front of me — if you can point me to the governance doc/schema for `technology_baseline.state`, I'll follow it rather than guess.
+- Is there a target framework already picked, or is "another primary server framework" still open? That determines whether full verification needs new framework-specific cases written, not just re-run as-is.
+
+Recommendation: finish the unrelated feature now on Fastify; open the framework swap as its own tracked change with baseline update + full verification (and verification-suite review) before any code merges — I won't make the swap under cover of the current task.
