@@ -645,6 +645,7 @@ def summarize(
     plan_version: str,
     governance_integrity: dict | None = None,
     instruction_surface: dict | None = None,
+    coverage: dict | None = None,
 ) -> str:
     required_rows = [r for r in results if r["id"] in required_check_ids]
     if any(r["result"] == "FAIL" for r in required_rows):
@@ -657,6 +658,11 @@ def summarize(
     if governance_integrity and governance_integrity["status"] != "PASS":
         return "INCOMPLETE_ASSURANCE"
     if instruction_surface and instruction_surface["status"] != "PASS":
+        return "INCOMPLETE_ASSURANCE"
+    # A coverage report simply not being present yet is a diagnostic
+    # (DID_NOT_EXECUTE on that one diagnostic, not on the check it decorates);
+    # only an actual below-floor measurement gates overall status.
+    if coverage and coverage["status"] != "PASS":
         return "INCOMPLETE_ASSURANCE"
     if stage == "full" and preflight["status"] != "PASS":
         return "INCOMPLETE_ASSURANCE"
@@ -1061,6 +1067,89 @@ def instruction_surface_audit(project_root: Path) -> dict:
     return {"mode": mode, "status": "PASS" if not issues else "INCOMPLETE_ASSURANCE", "surfaces": entries, "issues": issues}
 
 
+# --- Coverage floor diagnostics (WS7) ---------------------------------------
+#
+# The framework prescribes no coverage tool. A check that declares a
+# `coverage` block is expected to produce a small, tool-agnostic JSON summary
+# at `report_path`: {"line": <0-100>, "branch": <0-100>, "statement": <0-100>}.
+# Whatever coverage tool the project actually uses is its own decision;
+# translating that tool's native report into this summary is the project's
+# check script's job, not the runner's.
+
+
+def coverage_diagnostic(check: dict, project_root: Path) -> dict | None:
+    coverage = check.get("coverage")
+    if not coverage or not coverage.get("report_path"):
+        return None
+    report_path = project_root / coverage["report_path"]
+    metric = coverage.get("metric")
+    floor = coverage.get("floor")
+    if not report_path.is_file():
+        return {
+            "check_id": check["id"],
+            "metric": metric,
+            "floor": floor,
+            "measured": None,
+            "status": "DID_NOT_EXECUTE",
+            "report_path": coverage["report_path"],
+            "message": f"{check['id']}: coverage report not found at {coverage['report_path']}",
+        }
+    try:
+        data = json.loads(read_text_lenient(report_path))
+        measured = data.get(metric) if metric else None
+    except Exception as exc:
+        return {
+            "check_id": check["id"],
+            "metric": metric,
+            "floor": floor,
+            "measured": None,
+            "status": "DID_NOT_EXECUTE",
+            "report_path": coverage["report_path"],
+            "message": f"{check['id']}: cannot read coverage report: {exc}",
+        }
+    if not isinstance(measured, (int, float)):
+        return {
+            "check_id": check["id"],
+            "metric": metric,
+            "floor": floor,
+            "measured": None,
+            "status": "DID_NOT_EXECUTE",
+            "report_path": coverage["report_path"],
+            "message": f"{check['id']}: coverage report has no numeric {metric} value",
+        }
+    if floor is not None and measured < floor:
+        return {
+            "check_id": check["id"],
+            "metric": metric,
+            "floor": floor,
+            "measured": measured,
+            "status": "BELOW_FLOOR",
+            "report_path": coverage["report_path"],
+            "message": f"{check['id']}: {metric} coverage {measured} is below the declared floor {floor}",
+        }
+    return {
+        "check_id": check["id"],
+        "metric": metric,
+        "floor": floor,
+        "measured": measured,
+        "status": "PASS",
+        "report_path": coverage["report_path"],
+        "message": None,
+    }
+
+
+def coverage_summary(selected_checks: list[dict], project_root: Path) -> dict | None:
+    diagnostics = [d for d in (coverage_diagnostic(c, project_root) for c in selected_checks) if d is not None]
+    if not diagnostics:
+        return None
+    issues = [
+        {"code": "COVERAGE_BELOW_DECLARED_FLOOR", "path": d["check_id"], "message": d["message"]}
+        for d in diagnostics
+        if d["status"] == "BELOW_FLOOR"
+    ]
+    return {"status": "PASS" if not issues else "INCOMPLETE_ASSURANCE", "diagnostics": diagnostics, "issues": issues}
+
+
 def resolve_baseline_path(project_root: Path, explicit: str | None) -> Path | None:
     if explicit:
         p = Path(explicit)
@@ -1137,6 +1226,12 @@ def main() -> int:
             for issue in instruction_surface["issues"]:
                 print("  - " + issue["message"])
 
+    coverage = coverage_summary(selected, project_root) if plan_version == "3" else None
+    if coverage and coverage["issues"]:
+        print("[coverage] INCOMPLETE_ASSURANCE")
+        for issue in coverage["issues"]:
+            print("  - " + issue["message"])
+
     print(f"[execution-context] {context}")
     if plan_version == "3":
         print(f"[execution-target] {target_label(actual_target)}")
@@ -1165,6 +1260,7 @@ def main() -> int:
         plan_version,
         governance_integrity,
         instruction_surface,
+        coverage,
     )
     commit, dirty = resolve_git_state(project_root)
     plan_identity = artifact_identity(plan_path, project_root, dirty)
@@ -1204,6 +1300,7 @@ def main() -> int:
         report["execution_target"] = actual_target
         report["governance_integrity"] = governance_integrity
         report["instruction_surface_audit"] = instruction_surface
+        report["coverage"] = coverage
 
     print(f"\nOVERALL: {overall}")
     if args.report:

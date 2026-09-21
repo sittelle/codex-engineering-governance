@@ -38,6 +38,7 @@
           "assurance-integration",
           "governance-integrity",
           "registration-conformance",
+          "coverage-semantics",
           "lifecycle-common",
           "lifecycle-windows",
           "lifecycle-posix"
@@ -299,6 +300,34 @@
           3
         ],
         "reference": "scripts/test-registration-conformance.py contract: 0 all fixtures/assertions pass, 1 assertion failure, 3 semgrep not available on PATH (DID_NOT_EXECUTE)"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    },
+    {
+      "id": "coverage-semantics",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-coverage-semantics.py"
+      ],
+      "reason": "WS7 coverage-floor semantics: above/below-floor measurement, a missing coverage report as a diagnostic-only DID_NOT_EXECUTE that does not affect the decorated check's own result, an unconfigured coverage block behaving exactly as before, and verification-plan schema v2 / report schema v4 carrying no coverage field at all.",
+      "timeout_seconds": 120,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
       },
       "execution": {
         "allowed_contexts": [

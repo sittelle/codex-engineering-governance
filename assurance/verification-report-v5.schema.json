@@ -302,6 +302,33 @@
         }
       },
       "additionalProperties": false
+    },
+    "coverage": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Coverage-floor diagnostics for checks that declare a coverage block. Null when no selected check declares one. A below-floor measurement produces a COVERAGE_BELOW_DECLARED_FLOOR issue; a missing report is DID_NOT_EXECUTE on that diagnostic only, not on the check it decorates.",
+      "required": [
+        "status",
+        "diagnostics",
+        "issues"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "PASS",
+            "INCOMPLETE_ASSURANCE"
+          ]
+        },
+        "diagnostics": {
+          "type": "array"
+        },
+        "issues": {
+          "type": "array"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": true

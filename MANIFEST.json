@@ -140,6 +140,7 @@
     "scripts/run-registration-conformance.py",
     "scripts/test-assurance-integration.py",
     "scripts/test-candidate-validation.py",
+    "scripts/test-coverage-semantics.py",
     "scripts/test-framework-lifecycle.py",
     "scripts/test-framework-scanners.py",
     "scripts/test-governance-integrity.py",

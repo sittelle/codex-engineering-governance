@@ -9,6 +9,49 @@
     "assurance",
     "checks"
   ],
+  "$defs": {
+    "coverage": {
+      "type": "object",
+      "required": [
+        "report_path",
+        "metric",
+        "floor",
+        "reason"
+      ],
+      "properties": {
+        "report_path": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "metric": {
+          "enum": [
+            "line",
+            "branch",
+            "statement",
+            null
+          ]
+        },
+        "floor": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "schema_version": {
       "const": "3"
@@ -85,6 +128,9 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "coverage": {
+                "$ref": "#/$defs/coverage"
               }
             },
             "additionalProperties": false
@@ -249,6 +295,9 @@
               }
             },
             "additionalProperties": false
+          },
+          "coverage": {
+            "$ref": "#/$defs/coverage"
           }
         },
         "additionalProperties": false
