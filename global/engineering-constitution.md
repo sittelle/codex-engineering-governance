@@ -42,6 +42,8 @@ M1+ projects document supported toolchains, dependency resolution, prerequisites
 
 Testing depth follows consequence and risk. Test observable behavior, boundaries, invariants, failures, and negative security cases. Coverage percentage alone is not evidence of correctness.
 
+The required `tests` capability is satisfied only when: every REQUIRED-NOW acceptance criterion has at least one automated test; every material boundary (a security boundary, a data-integrity boundary, an authorization edge, an external-integration failure mode, or similar) has at least one negative or failure-path test, not only a happy-path test; the suite runs in the canonical `full` verification path; and tests are derived from the stated requirement, acceptance criterion, or registration, not from reading the implementation and confirming it does what it does. A single trivial test does not meet this baseline. Deleting, skipping, or weakening a test is a governance-relevant change and must appear in the change summary.
+
 ## Code quality
 
 Prefer idiomatic, explicit, cohesive, boring code over cleverness. Comments explain rationale/invariants, not obvious syntax.

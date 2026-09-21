@@ -46,6 +46,7 @@ After Technology Baseline establishment and initial repository scaffold:
 - define canonical quick verification;
 - define canonical full verification;
 - derive applicable lint/type/test/build/SAST/SCA/platform and other assurance checks from the actual stack and project assurance facts;
+- configure coverage measurement with the test runner when the stack supports it, and record the `tests` capability's coverage floor (or an explicit reason it stays unset) rather than leaving it silently undecided;
 - ensure CI can later call the same underlying logic where practical.
 
 Do this before implementation grows beyond the initial scaffold.
