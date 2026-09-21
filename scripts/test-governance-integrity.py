@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression coverage for WS1 governance-artifact integrity (business-led mode).
+"""Regression coverage for WS1 governance-artifact integrity (non-professional developer_language).
 
 Exercises assurance/run-verification.py's governance_integrity_preflight,
 release_baseline_preflight, and instruction_surface_audit against real
@@ -8,7 +8,7 @@ a tampered managed block, a tampered project-governance.yml governance
 field, a tampered verification-plan.json assurance object, a swapped
 .governance/assurance-baseline.json copy, a swapped central
 capability-baseline.json, and an unapproved instruction surface in
-business-led mode -- including WS4 phase 3's exact hash-pinned
+non-professional developer_language -- including WS4 phase 3's exact hash-pinned
 allowlisted_instruction_surfaces comparison: a listed and content-matching
 surface is approved, an unlisted or drifted (edited-since-approval)
 surface is flagged, and a registration.yml whose integrity seal is
@@ -133,14 +133,14 @@ def tamper_verification_plan_assurance(project: Path) -> None:
 def seal_registration_with_allowlist(project: Path, entries: list[dict]) -> Path:
     """Write a registration.yml into the project with the given
     allowlisted_instruction_surfaces entries ({path, sha256}), then seal it
-    via governance.py registration seal, exactly as IT Security's tooling
+    via governance.py registration seal, exactly as the Professional's tooling
     would.
     """
     template_text = (ROOT / "templates/repository/registration.yml").read_text(encoding="utf-8-sig")
-    text = template_text.replace('registration_id: "<assigned by IT Security>"', 'registration_id: "REG-TEST"')
+    text = template_text.replace('registration_id: "<assigned by the Professional>"', 'registration_id: "REG-TEST"')
     text = text.replace('purpose: "<what this project is for and who uses it>"', 'purpose: "Test fixture."')
     text = text.replace('business_owner: "<name>"', 'business_owner: "Test Owner"')
-    text = text.replace('approval_authority: "<IT Security contact>"', 'approval_authority: "Test IT Security"')
+    text = text.replace('approval_authority: "<name of the Professional responsible for this project>"', 'approval_authority: "Test Professional"')
     if entries:
         block_lines = ["allowlisted_instruction_surfaces:"]
         for entry in entries:
@@ -155,11 +155,11 @@ def seal_registration_with_allowlist(project: Path, entries: list[dict]) -> Path
     return reg_path
 
 
-def enable_business_led_mode(project: Path) -> None:
+def set_non_professional_language(project: Path) -> None:
     manifest = project / "project-governance.yml"
     text = manifest.read_text(encoding="utf-8-sig")
-    assert "governance:\n  baseline:" in text, "fixture template changed; update mode injection point"
-    text = text.replace("governance:\n  baseline:", 'governance:\n  mode: "business-led"\n  baseline:', 1)
+    assert 'developer_language: "professional"' in text, "fixture template changed; update developer_language injection point"
+    text = text.replace('developer_language: "professional"', 'developer_language: "non-professional"', 1)
     manifest.write_text(text, encoding="utf-8", newline="\n")
 
 
@@ -236,7 +236,7 @@ def test_hook_covers_plan_tampering_not_just_managed_blocks(failures: list[str])
     """Regression guard for the gap found via live host-client testing
     (2026-09-18): governance.py hook pre-tool originally only ran
     verify_project, which does not check verification-plan.json's assurance
-    object. A business-led/Codex user could hand-edit it and the hook would
+    object. A non-professional-language/Codex user could hand-edit it and the hook would
     allow silently, even though the next quick/full run would catch it. The
     hook now also runs governance_integrity_preflight (schema v3 only,
     matching the runner's own scope) so this is denied live too.
@@ -298,21 +298,21 @@ def test_central_release_baseline_mismatch(failures: list[str]) -> None:
 
 def test_unapproved_instruction_surface(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory() as td:
-        project = make_project(Path(td), "business-led")
+        project = make_project(Path(td), "non-professional-language")
         to_schema_v3(project)
-        enable_business_led_mode(project)
+        set_non_professional_language(project)
         claude_dir = project / ".claude"
         claude_dir.mkdir()
         (claude_dir / "settings.json").write_text("{}\n", encoding="utf-8")
         report = quick_report(project)
         assert_true(
             "UNAPPROVED_INSTRUCTION_SURFACE" in issue_codes(report, "instruction_surface_audit"),
-            "unregistered .claude/settings.json in business-led mode did not produce UNAPPROVED_INSTRUCTION_SURFACE",
+            "unregistered .claude/settings.json with a non-professional developer language did not produce UNAPPROVED_INSTRUCTION_SURFACE",
             failures,
         )
         assert_true(
-            report.get("instruction_surface_audit", {}).get("mode") == "business-led",
-            "instruction-surface audit did not read the business-led mode marker",
+            report.get("instruction_surface_audit", {}).get("developer_language") == "non-professional",
+            "instruction-surface audit did not read the non-professional developer_language marker",
             failures,
         )
 
@@ -337,7 +337,7 @@ def current_surfaces(project: Path) -> list[dict]:
 
 def test_allowlisted_instruction_surface_is_exact_hash_pinned(failures: list[str]) -> None:
     """The registration's allowlisted_instruction_surfaces is the exact,
-    hash-pinned set IT Security approved (WS4 registration schema), not
+    hash-pinned set the Professional approved (WS4 registration schema), not
     merely "a registration.yml exists". A listed-and-matching surface is
     approved; an edited-since-approval surface (hash drift) is flagged the
     same as an unlisted one.
@@ -345,7 +345,7 @@ def test_allowlisted_instruction_surface_is_exact_hash_pinned(failures: list[str
     with tempfile.TemporaryDirectory() as td:
         project = make_project(Path(td), "allowlisted-surface")
         to_schema_v3(project)
-        enable_business_led_mode(project)
+        set_non_professional_language(project)
         claude_dir = project / ".claude"
         claude_dir.mkdir()
         settings_path = claude_dir / "settings.json"
@@ -373,7 +373,7 @@ def test_tampered_registration_seal_untrusts_allowlist(failures: list[str]) -> N
     with tempfile.TemporaryDirectory() as td:
         project = make_project(Path(td), "tampered-allowlist-seal")
         to_schema_v3(project)
-        enable_business_led_mode(project)
+        set_non_professional_language(project)
         claude_dir = project / ".claude"
         claude_dir.mkdir()
         (claude_dir / "settings.json").write_text("{}\n", encoding="utf-8")
@@ -400,7 +400,7 @@ def test_professional_mode_reports_only(failures: list[str]) -> None:
         (claude_dir / "settings.json").write_text("{}\n", encoding="utf-8")
         report = quick_report(project)
         audit = report.get("instruction_surface_audit") or {}
-        assert_true(audit.get("mode") == "professional", "default project mode was not professional", failures)
+        assert_true(audit.get("developer_language") == "professional", "default project developer_language was not professional", failures)
         assert_true(any(s.get("path") == ".claude/settings.json" for s in audit.get("surfaces", [])), "professional-mode audit did not enumerate the surface", failures)
         assert_true(audit.get("status") == "PASS", "professional mode must never fail on enumerated surfaces", failures)
         assert_true(not issue_codes(report, "instruction_surface_audit"), "professional-mode surfaces incorrectly produced instruction-surface issues", failures)
@@ -450,7 +450,7 @@ def main() -> int:
     print("- governance.py hook pre-tool denies on the same tampering live, not just at the next quick/full run")
     print("- swapped .governance/assurance-baseline.json copy => GOVERNANCE_INTEGRITY_FAILED")
     print("- swapped central capability-baseline.json vs release-baseline-hashes.json => GOVERNANCE_INTEGRITY_FAILED")
-    print("- unapproved .claude/ surface in business-led mode => UNAPPROVED_INSTRUCTION_SURFACE, an unsealed/empty allowlist never suppresses it")
+    print("- unapproved .claude/ surface with a non-professional developer language => UNAPPROVED_INSTRUCTION_SURFACE, an unsealed/empty allowlist never suppresses it")
     print("- exact hash-pinned allowlist entry suppresses the flag; editing the surface afterward (drift) re-flags it")
     print("- tampered registration.yml seal is never trusted, even with a matching allowlist entry present")
     print("- professional mode enumerates surfaces but never fails on them")

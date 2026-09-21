@@ -277,15 +277,15 @@
         "object",
         "null"
       ],
-      "description": "Enumeration of project-level instruction surfaces not covered by the governance-managed blocks. Informational in professional mode; can produce UNAPPROVED_INSTRUCTION_SURFACE issues in business-led mode. Optional for backward compatibility with reports produced before this field existed.",
+      "description": "Enumeration of project-level instruction surfaces not covered by the governance-managed blocks. Informational when developer_language is professional; can produce UNAPPROVED_INSTRUCTION_SURFACE issues when developer_language is non-professional. Optional for backward compatibility with reports produced before this field existed.",
       "required": [
-        "mode",
+        "developer_language",
         "status",
         "surfaces",
         "issues"
       ],
       "properties": {
-        "mode": {
+        "developer_language": {
           "type": "string"
         },
         "status": {

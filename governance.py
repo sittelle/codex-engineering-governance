@@ -120,9 +120,9 @@ def framework_root() -> Path:
     required = (
         "VERSION",
         "host-adapters/operating-kernel.md",
-        "host-adapters/operating-kernel.business-led.md",
+        "host-adapters/operating-kernel.non-professional.md",
         "templates/repository/AGENTS.md",
-        "templates/repository/AGENTS.business-led.md",
+        "templates/repository/AGENTS.non-professional.md",
         "templates/repository/CLAUDE.md",
         "templates/repository/project-governance.yml",
     )
@@ -234,15 +234,15 @@ def host_paths(host: Host) -> dict[str, Path]:
     }
 
 
-def kernel_template_path(root: Path, kernel_mode: str) -> Path:
-    if kernel_mode not in GOVERNANCE_MODES:
-        fail(f"Unknown governance mode: {kernel_mode}")
-    name = "operating-kernel.business-led.md" if kernel_mode == "business-led" else "operating-kernel.md"
+def kernel_template_path(root: Path, kernel_language: str) -> Path:
+    if kernel_language not in DEVELOPER_LANGUAGES:
+        fail(f"Unknown developer language: {kernel_language}")
+    name = "operating-kernel.non-professional.md" if kernel_language == "non-professional" else "operating-kernel.md"
     return root / "host-adapters" / name
 
 
-def render_host_block(root: Path, host: Host, kernel_mode: str = "professional") -> str:
-    template = read_text(kernel_template_path(root, kernel_mode))
+def render_host_block(root: Path, host: Host, kernel_language: str = "professional") -> str:
+    template = read_text(kernel_template_path(root, kernel_language))
     locator = (
         "$CODEX_HOME/GOVERNANCE_ROOT (default: $HOME/.codex/GOVERNANCE_ROOT)"
         if host.key == "codex"
@@ -254,7 +254,7 @@ def render_host_block(root: Path, host: Host, kernel_mode: str = "professional")
     if "{{" in body or "}}" in body:
         fail("Unresolved placeholder in host operating kernel")
     metadata = (
-        f"<!-- framework={FRAMEWORK_ID}; host={host.key}; version={version(root)}; kernel_mode={kernel_mode} -->"
+        f"<!-- framework={FRAMEWORK_ID}; host={host.key}; version={version(root)}; kernel_language={kernel_language} -->"
     )
     return f"{HOST_BEGIN}\n{metadata}\n{body.rstrip()}\n{HOST_END}"
 
@@ -513,7 +513,7 @@ def host_install_or_update(
     host: Host,
     *,
     require_existing: bool,
-    kernel_mode: str | None = None,
+    kernel_language: str | None = None,
 ) -> None:
     paths, legacy = preflight_host_install(root, host)
     state = load_host_state(paths["state"], host)
@@ -524,11 +524,11 @@ def host_install_or_update(
     # An explicit --kernel-mode always wins. Otherwise preserve whatever
     # mode this host was already installed with; only a fresh install
     # defaults to professional.
-    effective_kernel_mode = kernel_mode or (state.get("kernel_mode") if state else None) or "professional"
-    if effective_kernel_mode not in GOVERNANCE_MODES:
-        fail(f"Unknown governance mode: {effective_kernel_mode}")
+    effective_kernel_language = kernel_language or (state.get("kernel_language") if state else None) or "professional"
+    if effective_kernel_language not in DEVELOPER_LANGUAGES:
+        fail(f"Unknown developer language: {effective_kernel_language}")
 
-    block = render_host_block(root, host, effective_kernel_mode)
+    block = render_host_block(root, host, effective_kernel_language)
 
     if legacy:
         # Proven byte-for-byte legacy framework kernel: no distinguishable custom text.
@@ -611,7 +611,7 @@ def host_install_or_update(
         "instruction_created": instruction_created,
         "locator_created": locator_created,
         "claude_settings_ownership": claude_ownership,
-        "kernel_mode": effective_kernel_mode,
+        "kernel_language": effective_kernel_language,
     }
     save_host_state(paths["state"], new_state)
     verify_host(root, host)
@@ -747,7 +747,7 @@ def managed_policy_status(host: Host) -> dict:
     """Report whether the host's IT-managed policy layer is present and, if
     so, which enforcement mode it declares. Per the fail-closed rule: a
     present-but-invalid managed file means block; a missing file means
-    inform, reported as ABSENT so IT Security can see clients that lack the
+    inform, reported as ABSENT so IT can see clients that lack the
     policy rather than silently assuming coverage.
     """
     if host.key == "claude":
@@ -823,7 +823,7 @@ def preview_host_action(root: Path, action: str, hosts: list[Host]) -> None:
 # Project lifecycle
 # ---------------------------------------------------------------------------
 
-GOVERNANCE_MODES = ("professional", "business-led")
+DEVELOPER_LANGUAGES = ("professional", "non-professional")
 
 
 def template_paths(root: Path) -> dict[str, Path]:
@@ -831,7 +831,7 @@ def template_paths(root: Path) -> dict[str, Path]:
     return {
         "base": base,
         "agents": base / "AGENTS.md",
-        "agents_business_led": base / "AGENTS.business-led.md",
+        "agents_non_professional": base / "AGENTS.non-professional.md",
         "claude": base / "CLAUDE.md",
         "manifest": base / "project-governance.yml",
         "verification": base / "verification-plan.json",
@@ -843,12 +843,31 @@ def template_paths(root: Path) -> dict[str, Path]:
     }
 
 
-def agents_template_key(mode: str) -> str:
-    return "agents_business_led" if mode == "business-led" else "agents"
+def agents_template_key(language: str) -> str:
+    return "agents_non_professional" if language == "non-professional" else "agents"
 
 
-def managed_project_block(root: Path, mode: str = "professional") -> str:
-    text = read_text(template_paths(root)[agents_template_key(mode)])
+def verification_plan_template_text(source: Path, language: str) -> str:
+    """A non-professional developer_language project's security model depends
+    on WS1's governance-artifact tamper detection
+    (governance_integrity_preflight, instruction_surface_audit), which is
+    schema v3 (report schema v5) only. Such a project that stayed on the
+    template's default schema v2 would have none of that protection active.
+    A professional-language project keeps the template's default unchanged,
+    matching the plan's constraint that professional mode keeps its current
+    approval model; a professional-language project opts into v3 by hand,
+    same as before this function existed.
+    """
+    text = read_text(source)
+    if language != "non-professional":
+        return text
+    data = json.loads(text)
+    data["schema_version"] = "3"
+    return json.dumps(data, indent=2) + "\n"
+
+
+def managed_project_block(root: Path, language: str = "professional") -> str:
+    text = read_text(template_paths(root)[agents_template_key(language)])
     match = PROJECT_RE.search(text)
     if not match:
         fail("Project AGENTS template has no managed governance block")
@@ -889,17 +908,17 @@ def set_project_name(text: str, name: str) -> str:
     return updated
 
 
-def set_governance_mode(text: str, mode: str) -> str:
-    if mode not in GOVERNANCE_MODES:
-        fail(f"Unknown governance mode: {mode}")
+def set_developer_language(text: str, language: str) -> str:
+    if language not in DEVELOPER_LANGUAGES:
+        fail(f"Unknown developer language: {language}")
     updated, count = re.subn(
-        r'(?m)^(\s*mode:\s*)["\']?[A-Za-z-]+["\']?\s*$',
-        lambda m: f'{m.group(1)}"{mode}"',
+        r'(?m)^(developer_language:\s*)["\']?[A-Za-z-]+["\']?\s*$',
+        lambda m: f'{m.group(1)}"{language}"',
         text,
         count=1,
     )
     if count != 1:
-        fail("Could not set governance mode in project-governance.yml")
+        fail("Could not set developer_language in project-governance.yml")
     return updated
 
 
@@ -1109,7 +1128,7 @@ def write_integrity_manifest(root: Path, project: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Business-led mode registration
+# Registration (for non-professional developer_language projects)
 # ---------------------------------------------------------------------------
 
 REGISTRATION_CAPABILITY_KEYS = (
@@ -1315,7 +1334,7 @@ def build_validation_checklist(project: Path) -> dict:
     manifest = project / "project-governance.yml"
     if not manifest.is_file():
         fail(f"Not a governed project: {project}")
-    mode = project_governance_mode(read_text(manifest))
+    mode = project_developer_language(read_text(manifest))
     registration_path = project / "registration.yml"
     if not registration_path.is_file():
         fail("No registration.yml found; the validation checklist needs a registration to generate from")
@@ -1340,7 +1359,7 @@ def build_validation_checklist(project: Path) -> dict:
         "schema_version": "1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "project": project.name,
-        "governance_mode": mode,
+        "developer_language": mode,
         "registration_id": data.get("registration_id"),
         "items": items,
         "note": (
@@ -1358,7 +1377,7 @@ def build_readiness_packet(
     manifest = project / "project-governance.yml"
     if not manifest.is_file():
         fail(f"Not a governed project: {project}")
-    mode = project_governance_mode(read_text(manifest))
+    mode = project_developer_language(read_text(manifest))
 
     registration_summary = None
     registration_path = project / "registration.yml"
@@ -1403,7 +1422,7 @@ def build_readiness_packet(
 
     pathway = (registration_summary or {}).get("pathway")
     blocking = (
-        mode == "business-led"
+        mode == "non-professional"
         and (
             registration_summary is None
             or not registration_summary.get("seal_valid")
@@ -1414,16 +1433,16 @@ def build_readiness_packet(
             or (instruction_surface or {}).get("status") not in (None, "PASS")
         )
     )
-    if mode != "business-led":
+    if mode != "non-professional":
         disposition = "NOT_APPLICABLE"
     elif report is None:
         disposition = "INCOMPLETE_EVIDENCE"
     elif blocking:
         disposition = "NOT_READY"
     elif pathway == "red":
-        disposition = "IT_OWNERSHIP_REQUIRED"
+        disposition = "PROFESSIONAL_OWNERSHIP_REQUIRED"
     elif requests:
-        disposition = "PENDING_IT_SECURITY"
+        disposition = "PENDING_PROFESSIONAL_REVIEW"
     elif pathway == "green":
         disposition = "READY_FOR_AUTOMATED_APPROVAL"
     else:
@@ -1433,7 +1452,7 @@ def build_readiness_packet(
         "schema_version": "1",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "project": project.name,
-        "governance_mode": mode,
+        "developer_language": mode,
         "git_commit": git_head(project),
         "registration": registration_summary,
         "full_report": (
@@ -1483,12 +1502,19 @@ def verify_project(root: Path, project: Path) -> None:
     if 'locator: "GOVERNANCE_ROOT"' not in manifest_text:
         fail("Project governance locator is not host-neutral")
 
-    mode = project_governance_mode(manifest_text)
+    mode = project_developer_language(manifest_text)
     agents_text = read_text(agents)
     agents_block = PROJECT_RE.search(agents_text)
     if agents_block is None:
         fail("Project AGENTS.md has no current managed governance block")
     if agents_block.group(0) != managed_project_block(root, mode):
+        other_mode = "non-professional" if mode == "professional" else "professional"
+        if agents_block.group(0) == managed_project_block(root, other_mode):
+            fail(
+                f"developer_language is now {mode!r} but AGENTS.md's managed block still "
+                f"reflects {other_mode!r}; run `governance.py project update --project "
+                f"{project}` to refresh it for the new language"
+            )
         fail(
             "Project AGENTS.md managed governance block does not match the "
             "pinned template for the current baseline and mode; it was "
@@ -1508,10 +1534,10 @@ def verify_project(root: Path, project: Path) -> None:
     if "@AGENTS.md" not in claude_text:
         fail("Project CLAUDE.md does not import AGENTS.md")
 
-    if mode == "business-led":
+    if mode == "non-professional":
         registration_path = project / "registration.yml"
         if not registration_path.is_file():
-            fail("Business-led project has no registration.yml")
+            fail("Non-professional-language project has no registration.yml")
         validate_registration(read_text(registration_path))
 
 
@@ -1523,10 +1549,10 @@ def preview_project_new(
     mode: str = "professional",
     registration: Path | None = None,
 ) -> Path:
-    if mode not in GOVERNANCE_MODES:
-        fail(f"Unknown governance mode: {mode}")
-    if mode == "business-led" and registration is None:
-        fail("business-led mode requires --registration")
+    if mode not in DEVELOPER_LANGUAGES:
+        fail(f"Unknown developer language: {mode}")
+    if mode == "non-professional" and registration is None:
+        fail("non-professional developer language requires --registration")
     if not parent.is_dir():
         fail(f"Parent folder does not exist: {parent}")
     if not name or any(ch in name for ch in '\\/:*?"<>|'):
@@ -1539,7 +1565,7 @@ def preview_project_new(
         [
             f"Target: {target}",
             f"Governance baseline: {version(root)}",
-            f"Governance mode: {mode}",
+            f"Developer language: {mode}",
             "Create: AGENTS.md, CLAUDE.md, project-governance.yml, verification-plan.json",
             "Create: docs/, src/, tests/ and available repository templates",
             "Create: .governance/integrity.json (governance artifact integrity manifest)",
@@ -1557,11 +1583,11 @@ def preview_project_new(
 
 def apply_registration(target: Path, registration: Path | None, mode: str) -> None:
     """Validate and copy the registration into a project, deriving assurance
-    facts from its capability flags. Required in business-led mode.
+    facts from its capability flags. Required when developer_language is non-professional.
     """
     if registration is None:
-        if mode == "business-led":
-            fail("business-led mode requires --registration")
+        if mode == "non-professional":
+            fail("non-professional developer language requires --registration")
         return
     reg_text = read_text(registration)
     validate_registration(reg_text)
@@ -1581,8 +1607,8 @@ def apply_project_new(
     mode: str = "professional",
     registration: Path | None = None,
 ) -> None:
-    if mode not in GOVERNANCE_MODES:
-        fail(f"Unknown governance mode: {mode}")
+    if mode not in DEVELOPER_LANGUAGES:
+        fail(f"Unknown developer language: {mode}")
     templates = template_paths(root)
     target.mkdir(parents=True, exist_ok=True)
     for directory in ("docs", "src", "tests"):
@@ -1591,11 +1617,14 @@ def apply_project_new(
     write_text(target / "AGENTS.md", read_text(templates[agents_template_key(mode)]))
     write_text(target / "CLAUDE.md", read_text(templates["claude"]))
     manifest = set_project_name(read_text(templates["manifest"]), name)
-    manifest = set_governance_mode(manifest, mode)
+    manifest = set_developer_language(manifest, mode)
     write_text(target / "project-governance.yml", manifest)
 
+    verification_source = templates["verification"]
+    if verification_source.is_file():
+        write_text(target / "verification-plan.json", verification_plan_template_text(verification_source, mode))
+
     for key, destination in (
-        ("verification", "verification-plan.json"),
         ("editorconfig", ".editorconfig"),
         ("gitignore", ".gitignore"),
         ("gitleaks", ".gitleaks.toml"),
@@ -1622,10 +1651,10 @@ def apply_project_new(
 def preview_project_adopt(
     root: Path, project: Path, mode: str = "professional", registration: Path | None = None
 ) -> None:
-    if mode not in GOVERNANCE_MODES:
-        fail(f"Unknown governance mode: {mode}")
-    if mode == "business-led" and registration is None:
-        fail("business-led mode requires --registration")
+    if mode not in DEVELOPER_LANGUAGES:
+        fail(f"Unknown developer language: {mode}")
+    if mode == "non-professional" and registration is None:
+        fail("non-professional developer language requires --registration")
     if not project.is_dir():
         fail(f"Project root does not exist: {project}")
     if (project / "project-governance.yml").exists():
@@ -1636,7 +1665,7 @@ def preview_project_adopt(
     lines = [
         f"Project: {project}",
         f"Governance baseline: {version(root)}",
-        f"Governance mode: {mode}",
+        f"Developer language: {mode}",
         "State: RECONCILIATION_REQUIRED",
         "Create project-governance.yml and governance adoption record",
         "Add/refresh only managed governance block in AGENTS.md",
@@ -1653,8 +1682,8 @@ def preview_project_adopt(
 
 
 def apply_project_adopt(root: Path, project: Path, mode: str = "professional", registration: Path | None = None) -> None:
-    if mode not in GOVERNANCE_MODES:
-        fail(f"Unknown governance mode: {mode}")
+    if mode not in DEVELOPER_LANGUAGES:
+        fail(f"Unknown developer language: {mode}")
     templates = template_paths(root)
     stamp = __import__("datetime").datetime.now().strftime("%Y%m%d-%H%M%S")
 
@@ -1688,7 +1717,7 @@ def apply_project_adopt(root: Path, project: Path, mode: str = "professional", r
     write_text(claude, new_claude)
 
     manifest = set_project_name(read_text(templates["manifest"]), project.name)
-    manifest = set_governance_mode(manifest, mode)
+    manifest = set_developer_language(manifest, mode)
     manifest = set_adoption_state(manifest)
     write_text(project / "project-governance.yml", manifest)
 
@@ -1725,7 +1754,7 @@ def build_project_update(root: Path, project: Path) -> dict:
         fail("Git worktree is dirty; commit or stash changes before governance update")
 
     manifest_old = read_text(manifest_path)
-    mode = project_governance_mode(manifest_old)
+    mode = project_developer_language(manifest_old)
     manifest_new = set_governance_baseline(manifest_old, version(root))
     manifest_new, technology_added = ensure_technology_baseline(manifest_new)
 
@@ -1768,7 +1797,7 @@ def preview_project_update(root: Path, project: Path, plan: dict) -> None:
     lines = [
         f"Project: {project}",
         f"Baseline: {old_version} -> {version(root)}",
-        f"Governance mode: {project_governance_mode(plan['manifest_old'])} (unchanged; mode is a governance decision, not a routine update)",
+        f"Developer language: {project_developer_language(plan['manifest_old'])} (unchanged; changing it directly in the project file is how the coder updates it, not this command)",
         "project-governance.yml: baseline/source/host-neutral locator",
         (
             "Technology Baseline: add RECONCILIATION_REQUIRED"
@@ -1823,8 +1852,8 @@ def apply_project_update(root: Path, project: Path, plan: dict) -> None:
 MUTATING_TOOL_NAMES = {"Edit", "Write", "MultiEdit", "NotebookEdit", "Bash", "apply_patch"}
 
 
-def project_governance_mode(manifest_text: str) -> str:
-    match = re.search(r'(?m)^\s*mode:\s*["\']?([A-Za-z-]+)["\']?\s*$', manifest_text)
+def project_developer_language(manifest_text: str) -> str:
+    match = re.search(r'(?m)^developer_language:\s*["\']?([A-Za-z-]+)["\']?\s*$', manifest_text)
     return match.group(1) if match else "professional"
 
 
@@ -1886,7 +1915,7 @@ def hook_pre_tool_decision(root: Path, data: dict, *, enforce: bool) -> dict | N
         reasons.append(f"Governance artifact integrity check failed: {exc}")
 
     # verify_project (above) covers the manifest fields, both managed blocks,
-    # and (in business-led mode) the registration seal. It does not cover
+    # and (when developer_language is non-professional) the registration seal. It does not cover
     # what only the verification runner's preflight checks: verification-plan.json's
     # assurance object, .governance/integrity.json's internal consistency,
     # and the .governance/assurance-bootstrap.json cross-check. Run that
@@ -1908,17 +1937,18 @@ def hook_pre_tool_decision(root: Path, data: dict, *, enforce: bool) -> dict | N
             for issue in preflight.get("issues", []):
                 reasons.append(issue["message"])
 
-    mode = project_governance_mode(read_text(manifest))
-    if mode == "business-led":
+    mode = project_developer_language(read_text(manifest))
+    if mode == "non-professional":
         missing, highest_risk = registration_state(project)
         if missing:
             reasons.append(
-                "This project has no registration on file. Business-led mode requires "
-                "IT Security's registration before development proceeds under full assurance."
+                "This project has no registration on file. A non-professional developer "
+                "language requires a Professional's registration before development proceeds "
+                "under full assurance."
             )
         elif highest_risk:
             reasons.append(
-                "This project's registration is Red pathway. IT Security ownership is "
+                "This project's registration is Red pathway. Professional ownership is "
                 "required before real use."
             )
 
@@ -2103,7 +2133,7 @@ def build_parser() -> argparse.ArgumentParser:
         command = host_sub.add_parser(action)
         command.add_argument("--host", choices=("codex", "claude", "all"), default="all")
         if action in {"install", "update"}:
-            command.add_argument("--kernel-mode", choices=GOVERNANCE_MODES, default=None)
+            command.add_argument("--kernel-language", choices=DEVELOPER_LANGUAGES, default=None)
         if action in {"install", "update", "uninstall"}:
             command.add_argument("-y", "--yes", action="store_true")
 
@@ -2134,13 +2164,13 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument("--parent", required=True)
     new.add_argument("--name", required=True)
     new.add_argument("--no-git-init", action="store_true")
-    new.add_argument("--mode", choices=GOVERNANCE_MODES, default="professional")
+    new.add_argument("--developer-language", choices=DEVELOPER_LANGUAGES, default="professional")
     new.add_argument("--registration", default=None)
     new.add_argument("-y", "--yes", action="store_true")
 
     adopt = project_sub.add_parser("adopt")
     adopt.add_argument("--project", required=True)
-    adopt.add_argument("--mode", choices=GOVERNANCE_MODES, default="professional")
+    adopt.add_argument("--developer-language", choices=DEVELOPER_LANGUAGES, default="professional")
     adopt.add_argument("--registration", default=None)
     adopt.add_argument("-y", "--yes", action="store_true")
 
@@ -2158,7 +2188,7 @@ def build_parser() -> argparse.ArgumentParser:
     mode_group.add_argument("--enforce", action="store_true")
     mode_group.add_argument("--inform", action="store_true")
 
-    registration = sub.add_parser("registration", help="Business-led mode registration tooling.")
+    registration = sub.add_parser("registration", help="Registration tooling for non-professional developer_language projects.")
     registration_sub = registration.add_subparsers(dest="action", required=True)
     seal = registration_sub.add_parser("seal", help="Compute and write the integrity seal over a registration.yml.")
     seal.add_argument("--registration", required=True)
@@ -2180,7 +2210,7 @@ def main(argv: list[str] | None = None) -> int:
                 for host in selected_hosts(args.host):
                     print(f"{host.label}: {display_host_status(host_status(root, host))}")
                     state = load_host_state(host_paths(host)["state"], host)
-                    print(f"  kernel mode: {(state or {}).get('kernel_mode', 'professional')}")
+                    print(f"  kernel language: {(state or {}).get('kernel_language', 'professional')}")
                     policy = managed_policy_status(host)
                     print(f"  managed policy: {policy['source']} (mode={policy['mode']})")
                 return 0
@@ -2195,7 +2225,7 @@ def main(argv: list[str] | None = None) -> int:
                     verify_host(root, host)
                     print(f"{host.label}: verification PASS")
                     state = load_host_state(host_paths(host)["state"], host)
-                    print(f"  kernel mode: {(state or {}).get('kernel_mode', 'professional')}")
+                    print(f"  kernel language: {(state or {}).get('kernel_language', 'professional')}")
                     policy = managed_policy_status(host)
                     print(f"  managed policy: {policy['source']} (mode={policy['mode']})")
                 return 0
@@ -2205,11 +2235,11 @@ def main(argv: list[str] | None = None) -> int:
             for host in hosts:
                 if args.action == "install":
                     host_install_or_update(
-                        root, host, require_existing=False, kernel_mode=args.kernel_mode
+                        root, host, require_existing=False, kernel_language=args.kernel_language
                     )
                 elif args.action == "update":
                     host_install_or_update(
-                        root, host, require_existing=True, kernel_mode=args.kernel_mode
+                        root, host, require_existing=True, kernel_language=args.kernel_language
                     )
                 else:
                     host_uninstall(root, host)
@@ -2259,9 +2289,9 @@ def main(argv: list[str] | None = None) -> int:
             if args.action == "new":
                 parent = Path(args.parent).expanduser().resolve()
                 registration = Path(args.registration).expanduser().resolve() if args.registration else None
-                target = preview_project_new(root, parent, args.name, args.no_git_init, args.mode, registration)
+                target = preview_project_new(root, parent, args.name, args.no_git_init, args.developer_language, registration)
                 confirm(args.yes)
-                apply_project_new(root, target, args.name, args.no_git_init, args.mode, registration)
+                apply_project_new(root, target, args.name, args.no_git_init, args.developer_language, registration)
                 print(f"Created governed project: {target}")
                 print("Verification: PASS")
                 return 0
@@ -2269,9 +2299,9 @@ def main(argv: list[str] | None = None) -> int:
             project = Path(args.project).expanduser().resolve()
             if args.action == "adopt":
                 registration = Path(args.registration).expanduser().resolve() if args.registration else None
-                preview_project_adopt(root, project, args.mode, registration)
+                preview_project_adopt(root, project, args.developer_language, registration)
                 confirm(args.yes)
-                apply_project_adopt(root, project, args.mode, registration)
+                apply_project_adopt(root, project, args.developer_language, registration)
                 print("Governance adoption: PASS")
                 print("Verification: PASS")
                 return 0

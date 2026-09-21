@@ -1,12 +1,12 @@
 # REQUEST-XXXX: <short title>
 
-Status: Open | IT Security confirmed | IT Security declined | Superseded
+Status: Open | Professional confirmed | Professional declined | Superseded
 Date: <date>
-Routing outcome: involve IT Security | obtain reassessment
+Routing outcome: involve a Professional | obtain reassessment
 Registered pathway: Green | Amber | Red
 
 ## What changed
 ## Why it matters
-## What IT Security is asked to decide
+## What the Professional is asked to decide
 ## Business owner's understanding
-## IT Security's decision
+## Professional's decision

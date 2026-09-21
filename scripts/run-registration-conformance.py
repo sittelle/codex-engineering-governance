@@ -124,18 +124,18 @@ found the project now exhibits: {caps}. This is not currently approved in
 registration.yml's `capabilities` block.
 
 ## Why it matters
-A capability outside the registration is unreviewed by IT Security; the
+A capability outside the registration is unreviewed by the Professional; the
 registration is the reference the framework derives assurance facts and
 drift detection from.
 
-## What IT Security is asked to decide
+## What the Professional is asked to decide
 Whether to approve {caps} for this project's registration, or whether the
 detected code should be removed/reworked instead.
 
 ## Business owner's understanding
 (to be filled in by the business owner)
 
-## IT Security's decision
+## Professional's decision
 (pending)
 """
     path.write_text(text, encoding="utf-8", newline="\n")

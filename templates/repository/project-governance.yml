@@ -2,12 +2,17 @@ governance:
   baseline: "2.0.0"
   source: "host-adapter-locator"
   locator: "GOVERNANCE_ROOT"
-  # professional | business-led. In business-led mode, IT Security is the
-  # approval authority and the business employee receives plain-language
-  # routing instead of engineering classifications; see "Business-led mode
-  # and approval authority" in global/governance-standard.md. Changing this
-  # is a governance decision, not a routine edit.
-  mode: "professional"
+
+# professional | non-professional. Selects the framework's vocabulary and
+# the default routing for decisions that need professional software-
+# development and/or security judgment; see "Developer language and
+# professional decisions" in global/governance-standard.md and
+# docs/adr/0002-developer-language-and-professional-terminology.md. This is
+# a self-declared preference, not a security boundary: it lives outside the
+# governance: block on purpose, so the coder may change it directly at any
+# time, including changing their mind later. It never changes which
+# controls apply.
+developer_language: "professional"
 
 project:
   name: "<project-name>"
@@ -16,12 +21,12 @@ project:
   assurance: "SA1"
   lifecycle: "ACTIVE"
 
-# Meaningful only in business-led mode; the developer holds all of these
-# roles in professional mode and this block is left empty there.
+# Meaningful only when developer_language is non-professional; the coder
+# holds both roles when developer_language is professional and this block
+# is left empty there.
 roles:
   business_owner: null
-  approval_authority: null
-  professional_it_contact: null
+  professional: null
 
 # Governed architecture-significant technology state.
 # Allowed states: UNESTABLISHED | ESTABLISHED | RECONCILIATION_REQUIRED

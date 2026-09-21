@@ -1,17 +1,19 @@
-# Business-led mode project registration.
+# Project registration, for projects where developer_language is
+# non-professional.
 #
-# Filled by hand by IT Security until a registration tool exists (per
-# docs/business-led/implementation-plan.md section 11). Sealed with
+# Filled by hand by a Professional (a professional software developer
+# and/or a professional security person) until a registration tool exists
+# (per docs/business-led/implementation-plan.md section 11). Sealed with
 # `governance.py registration seal`, which computes `integrity.sha256` over
 # everything below. The business employee and the agent do not edit this
 # file; a hand-edit after sealing is a governance-artifact integrity
 # failure. This is a living document: as the project's actual capabilities
 # grow, the agent proposes updates here for the business owner to submit to
-# IT Security, rather than waiting only for drift detection to catch it
-# after the fact.
+# the Professional, rather than waiting only for drift detection to catch
+# it after the fact.
 schema_version: "1"
 
-registration_id: "<assigned by IT Security>"
+registration_id: "<assigned by the Professional>"
 
 # What the project is for and who uses it, in the business owner's own
 # words. Source for `governance.py project validation-checklist`.
@@ -21,9 +23,9 @@ purpose: "<what this project is for and who uses it>"
 pathway: "green"
 
 business_owner: "<name>"
-approval_authority: "<IT Security contact>"
+approval_authority: "<name of the Professional responsible for this project>"
 
-# IT Security's explicit approval that the project may exhibit each
+# The Professional's explicit approval that the project may exhibit each
 # capability; not a detection result.
 capabilities:
   network_connections: false
@@ -34,12 +36,12 @@ capabilities:
   external_recipients: false
   elevated_access: false
 
-# Conditions IT Security attached to the pathway, if any. Recorded and
+# Conditions the Professional attached to the pathway, if any. Recorded and
 # displayed, not interpreted by the framework beyond that.
 operating_conditions: null
 
-# The exact project instruction-surface files IT Security has reviewed and
-# approved. Each entry: {path: "<repo-relative path>", sha256: "<hex>"}.
+# The exact project instruction-surface files the Professional has reviewed
+# and approved. Each entry: {path: "<repo-relative path>", sha256: "<hex>"}.
 allowlisted_instruction_surfaces: []
 
 # Set by `governance.py registration seal`; do not edit by hand.

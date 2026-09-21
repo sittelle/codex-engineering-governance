@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/codex-governance/registration.schema.json",
   "title": "Business-led Mode Project Registration",
-  "description": "IT Security's registration of a business-led project: the reference the framework derives assurance facts from and detects implementation drift against. Filled by hand until a registration tool exists, per docs/business-led/implementation-plan.md section 11.",
+  "description": "the Professional's registration of a project: the reference the framework derives assurance facts from and detects implementation drift against. Filled by hand until a registration tool exists, per docs/business-led/implementation-plan.md section 11.",
   "type": "object",
   "required": [
     "schema_version",
@@ -44,7 +44,7 @@
     },
     "capabilities": {
       "type": "object",
-      "description": "IT Security's explicit approval that the project may exhibit each capability; not a detection result. run-registration-conformance.py (WS4 phase 3) compares detected capabilities against this set.",
+      "description": "the Professional's explicit approval that the project may exhibit each capability; not a detection result. run-registration-conformance.py (WS4 phase 3) compares detected capabilities against this set.",
       "required": [
         "network_connections",
         "persistence",
@@ -80,14 +80,14 @@
       "additionalProperties": false
     },
     "operating_conditions": {
-      "description": "Conditions IT Security attached to the pathway, for example Amber conditions under which the business owner may proceed. Recorded and displayed, not interpreted by the framework beyond that.",
+      "description": "Conditions the Professional attached to the pathway, for example Amber conditions under which the business owner may proceed. Recorded and displayed, not interpreted by the framework beyond that.",
       "type": [
         "string",
         "null"
       ]
     },
     "allowlisted_instruction_surfaces": {
-      "description": "The exact project instruction-surface files (.claude/ rules, skills, agents, commands, hooks, settings, .mcp.json, non-managed AGENTS.md/CLAUDE.md text) IT Security has reviewed and approved. Compared by assurance/run-verification.py's instruction_surface_audit.",
+      "description": "The exact project instruction-surface files (.claude/ rules, skills, agents, commands, hooks, settings, .mcp.json, non-managed AGENTS.md/CLAUDE.md text) the Professional has reviewed and approved. Compared by assurance/run-verification.py's instruction_surface_audit.",
       "type": "array",
       "items": {
         "type": "object",
@@ -109,7 +109,7 @@
       }
     },
     "integrity": {
-      "description": "The hash IT Security's tooling (or governance.py registration seal, until a tool exists) computes over the registration content above, so a later hand-edit is detectable.",
+      "description": "The hash the Professional's tooling (or governance.py registration seal, until a tool exists) computes over the registration content above, so a later hand-edit is detectable.",
       "type": "object",
       "required": [
         "sha256",

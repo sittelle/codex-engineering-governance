@@ -673,7 +673,7 @@ def summarize(
     return "PASS"
 
 
-# --- Governance-artifact integrity (business-led mode WS1) -----------------
+# --- Governance-artifact integrity (non-professional developer_language, WS1) --
 #
 # This is verification-plan schema v3 / report schema v5 only; schema v2/v4
 # behavior is intentionally unchanged. These extraction helpers must stay in
@@ -893,11 +893,11 @@ def governance_integrity_preflight(project_root: Path, baseline_path: Path | Non
     return {"status": "PASS" if not issues else "INCOMPLETE_ASSURANCE", "issues": issues, "checked": checked}
 
 
-def project_governance_mode(project_root: Path) -> str:
+def project_developer_language(project_root: Path) -> str:
     path = project_root / "project-governance.yml"
     if not path.is_file():
         return "professional"
-    match = re.search(r'(?m)^\s*mode:\s*["\']?([A-Za-z-]+)["\']?\s*$', read_text_lenient(path))
+    match = re.search(r'(?m)^developer_language:\s*["\']?([A-Za-z-]+)["\']?\s*$', read_text_lenient(path))
     return match.group(1) if match else "professional"
 
 
@@ -999,17 +999,18 @@ def instruction_surface_audit(project_root: Path) -> dict:
     agents, commands, hooks, settings, .mcp.json, CLAUDE.local.md, and
     non-managed AGENTS.md text) not covered by the governance-managed blocks.
 
-    In professional mode this is informational only: it never affects the
-    overall result. In business-led mode, registration.yml's
-    allowlisted_instruction_surfaces is the exact, hash-pinned set IT
-    Security approved (WS4 registration schema). A surface is approved only
+    When developer_language is professional this is informational only: it
+    never affects the overall result. When developer_language is
+    non-professional, registration.yml's allowlisted_instruction_surfaces is
+    the exact, hash-pinned set the Professional approved (WS4 registration
+    schema). A surface is approved only
     if its path is listed AND its current sha256 matches the recorded
     value; drift (edited-since-approval) is flagged the same as an
     unlisted surface. A missing registration.yml, or one whose integrity
     seal is missing/invalid, cannot be trusted at all: every current
     surface is flagged.
     """
-    mode = project_governance_mode(project_root)
+    mode = project_developer_language(project_root)
     entries = [
         {"path": p.relative_to(project_root).as_posix(), "sha256": sha256_bytes(p.read_bytes())}
         for p in enumerate_instruction_surfaces(project_root)
@@ -1019,7 +1020,7 @@ def instruction_surface_audit(project_root: Path) -> dict:
         entries.append({"path": "AGENTS.md#non-managed-text", "sha256": sha256_bytes(remainder.encode("utf-8"))})
 
     issues: list[dict] = []
-    if mode == "business-led":
+    if mode == "non-professional":
         registration_path = project_root / "registration.yml"
         if not registration_path.is_file():
             for entry in entries:
@@ -1027,7 +1028,7 @@ def instruction_surface_audit(project_root: Path) -> dict:
                     {
                         "code": "UNAPPROVED_INSTRUCTION_SURFACE",
                         "path": entry["path"],
-                        "message": f"{entry['path']}: business-led mode requires a registration allowlist; no registration.yml is present",
+                        "message": f"{entry['path']}: a non-professional developer language requires a registration allowlist; no registration.yml is present",
                     }
                 )
         else:
@@ -1060,11 +1061,11 @@ def instruction_surface_audit(project_root: Path) -> dict:
                             {
                                 "code": "UNAPPROVED_INSTRUCTION_SURFACE",
                                 "path": entry["path"],
-                                "message": f"{entry['path']}: content changed since IT Security approved it; the allowlisted sha256 no longer matches",
+                                "message": f"{entry['path']}: content changed since the Professional approved it; the allowlisted sha256 no longer matches",
                             }
                         )
 
-    return {"mode": mode, "status": "PASS" if not issues else "INCOMPLETE_ASSURANCE", "surfaces": entries, "issues": issues}
+    return {"developer_language": mode, "status": "PASS" if not issues else "INCOMPLETE_ASSURANCE", "surfaces": entries, "issues": issues}
 
 
 # --- Coverage floor diagnostics (WS7) ---------------------------------------

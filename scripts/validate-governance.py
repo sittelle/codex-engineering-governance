@@ -50,7 +50,7 @@ required = [
     "tests/capabilities/python/positive.py", "tests/capabilities/python/negative.py", "tests/capabilities/typescript/positive.ts", "tests/capabilities/typescript/negative.ts",
     "workflows/refactor/WORKFLOW.md",
     "workflows/emergency-fix/WORKFLOW.md", "workflows/dependency-change/WORKFLOW.md", "workflows/data-migration/WORKFLOW.md",
-    "codex-home/AGENTS.md", "host-adapters/operating-kernel.md", "host-adapters/operating-kernel.business-led.md", "host-adapters/claude/README.md", "host-adapters/claude/managed-settings.inform.json", "host-adapters/claude/managed-settings.block.json", "host-adapters/codex/README.md", "host-adapters/codex/requirements.inform.toml", "host-adapters/codex/requirements.block.toml", "CLAUDE.md", "templates/repository/AGENTS.md", "templates/repository/AGENTS.business-led.md",
+    "codex-home/AGENTS.md", "host-adapters/operating-kernel.md", "host-adapters/operating-kernel.non-professional.md", "host-adapters/claude/README.md", "host-adapters/claude/managed-settings.inform.json", "host-adapters/claude/managed-settings.block.json", "host-adapters/codex/README.md", "host-adapters/codex/requirements.inform.toml", "host-adapters/codex/requirements.block.toml", "CLAUDE.md", "templates/repository/AGENTS.md", "templates/repository/AGENTS.non-professional.md",
     "templates/repository/CLAUDE.md", "templates/repository/project-governance.yml",
     "tests/governance/TEST-CONTEXTS.json", "tests/governance/TEST-CONTEXTS.md",
     "tests/governance/evaluations/README.md", "global/operating-contract.md", "global/engineering-constitution.md",
@@ -453,20 +453,20 @@ else:
         if inform_copy != block_copy:
             errors.append("requirements.inform.toml and requirements.block.toml differ by more than the hook enforcement parameter")
 
-business_led_kernel = (root / "host-adapters/operating-kernel.business-led.md").read_text(encoding="utf-8")
-business_led_agents = (root / "templates/repository/AGENTS.business-led.md").read_text(encoding="utf-8")
+non_professional_kernel = (root / "host-adapters/operating-kernel.non-professional.md").read_text(encoding="utf-8")
+non_professional_agents = (root / "templates/repository/AGENTS.non-professional.md").read_text(encoding="utf-8")
 JARGON_TERMS = ("C0", "C1", "C2", "C3", "SA0", "SA1", "SA2", "SA3", "M0", "M1", "M2", "M3", "INCOMPLETE_ASSURANCE", "DID_NOT_EXECUTE", "NOT_APPLICABLE")
-for label, text in (("host-adapters/operating-kernel.business-led.md", business_led_kernel), ("templates/repository/AGENTS.business-led.md", business_led_agents)):
+for label, text in (("host-adapters/operating-kernel.non-professional.md", non_professional_kernel), ("templates/repository/AGENTS.non-professional.md", non_professional_agents)):
     for term in JARGON_TERMS:
         if re.search(rf"\b{re.escape(term)}\b", text):
             errors.append(f"{label} leaks assurance-internals jargon: {term}")
-if "{{HOST_NAME}}" not in business_led_kernel or "{{LOCATOR_DISPLAY}}" not in business_led_kernel:
-    errors.append("host-adapters/operating-kernel.business-led.md is missing a required placeholder")
-if "<!-- BEGIN ENGINEERING-GOVERNANCE-MANAGED -->" not in business_led_agents or "<!-- END ENGINEERING-GOVERNANCE-MANAGED -->" not in business_led_agents:
-    errors.append("templates/repository/AGENTS.business-led.md has no managed governance block markers")
+if "{{HOST_NAME}}" not in non_professional_kernel or "{{LOCATOR_DISPLAY}}" not in non_professional_kernel:
+    errors.append("host-adapters/operating-kernel.non-professional.md is missing a required placeholder")
+if "<!-- BEGIN ENGINEERING-GOVERNANCE-MANAGED -->" not in non_professional_agents or "<!-- END ENGINEERING-GOVERNANCE-MANAGED -->" not in non_professional_agents:
+    errors.append("templates/repository/AGENTS.non-professional.md has no managed governance block markers")
 
-business_led_managed_match = managed_pattern.search(business_led_agents)
-managed_business_led_agents = business_led_managed_match.group(0) if business_led_managed_match else ""
+non_professional_managed_match = managed_pattern.search(non_professional_agents)
+managed_non_professional_agents = non_professional_managed_match.group(0) if non_professional_managed_match else ""
 
 # WS6 proportionality: every governed session loads the kernel plus, for a
 # governed project, its managed AGENTS block. These budgets are a character-count
@@ -475,9 +475,9 @@ managed_business_led_agents = business_led_managed_match.group(0) if business_le
 # Raise a budget only with a deliberate reason, not merely to silence this check.
 TOKEN_BUDGETS = (
     ("host-adapters/operating-kernel.md (professional kernel)", host_kernel_template, 20000),
-    ("host-adapters/operating-kernel.business-led.md (business-led kernel)", business_led_kernel, 6000),
+    ("host-adapters/operating-kernel.non-professional.md (non-professional kernel)", non_professional_kernel, 6000),
     ("templates/repository/AGENTS.md managed block (professional)", managed_project_agents, 10000),
-    ("templates/repository/AGENTS.business-led.md managed block (business-led)", managed_business_led_agents, 2500),
+    ("templates/repository/AGENTS.non-professional.md managed block (non-professional)", managed_non_professional_agents, 2500),
 )
 for label, text, budget in TOKEN_BUDGETS:
     if len(text) > budget:

@@ -34,10 +34,10 @@ def assert_true(condition, message, failures):
 def make_sealed_registration(directory: Path, *, approved: set[str]) -> Path:
     reg_path = directory / "registration.yml"
     text = (ROOT / "templates/repository/registration.yml").read_text(encoding="utf-8")
-    text = text.replace('registration_id: "<assigned by IT Security>"', 'registration_id: "REG-TEST"')
+    text = text.replace('registration_id: "<assigned by the Professional>"', 'registration_id: "REG-TEST"')
     text = text.replace('purpose: "<what this project is for and who uses it>"', 'purpose: "Checklist regression fixture."')
     text = text.replace('business_owner: "<name>"', 'business_owner: "Test Owner"')
-    text = text.replace('approval_authority: "<IT Security contact>"', 'approval_authority: "Test IT Security"')
+    text = text.replace('approval_authority: "<name of the Professional responsible for this project>"', 'approval_authority: "Test Professional"')
     for cap in approved:
         text = text.replace(f"{cap}: false", f"{cap}: true")
     reg_path.write_text(text, encoding="utf-8", newline="\n")
@@ -47,7 +47,7 @@ def make_sealed_registration(directory: Path, *, approved: set[str]) -> Path:
     return reg_path
 
 
-def make_business_led_project(parent: Path, name: str, registration: Path) -> Path:
+def make_non_professional_project(parent: Path, name: str, registration: Path) -> Path:
     proc = run(
         [
             sys.executable,
@@ -59,8 +59,8 @@ def make_business_led_project(parent: Path, name: str, registration: Path) -> Pa
             "--name",
             name,
             "--no-git-init",
-            "--mode",
-            "business-led",
+            "--developer-language",
+            "non-professional",
             "--registration",
             str(registration),
             "-y",
@@ -86,7 +86,7 @@ def test_matching_test_file_is_found(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
         registration = make_sealed_registration(td, approved={"authentication"})
-        project = make_business_led_project(td, "checklist-match", registration)
+        project = make_non_professional_project(td, "checklist-match", registration)
         (project / "tests").mkdir(exist_ok=True)
         (project / "tests" / "test_login.py").write_text("def test_login_rejects_bad_password(): pass\n", encoding="utf-8")
 
@@ -105,7 +105,7 @@ def test_unrelated_test_file_does_not_match(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
         registration = make_sealed_registration(td, approved={"cloud"})
-        project = make_business_led_project(td, "checklist-nomatch", registration)
+        project = make_non_professional_project(td, "checklist-nomatch", registration)
         (project / "tests").mkdir(exist_ok=True)
         (project / "tests" / "test_math.py").write_text("def test_sum_adds_numbers(): pass\n", encoding="utf-8")
 
@@ -124,7 +124,7 @@ def test_purpose_item_is_never_matched(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
         registration = make_sealed_registration(td, approved=set())
-        project = make_business_led_project(td, "checklist-purpose", registration)
+        project = make_non_professional_project(td, "checklist-purpose", registration)
         checklist = checklist_for(project)
         item = item_for(checklist, "purpose")
         assert_true(item is not None, "no purpose checklist item", failures)

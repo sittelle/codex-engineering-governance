@@ -2,7 +2,7 @@
 """Regression coverage for WS4 phase 3 capability detection and drift
 reporting (docs/business-led/implementation-plan.md).
 
-There is no live IT Security review of real repositories in this
+There is no live Professional review of real repositories in this
 environment; per the maintainer's explicit direction, this test suite is
 the heuristic stand-in: synthetic fixtures under tests/capabilities/
 exercising every capability rule's recall (a deliberate positive trigger
@@ -73,12 +73,12 @@ def capability_ids(findings: list[dict]) -> set[str]:
 def make_sealed_registration(directory: Path, *, approved: set[str] | None = None) -> Path:
     reg_path = directory / "registration.yml"
     text = (ROOT / "templates/repository/registration.yml").read_text(encoding="utf-8")
-    text = text.replace('registration_id: "<assigned by IT Security>"', 'registration_id: "REG-TEST"')
+    text = text.replace('registration_id: "<assigned by the Professional>"', 'registration_id: "REG-TEST"')
     text = text.replace(
         'purpose: "<what this project is for and who uses it>"', 'purpose: "Conformance regression fixture."'
     )
     text = text.replace('business_owner: "<name>"', 'business_owner: "Test Owner"')
-    text = text.replace('approval_authority: "<IT Security contact>"', 'approval_authority: "Test IT Security"')
+    text = text.replace('approval_authority: "<name of the Professional responsible for this project>"', 'approval_authority: "Test Professional"')
     for cap in approved or set():
         text = text.replace(f"{cap}: false", f"{cap}: true")
     reg_path.write_text(text, encoding="utf-8", newline="\n")
@@ -88,7 +88,7 @@ def make_sealed_registration(directory: Path, *, approved: set[str] | None = Non
     return reg_path
 
 
-def make_business_led_project(parent: Path, name: str, registration: Path) -> Path:
+def make_non_professional_project(parent: Path, name: str, registration: Path) -> Path:
     proc = run(
         [
             sys.executable,
@@ -100,8 +100,8 @@ def make_business_led_project(parent: Path, name: str, registration: Path) -> Pa
             "--name",
             name,
             "--no-git-init",
-            "--mode",
-            "business-led",
+            "--developer-language",
+            "non-professional",
             "--registration",
             str(registration),
             "-y",
@@ -151,7 +151,7 @@ def test_conformance_detects_drift_and_writes_request(failures: list[str]) -> No
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
         registration = make_sealed_registration(td, approved={"network_connections"})
-        project = make_business_led_project(td, "drift-demo", registration)
+        project = make_non_professional_project(td, "drift-demo", registration)
         (project / "src").mkdir(exist_ok=True)
         shutil.copy2(FIXTURES / "python" / "positive.py", project / "src" / "app.py")
 
@@ -184,7 +184,7 @@ def test_conformance_clean_project_passes_no_request(failures: list[str]) -> Non
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
         registration = make_sealed_registration(td)
-        project = make_business_led_project(td, "clean-demo", registration)
+        project = make_non_professional_project(td, "clean-demo", registration)
         (project / "src").mkdir(exist_ok=True)
         shutil.copy2(FIXTURES / "python" / "negative.py", project / "src" / "app.py")
 
@@ -213,7 +213,7 @@ def test_readiness_packet_surfaces_conformance_state(failures: list[str]) -> Non
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
         registration = make_sealed_registration(td, approved={"network_connections"})
-        project = make_business_led_project(td, "readiness-conformance-demo", registration)
+        project = make_non_professional_project(td, "readiness-conformance-demo", registration)
         (project / "src").mkdir(exist_ok=True)
         shutil.copy2(FIXTURES / "python" / "positive.py", project / "src" / "app.py")
 
@@ -287,7 +287,7 @@ def test_tampered_registration_seal_is_did_not_execute(failures: list[str]) -> N
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
         registration = make_sealed_registration(td, approved={"network_connections"})
-        project = make_business_led_project(td, "tampered-seal-demo", registration)
+        project = make_non_professional_project(td, "tampered-seal-demo", registration)
         reg_in_project = project / "registration.yml"
         text = reg_in_project.read_text(encoding="utf-8")
         text = text.replace('pathway: "green"', 'pathway: "red"')
