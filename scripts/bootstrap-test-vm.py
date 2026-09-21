@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
-"""Bootstrap the dedicated, isolated Ubuntu automated-behavioral-campaign test
-VM (docs/adr/0003-automated-behavioral-campaign.md). Ubuntu only.
+"""Bootstrap the dedicated, isolated Ubuntu behavioral-campaign test VM
+(docs/adr/0003-automated-behavioral-campaign.md). Ubuntu only.
 
-This is distinct from scripts/bootstrap-evaluation-vm.py's checksum-locked
-route: it targets one dedicated, disposable-in-spirit test machine, resets
-any pre-existing Codex/Claude configuration so it establishes known test
-configuration itself, and hands off to run-behavioral-campaign-auto.py for
-the actual campaign. It does not sign in on the operator's behalf, does not
-make an AI call, and does not push to Git.
+Asks the operator up front whether this VM is being set up for manual
+testing (VS Code + a dedicated profile with the Codex/Claude extensions,
+signed in through the IDE) or automated testing (native Codex/Claude CLI
+binaries only, no VS Code, signed in through the terminal). The two setups
+are mutually exclusive on purpose: manual testing drives the existing
+`manual-behavioral-campaign.py conduct` VS Code conductor unchanged;
+automated testing drives `run-behavioral-campaign-auto.py`'s direct,
+non-interactive CLI invocations. This is distinct from
+scripts/bootstrap-evaluation-vm.py's checksum-locked route: it targets one
+dedicated, disposable-in-spirit test machine, resets any pre-existing
+Codex/Claude configuration so it establishes known test configuration
+itself. It does not sign in on the operator's behalf, does not make an AI
+call, and does not push to Git.
 """
 from __future__ import annotations
 
@@ -18,13 +25,13 @@ import platform
 import shutil
 import subprocess
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP_EVALUATION_VM = ROOT / "scripts" / "bootstrap-evaluation-vm.py"
 CAMPAIGN_KIT = ROOT / "scripts" / "manual-behavioral-campaign.py"
+GOVERNANCE_PY = ROOT / "governance.py"
 SIGN_IN_RETRY_LIMIT = 3
 
 
@@ -42,7 +49,7 @@ def load_campaign_kit():
 def run(argv, cwd=None, check=True):
     proc = subprocess.run(argv, cwd=cwd, text=True, capture_output=True)
     if check and proc.returncode != 0:
-        raise Error(f"command failed ({' '.join(argv)}): {proc.stdout}\n{proc.stderr}")
+        raise Error(f"command failed ({' '.join(str(a) for a in argv)}): {proc.stdout}\n{proc.stderr}")
     return proc
 
 
@@ -73,6 +80,20 @@ def check_framework_currency(root: Path) -> None:
     print(f"Framework currency: OK ({header.strip() or 'up to date'})")
 
 
+def choose_test_mode(explicit: str | None) -> str:
+    if explicit in ("manual", "automated"):
+        return explicit
+    while True:
+        answer = input(
+            "\nSet up this VM for (m)anual testing via VS Code, "
+            "or (a)utomated testing via native CLI only (no VS Code)? [m/a] "
+        ).strip().lower()
+        if answer in ("m", "manual"):
+            return "manual"
+        if answer in ("a", "auto", "automated"):
+            return "automated"
+
+
 def backup_existing_config(home: Path) -> list[str]:
     """Rename (never delete) pre-existing Codex/Claude configuration so the
     bootstrapper establishes known test configuration itself. Timestamped,
@@ -90,6 +111,9 @@ def backup_existing_config(home: Path) -> list[str]:
 
 
 def ensure_vscode_and_profile(host: str, profile: Path) -> None:
+    """Manual mode only. Also installs the host adapter (governance.py host
+    install) as part of scripts/bootstrap-evaluation-vm.py's bundled
+    `latest --apply` route."""
     if not BOOTSTRAP_EVALUATION_VM.is_file():
         raise Error("scripts/bootstrap-evaluation-vm.py is missing")
     plan = run([sys.executable, str(BOOTSTRAP_EVALUATION_VM), "latest", "--host", host], check=False)
@@ -101,6 +125,50 @@ def ensure_vscode_and_profile(host: str, profile: Path) -> None:
     print(apply.stdout)
     if apply.returncode != 0:
         raise Error(f"VS Code/profile/extension/host-adapter bootstrap failed: {apply.stderr.strip()}")
+
+
+def install_native_cli(name: str, npm_package: str, manual_install_hint: str) -> None:
+    """Automated mode only. Installs via npm when available -- npm's
+    registry provides package integrity/provenance the way apt/snap do,
+    unlike piping a vendor's curl-hosted install script to a shell, which
+    this script deliberately does not do unattended. If npm is
+    unavailable, prints the vendor's own current install command and asks
+    the operator to run it themselves rather than the script executing an
+    unreviewed script on their behalf."""
+    if shutil.which(name):
+        return
+    npm = shutil.which("npm")
+    if npm:
+        print(f"Installing {name} CLI via npm ({npm_package})...")
+        proc = run([npm, "install", "-g", npm_package], check=False)
+        if proc.returncode != 0:
+            print(proc.stdout)
+            print(proc.stderr, file=sys.stderr)
+        if shutil.which(name):
+            return
+    print(f"\nCould not install '{name}' automatically (npm unavailable or the install failed).")
+    print(f"Install it yourself, review the command first: {manual_install_hint}")
+    input(f"Press Enter once '{name}' is installed and on PATH... ")
+    if not shutil.which(name):
+        raise Error(f"'{name}' is still not on PATH after prompting for manual install")
+
+
+def install_native_clis(host: str) -> None:
+    if host in ("codex", "all"):
+        install_native_cli("codex", "@openai/codex", "curl -fsSL https://chatgpt.com/codex/install.sh | sh")
+    if host in ("claude", "all"):
+        install_native_cli("claude", "@anthropic-ai/claude-code", "curl -fsSL https://claude.ai/install.sh | bash")
+
+
+def install_host_adapter(host: str) -> None:
+    """Installs the framework's own kernel/governance instructions at the
+    host level (the same step scripts/bootstrap-evaluation-vm.py bundles
+    with VS Code setup for manual mode) so a scenario invocation actually
+    loads the framework's instructions, not just the bare model."""
+    proc = run([sys.executable, str(GOVERNANCE_PY), "host", "install", "--host", host, "-y"], check=False)
+    print(proc.stdout)
+    if proc.returncode != 0:
+        raise Error(f"host-adapter install failed: {proc.stderr.strip()}")
 
 
 def check_cli_executables() -> dict[str, str]:
@@ -140,7 +208,7 @@ def claude_signed_in(home: Path) -> bool:
     return bool(data)
 
 
-def prompt_sign_in(profile: Path) -> None:
+def prompt_sign_in_vscode(profile: Path) -> None:
     code = shutil.which("code") or "/snap/bin/code"
     print("\nLaunching VS Code with the dedicated test profile for sign-in.")
     print("Sign in to both the Codex and Claude extensions, then return here.")
@@ -148,11 +216,19 @@ def prompt_sign_in(profile: Path) -> None:
     input("Press Enter once you have signed in to both Codex and Claude... ")
 
 
-def ensure_signed_in(home: Path, profile: Path) -> None:
+def prompt_sign_in_terminal() -> None:
+    print("\nSign in to both CLIs in this terminal, then return here:")
+    print("  codex login")
+    print("  claude          # bare invocation opens the browser login on first launch; exit once signed in")
+    input("Press Enter once you have signed in to both Codex and Claude... ")
+
+
+def ensure_signed_in(home: Path, mode: str, profile: Path | None) -> None:
     if codex_signed_in() and claude_signed_in(home):
         print("Sign-in: both Codex and Claude already signed in.")
         return
-    prompt_sign_in(profile)
+    prompt = (lambda: prompt_sign_in_vscode(profile)) if mode == "manual" else prompt_sign_in_terminal
+    prompt()
     attempts = 0
     while True:
         attempts += 1
@@ -166,13 +242,14 @@ def ensure_signed_in(home: Path, profile: Path) -> None:
         answer = input(f"Not yet signed in to: {', '.join(missing)}. Try again? [y/N] ").strip().lower()
         if answer != "y":
             raise Error("sign-in declined; unable to proceed with the test")
-        prompt_sign_in(profile)
+        prompt()
 
 
 def create_project_folders(kit, workspace: Path) -> dict[str, str]:
-    """Reuse the manual campaign kit's own context-materialization logic
-    (the same functions `prepare` uses), rather than a second
-    implementation of the three GOV scenario contexts."""
+    """Automated mode only. Reuse the manual campaign kit's own
+    context-materialization logic (the same functions `prepare` uses),
+    rather than a second implementation of the three GOV scenario
+    contexts."""
     workspace.mkdir(parents=True, exist_ok=True)
     contexts = workspace / "contexts"
     contexts.mkdir(exist_ok=True)
@@ -187,11 +264,25 @@ def create_project_folders(kit, workspace: Path) -> dict[str, str]:
     }
 
 
+def check_cli_executables_optional() -> dict[str, str | None]:
+    """Manual mode: the native CLI binaries are not required (testing goes
+    through the VS Code extensions), so their absence is informational,
+    never fatal."""
+    found = {}
+    for name in ("codex", "claude"):
+        found[name] = shutil.which(name)
+    present = {k: v for k, v in found.items() if v}
+    if present:
+        print(f"Native CLI executables also present (not required for manual mode): {present}")
+    return found
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", choices=("codex", "claude", "all"), default="all")
-    parser.add_argument("--vscode-user-data-dir", required=True, type=Path, help="new directory outside the framework source for the dedicated test profile")
-    parser.add_argument("--workspace", required=True, type=Path, help="new or existing directory to hold the three scenario project folders")
+    parser.add_argument("--mode", choices=("manual", "automated"), default=None, help="skip the interactive prompt")
+    parser.add_argument("--vscode-user-data-dir", type=Path, help="manual mode: new directory outside the framework source for the dedicated test profile")
+    parser.add_argument("--workspace", type=Path, help="automated mode: new or existing directory to hold the three scenario project folders")
     parser.add_argument("--skip-currency-check", action="store_true")
     args = parser.parse_args()
 
@@ -199,6 +290,9 @@ def main() -> int:
         require_linux()
         if not args.skip_currency_check:
             check_framework_currency(ROOT)
+
+        mode = choose_test_mode(args.mode)
+        print(f"Mode: {mode}")
 
         home = Path.home()
         backed_up = backup_existing_config(home)
@@ -209,20 +303,32 @@ def main() -> int:
         else:
             print("Reset: no pre-existing Codex/Claude configuration found.")
 
-        ensure_vscode_and_profile(args.host, args.vscode_user_data_dir)
+        if mode == "manual":
+            if not args.vscode_user_data_dir:
+                raise Error("manual mode requires --vscode-user-data-dir")
+            ensure_vscode_and_profile(args.host, args.vscode_user_data_dir)
+            executables = check_cli_executables_optional()
+            ensure_signed_in(home, mode, args.vscode_user_data_dir)
+            print("\nBootstrap complete (manual).")
+            print(f"VS Code profile: {args.vscode_user_data_dir}")
+            print("Continue with the existing manual campaign kit: "
+                  "python3 scripts/manual-behavioral-campaign.py prepare <campaign-dir>, then `conduct`.")
+            return 0
 
+        if not args.workspace:
+            raise Error("automated mode requires --workspace")
+        install_native_clis(args.host)
+        install_host_adapter(args.host)
         executables = check_cli_executables()
         versions = {name: cli_version(path) for name, path in executables.items()}
         print(f"CLI executables: codex={executables['codex']} ({versions.get('codex')}), claude={executables['claude']} ({versions.get('claude')})")
-
-        ensure_signed_in(home, args.vscode_user_data_dir)
+        ensure_signed_in(home, mode, None)
 
         kit = load_campaign_kit()
         folders = create_project_folders(kit, args.workspace)
         (args.workspace / "folders.json").write_text(json.dumps(folders, indent=2) + "\n", encoding="utf-8", newline="\n")
 
-        print("\nBootstrap complete.")
-        print(f"VS Code profile: {args.vscode_user_data_dir}")
+        print("\nBootstrap complete (automated).")
         print("Project folders:")
         for name, path in folders.items():
             print(f"  - {name}: {path}")

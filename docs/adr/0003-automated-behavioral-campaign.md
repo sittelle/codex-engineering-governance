@@ -25,17 +25,34 @@ manual kit's behavior on a maintainer's own machine is unchanged.
 ### Two new tools, reusing the existing kit's infrastructure
 
 - `scripts/bootstrap-test-vm.py` (Ubuntu-only): verifies the framework
-  checkout is current against its remote, ensures VS Code is installed,
-  resets (renames with a timestamp, does not delete) any pre-existing
-  `~/.codex` and `~/.claude` configuration so the bootstrapper establishes
-  known test configuration itself, creates the dedicated test VS Code
-  profile with the Codex and Claude extensions
-  (`manual-behavioral-campaign.py vscode-profile-init`), verifies both CLI
-  executables resolve, checks sign-in state, and if needed launches VS Code
-  for interactive sign-in with a bounded retry (3 attempts) before a fatal
-  error. It does not create the three scenario contexts itself; that reuses
-  `scenario_rows()`/`create_governed_context()` from the existing kit at
-  run time, the same functions `prepare` already uses for the manual path.
+  checkout is current against its remote, then asks the operator up front
+  which mode this VM is being set up for -- manual or automated -- before
+  doing anything mode-specific, since the two setups are mutually
+  exclusive by design. Resets (renames with a timestamp, does not delete)
+  any pre-existing `~/.codex` and `~/.claude` configuration either way, so
+  the bootstrapper establishes known test configuration itself. **Manual**
+  mode installs VS Code, the dedicated test profile, and the Codex/Claude
+  extensions (via the existing `scripts/bootstrap-evaluation-vm.py latest`
+  route, which bundles the host-adapter install too), and signs in through
+  the IDE. **Automated** mode installs the native Codex/Claude CLI
+  binaries directly -- no VS Code at all -- via `npm install -g` when npm
+  is available (npm's registry provides package integrity/provenance the
+  way apt/snap do; this script deliberately never pipes a vendor's
+  curl-hosted install script to a shell itself, even though that is each
+  vendor's own currently-recommended route -- if npm is unavailable it
+  prints that command and asks the operator to run and review it
+  themselves), installs the host adapter separately
+  (`governance.py host install`, since a scenario invocation needs the
+  framework's own kernel loaded to be testing anything meaningful, not
+  just the bare model), verifies both CLI executables resolve, checks
+  sign-in state, and if needed prints the terminal sign-in commands
+  (`codex login`, bare `claude`) with a bounded retry (3 attempts) before
+  a fatal error -- never launching VS Code, since automated-mode VMs may
+  not have it installed at all. Only automated mode creates the three
+  scenario contexts, reusing `scenario_rows()`/`create_governed_context()`
+  from the existing kit at run time, the same functions `prepare` already
+  uses for the manual path; manual mode continues to use the kit's own
+  existing `prepare`/`conduct` commands unchanged.
 - `scripts/run-behavioral-campaign-auto.py`: offers the operator a choice
   of manual (hands off to the existing `conduct` command) or automated. The
   automated path prompts for a model (initially GPT-5.6 Terra / High effort,
