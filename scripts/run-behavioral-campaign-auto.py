@@ -489,8 +489,15 @@ def run_one_model(kit, model_entry: dict, rows: list[dict], folders: dict, sourc
     the next model instead of aborting the whole session; the failed
     model's captured responses are preserved and the retry command is
     printed, same as a single-model run."""
-    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    folder_name = f"{stamp}-{model_entry['host']}-{model_entry['key']}"
+    # Date-only would collide on any second same-day run for the same
+    # model -- exactly what happened live: a re-run after fixing a bug in
+    # the invocation flags collided with the earlier broken run's folder
+    # name and was refused by push_evidence's own "already exists" guard
+    # (working as intended -- it just needs a name that doesn't collide in
+    # the first place for a legitimate re-run). The time suffix keeps the
+    # date-host-model prefix human-scannable while guaranteeing uniqueness.
+    now = datetime.now(timezone.utc)
+    folder_name = f"{now:%Y-%m-%d}-{model_entry['host']}-{model_entry['key']}-{now:%H%M%S}Z"
     # Deliberately NOT a tempfile.TemporaryDirectory(): captured responses
     # are real AI-call output and must survive a failed push (git
     # credential issue, network blip, non-fast-forward conflict) so the
