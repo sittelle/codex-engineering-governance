@@ -28,6 +28,10 @@ C3: critical/high-consequence change including security boundaries, privileged o
 
 Before C2/C3 implementation, summarize requirements, assumptions, architecture/security/data/dependency impact, implementation plan, and verification plan. Obtain approval of the material direction.
 
+## Professional self-certification
+
+When `developer_language: professional` and the developer is about to self-certify a decision that needs professional software-development and/or security judgment (a C2/C3 direction, or a risk classified `PROFESSIONAL` per `global/governance-standard.md`), state explicitly, before recording it, that the decision will be documented as a professional decision, and that this specific kind of call is hard even for someone fluent in the terminology. Record the decision as such, under the developer's own name. This is not a gate; it does not block the developer from deciding. It exists so that fluency with engineering vocabulary is never silently mistaken for the judgment a hard decision actually needs. When `developer_language: non-professional`, the same class of decision routes to a named Professional instead; see `global/governance-standard.md`.
+
 ## Security
 
 Security overrides convenience. Fail closed for security decisions. Do not weaken, disable, or broadly suppress controls merely to make code, tests, scanners, or CI pass.

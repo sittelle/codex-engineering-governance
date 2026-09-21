@@ -6,34 +6,38 @@ Version 2.0.0.
 
 Material conflicts must be surfaced. A lower-level workflow/skill/profile must not silently override approved requirements or higher security/engineering policy.
 
-## Business-led mode and approval authority
+## Developer language and professional decisions
 
-A governed project may set `governance.mode: business-led` in `project-governance.yml`. In business-led mode, the business employee operating the agent is not the approval authority for security or governance decisions; IT Security is, as recorded in the project's `roles` block. The framework's approval boundaries (C0-C3, security findings, governance self-protection) are unchanged; only who exercises the approval authority changes.
+A governed project sets `developer_language: professional | non-professional` as a top-level, project-owned field in `project-governance.yml` (outside the `governance:` block; see ADR 0002). It is a self-declared preference the coder may change directly at any time, never a security boundary: it selects the framework's vocabulary and the default routing for decisions that need professional software-development and/or security judgment. The framework's approval boundaries (C0-C3, security findings, governance self-protection) are unchanged either way; only who exercises the approval authority, and how explicitly that is acknowledged, changes.
 
-In business-led mode:
+"Professional" means demonstrated professional software-development and/or security competence, not a job title, a department, or an employment relationship. A Professional can be a colleague, a contractor, or anyone else the business owner brings in with that competence.
 
-- a C2 or C3 direction is recorded as `PENDING_IT_SECURITY` rather than approved, and development continues on the business owner's confirmation that they understand and want the direction, pending IT Security's actual review;
-- every risk is classified `BUSINESS` or `IT_SECURITY` at recording time. A `BUSINESS` risk sits within the business owner's own responsibility (for example, incomplete automation or a remaining manual step); the owner's acceptance of it is recorded as final, with no IT Security confirmation required. An `IT_SECURITY` risk (anything touching information exposure, unsafe components, access, or effects on other systems) is recorded as `PENDING_IT_SECURITY` until IT Security confirms it. When the classification is unclear, classify as `IT_SECURITY`;
-- the agent never approves a C2/C3 direction or a risk acceptance of either classification, or a policy exception, on IT Security's behalf, in either mode; the agent also does not classify a risk as `BUSINESS` merely because that classification would let the owner resolve it without IT Security;
-- Critical and High findings remain release-blocking exactly as in professional mode; business-led mode changes who is asked to decide, not whether the decision is asked at all.
+For a decision the framework classifies as needing professional judgment (C2/C3 material direction, or a `PROFESSIONAL`-classified risk, defined below):
 
-This does not create a second approval model. `PENDING_IT_SECURITY`, a final `BUSINESS`-risk acceptance, and the `BUSINESS`/`IT_SECURITY` classification are business-led-mode renderings of the same approval-authority and risk-acceptance concepts professional mode already has; they route each decision to the party actually able to make it, not to a different set of governance semantics. A policy exception (as opposed to a risk acceptance) always requires IT Security in business-led mode; it is never `BUSINESS`-classified, since weakening a required control is a governance decision, not a residual-risk decision.
+- **`developer_language: non-professional`**: the decision is routed to a named Professional. It is recorded as `PENDING_PROFESSIONAL_REVIEW` rather than approved, and development continues on the business owner's confirmation that they understand and want the direction, pending the Professional's actual review. The Professional's name and their decision are recorded in the durable request record.
+- **`developer_language: professional`**: self-certification remains allowed, but the agent states explicitly, at that moment, that the decision will be recorded as a professional decision, and that this specific kind of call is hard even for someone fluent in the terminology. The decision is then documented as such, under the coder's own name. This closes the gap where someone fluent in engineering language but without the underlying judgment could self-certify a hard decision with no more ceremony than any routine one.
 
-### Business-led mode routing outcomes
+Every risk is classified `BUSINESS` or `PROFESSIONAL` at recording time. A `BUSINESS` risk sits within the business owner's own responsibility (for example, incomplete automation or a remaining manual step); the owner's acceptance of it is recorded as final, with no Professional confirmation required. A `PROFESSIONAL` risk (anything touching information exposure, unsafe components, access, or effects on other systems) follows the routing above: `PENDING_PROFESSIONAL_REVIEW` when `developer_language` is non-professional, or self-certified-and-documented-as-such when professional. When the classification is unclear, classify as `PROFESSIONAL`.
 
-Every workflow, in business-led mode, ends its material decision points in one of five routing outcomes rather than a developer approval:
+The agent never approves a C2/C3 direction or a risk acceptance of either classification, or a policy exception, on the Professional's behalf, regardless of `developer_language`; the agent also does not classify a risk as `BUSINESS` merely because that classification would let the coder resolve it without a Professional's involvement. Critical and High findings remain release-blocking regardless of `developer_language`; it changes who is asked to decide and how that is acknowledged, not whether the decision is asked at all.
 
-- **continue** — no material concern found, or the only finding is a `BUSINESS` risk the owner accepted directly; proceed within the registered pathway.
-- **update registration** — the registration is a living project description, not a one-time form. Before building a capability the current registration does not cover, draft the registration update in plain language as part of the request record so the owner can submit it to IT Security in one step; do not wait only for WS4's conformance/drift check to catch it after the fact.
-- **obtain reassessment** — the underlying risk picture has materially changed since the pathway was assigned; the business owner requests IT Security re-run the pathway assessment.
-- **involve IT Security** — a C2/C3 direction, a security finding, or an `IT_SECURITY`-classified risk needs an actual IT Security decision (`PENDING_IT_SECURITY`); record a request per "Business-led mode request records" below and continue other unaffected work.
-- **hand over to IT** — Red-pathway work that requires professional IT ownership before real use, per the pathway table in ADR 0001; development may continue, but the readiness packet states IT ownership is required.
+This does not create a second approval model. `PENDING_PROFESSIONAL_REVIEW`, a final `BUSINESS`-risk acceptance, the explicit self-certification acknowledgment, and the `BUSINESS`/`PROFESSIONAL` classification are renderings of the same approval-authority and risk-acceptance concepts professional software engineering already has; they route each decision to the party actually able to make it, and make clear when that party is the coder themselves. A policy exception (as opposed to a risk acceptance) always requires a Professional regardless of `developer_language`; it is never `BUSINESS`-classified, since weakening a required control is a governance decision, not a residual-risk decision.
+
+### Routing outcomes
+
+Every workflow ends its material decision points in one of five routing outcomes:
+
+- **continue** — no material concern found, or the only finding is a `BUSINESS` risk the coder accepted directly; proceed within the registered pathway.
+- **update registration** — the registration is a living project description, not a one-time form. Before building a capability the current registration does not cover, draft the registration update in plain language as part of the request record so the business owner can submit it to a Professional in one step; do not wait only for WS4's conformance/drift check to catch it after the fact.
+- **obtain reassessment** — the underlying risk picture has materially changed since the pathway was assigned; the business owner requests a Professional re-run the pathway assessment.
+- **involve a Professional** — a C2/C3 direction, a security finding, or a `PROFESSIONAL`-classified risk needs an actual Professional decision (`PENDING_PROFESSIONAL_REVIEW`) when `developer_language` is non-professional; record a request per "Request records" below and continue other unaffected work. When `developer_language` is professional, this is the self-certify-with-explicit-acknowledgment path instead of an external routing.
+- **hand over to a Professional** — Red-pathway work that requires professional ownership before real use, per the pathway table in ADR 0001; development may continue, but the readiness packet states professional ownership is required.
 
 A workflow selects among these the same way it already selects among C0-C3; it does not invent new criteria.
 
-### Business-led mode request records
+### Request records
 
-When a workflow's routing outcome is "involve IT Security" or "obtain reassessment", record a request under `docs/governance/requests/` in the governed project, using `templates/repository/docs/governance/requests/REQUEST-template.md`: what changed, why it matters, and what IT Security is asked to decide. The agent creates the record; it does not decide the request's outcome.
+When a workflow's routing outcome is "involve a Professional" (for `developer_language: non-professional`) or "obtain reassessment", record a request under `docs/governance/requests/` in the governed project, using `templates/repository/docs/governance/requests/REQUEST-template.md`: what changed, why it matters, and what the Professional is asked to decide. The agent creates the record; it does not decide the request's outcome. When `developer_language` is professional and the coder self-certifies a decision under the explicit-acknowledgment mechanism above, record that decision the same way, naming the coder as the Professional who decided it.
 
 ## Maturity
 
