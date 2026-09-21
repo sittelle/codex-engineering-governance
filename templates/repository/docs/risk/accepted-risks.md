@@ -1,17 +1,18 @@
 # Risk and Exception Register
 
-In business-led mode, every risk is classified `BUSINESS` or `IT_SECURITY`
-at recording time (see "Business-led mode and approval authority" in
+Every risk is classified `BUSINESS` or `PROFESSIONAL` at recording time (see
+"Developer language and professional decisions" in
 `global/governance-standard.md`). A `BUSINESS` risk sits within the
-business owner's own responsibility and their acceptance is final. An
-`IT_SECURITY` risk needs IT Security's decision; record it as
-`PENDING_IT_SECURITY` until confirmed. When the classification is unclear,
-classify as `IT_SECURITY`. In professional mode, leave `Classification`
-as `NOT APPLICABLE`.
+business owner's own responsibility and their acceptance is final. A
+`PROFESSIONAL` risk needs a Professional's decision: when `developer_language`
+is non-professional, record it as `PENDING_PROFESSIONAL_REVIEW` until
+confirmed; when professional, it is self-certified with explicit
+acknowledgment and documented as a professional decision. When the
+classification is unclear, classify as `PROFESSIONAL`.
 
 ## RISK-001
 Status:
-Classification: BUSINESS | IT_SECURITY | NOT APPLICABLE
+Classification: BUSINESS | PROFESSIONAL | NOT APPLICABLE
 Severity:
 Risk/finding:
 Impact:

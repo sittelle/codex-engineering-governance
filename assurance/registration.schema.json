@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/codex-governance/registration.schema.json",
-  "title": "Business-led Mode Project Registration",
+  "title": "Non-Professional Developer Language Project Registration",
   "description": "the Professional's registration of a project: the reference the framework derives assurance facts from and detects implementation drift against. Filled by hand until a registration tool exists, per docs/business-led/implementation-plan.md section 11.",
   "type": "object",
   "required": [

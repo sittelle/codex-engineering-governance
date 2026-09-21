@@ -42,4 +42,4 @@ command_windows = "python -c \"import json,os,pathlib,subprocess,sys;cfg=pathlib
 statusMessage = "Checking governance policy"
 
 [mcp_servers]
-# IT Security populates this table with approved servers; absent here means none approved.
+# IT populates this table with approved servers; absent here means none approved.

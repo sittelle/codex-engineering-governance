@@ -2,7 +2,7 @@
 
 `requirements.inform.toml` and `requirements.block.toml` are the Codex
 counterpart to `host-adapters/claude/managed-settings.*.json`, from ADR
-[0001](../../docs/adr/0001-business-led-mode-architecture.md). IT Security
+[0001](../../docs/adr/0001-business-led-mode-architecture.md). IT
 deploys exactly one of them, unedited except for `[mcp_servers]` (populate
 with the actually-approved servers; an empty table denies all MCP servers by
 default), to the path documented in

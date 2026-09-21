@@ -2,7 +2,7 @@
 
 `managed-settings.inform.json` and `managed-settings.block.json` are Layer 1
 templates from ADR [0001](../../docs/adr/0001-business-led-mode-architecture.md).
-IT Security deploys exactly one of them, unedited except for
+IT deploys exactly one of them, unedited except for
 `allowedMcpServers` (populate with the actually-approved servers for the
 deployment; an empty list plus `allowManagedMcpServersOnly: true` denies all
 MCP servers by default), to the OS-specific managed-settings path documented

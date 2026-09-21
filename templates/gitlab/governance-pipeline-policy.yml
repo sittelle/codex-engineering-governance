@@ -9,7 +9,7 @@
 # CI/CD variables at the GitLab project or group level (Settings > CI/CD >
 # Variables), never edited here: GitLab's variable precedence gives a
 # protected project/group variable priority over the empty defaults below,
-# so IT Security controls both without touching this file, and a
+# so IT controls both without touching this file, and a
 # contributor cannot override a protected variable from a merge request.
 # A missing GOVERNANCE_ENFORCEMENT is recorded as ABSENT/inform in the
 # report, per the framework's fail-closed rule; it is never silently

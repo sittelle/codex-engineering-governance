@@ -44,7 +44,7 @@ These are applicability decisions, not permission to mark a required control PAS
 
 ## Internal company distribution
 
-Business-led mode (`docs/business-led/implementation-plan.md`) distributes the framework to a company's own IT-managed clients as a read-only install, separately from the public ZIP publication model above. Internal company distribution is an approved trigger to reassess release signing and stronger provenance before the first internal rollout: the reassessment is required at that point, not deferred indefinitely as a hypothetical future channel change. It does not itself change today's SBOM or signing applicability decisions above.
+The non-professional developer_language deployment model (`docs/business-led/implementation-plan.md`) distributes the framework to a company's own IT-managed clients as a read-only install, separately from the public ZIP publication model above. Internal company distribution is an approved trigger to reassess release signing and stronger provenance before the first internal rollout: the reassessment is required at that point, not deferred indefinitely as a hypothetical future channel change. It does not itself change today's SBOM or signing applicability decisions above.
 
 ## Release topology and publication authority
 

@@ -262,7 +262,7 @@
         "python",
         "scripts/test-governance-integrity.py"
       ],
-      "reason": "Business-led mode governance-artifact integrity: tampered managed blocks, governed fields, plan assurance objects, swapped baseline copies, and unapproved instruction surfaces must each produce GOVERNANCE_INTEGRITY_FAILED or UNAPPROVED_INSTRUCTION_SURFACE, with schema v2/v4 projects entirely unaffected.",
+      "reason": "Non-professional developer_language governance-artifact integrity: tampered managed blocks, governed fields, plan assurance objects, swapped baseline copies, and unapproved instruction surfaces must each produce GOVERNANCE_INTEGRITY_FAILED or UNAPPROVED_INSTRUCTION_SURFACE, with schema v2/v4 projects entirely unaffected.",
       "timeout_seconds": 300,
       "working_directory": null,
       "environment": {},
@@ -290,7 +290,7 @@
         "python",
         "scripts/test-registration-conformance.py"
       ],
-      "reason": "Business-led WS4 phase 3 capability-detection rules (semgrep/capabilities/*.yml) and scripts/run-registration-conformance.py: recall/precision on synthetic positive/negative fixtures, drift detection and request-record creation, and DID_NOT_EXECUTE on missing/tampered registration.yml. Per explicit maintainer direction, this is the heuristic stand-in for a live IT Security false-positive review on real repositories.",
+      "reason": "Business-led WS4 phase 3 capability-detection rules (semgrep/capabilities/*.yml) and scripts/run-registration-conformance.py: recall/precision on synthetic positive/negative fixtures, drift detection and request-record creation, and DID_NOT_EXECUTE on missing/tampered registration.yml. Per explicit maintainer direction, this is the heuristic stand-in for a live Professional false-positive review on real repositories.",
       "timeout_seconds": 180,
       "working_directory": null,
       "environment": {},
