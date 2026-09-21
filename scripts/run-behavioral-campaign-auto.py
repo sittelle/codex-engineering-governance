@@ -76,14 +76,17 @@ def choose_mode() -> str:
             return "automated"
 
 
-def choose_model() -> dict:
+def choose_model(available: list[dict]) -> dict:
+    if len(available) == 1:
+        print(f"Only {available[0]['label']} remains this session.")
+        return available[0]
     print("Select a model:")
-    for index, entry in enumerate(MODELS, start=1):
+    for index, entry in enumerate(available, start=1):
         print(f"  {index}. {entry['label']}")
     while True:
-        choice = input(f"Model [1-{len(MODELS)}]: ").strip()
-        if choice.isdigit() and 1 <= int(choice) <= len(MODELS):
-            return MODELS[int(choice) - 1]
+        choice = input(f"Model [1-{len(available)}]: ").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(available):
+            return available[int(choice) - 1]
         print("Invalid selection.")
 
 
@@ -340,29 +343,13 @@ def push_existing(workspace: Path, folder_name: str) -> int:
     return 0
 
 
-def run_automated(kit, workspace: Path, selection: str) -> int:
-    folders_path = workspace / "folders.json"
-    if not folders_path.is_file():
-        raise Error(f"{folders_path} not found; run bootstrap-test-vm.py first")
-    folders = json.loads(folders_path.read_text(encoding="utf-8"))
-
-    # Verify evidence-branch fetch/push access *before* spending a single AI
-    # call, and keep the worktree open for the actual push at the end
-    # instead of tearing it down and re-creating it (one credential
-    # prompt, not two). Finding an access problem only after running the
-    # whole campaign (previously: only at push time, with captured
-    # responses sitting in an auto-deleted tempdir) meant a mistyped
-    # git password destroyed every response the campaign had just paid
-    # for in AI calls and time.
-    worktree_dir = workspace / "evaluation-evidence-worktree"
-    print("Verifying evidence-branch access (fetch/push credentials)...")
-    ensure_evidence_worktree(worktree_dir)
-    print("Evidence-branch access OK.")
-
-    model_entry = choose_model()
-    rows = kit.selected_rows(kit.scenario_rows(), selection)
-    source = kit.source_state()
-
+def run_one_model(kit, model_entry: dict, rows: list[dict], folders: dict, source, workspace: Path, worktree_dir: Path) -> bool:
+    """Run every selected scenario against one model and push its evidence.
+    Returns True iff the push succeeded (evidence safely recorded) -- a
+    push failure does not raise, so a multi-model session can continue to
+    the next model instead of aborting the whole session; the failed
+    model's captured responses are preserved and the retry command is
+    printed, same as a single-model run."""
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     folder_name = f"{stamp}-{model_entry['host']}-{model_entry['key']}"
     # Deliberately NOT a tempfile.TemporaryDirectory(): captured responses
@@ -390,17 +377,66 @@ def run_automated(kit, workspace: Path, selection: str) -> int:
     try:
         push_evidence(worktree_dir, campaign_dir, folder_name)
     except Error as exc:
-        raise Error(f"{exc} -- {_push_retry_hint(workspace, campaign_dir, folder_name)}") from exc
-    run(["git", "-C", str(ROOT), "worktree", "remove", "--force", str(worktree_dir)], check=False)
+        print(f"FAILED to push {model_entry['label']}: {exc}")
+        print(_push_retry_hint(workspace, campaign_dir, folder_name))
+        return False
     shutil.rmtree(campaign_dir)
 
     failures = [r for r in records if r["status"] != "CAPTURED"]
     if failures:
-        print(f"\n{len(failures)} scenario(s) did not execute cleanly:")
+        print(f"\n{len(failures)} scenario(s) did not execute cleanly for {model_entry['label']}:")
         for record in failures:
             print(f"  - {record['test_id']}: {record['reason']}")
-    print(f"\nAutomated campaign complete: {len(records)} scenarios, {len(records) - len(failures)} captured.")
-    return 0
+    print(f"{model_entry['label']} complete: {len(records)} scenarios, {len(records) - len(failures)} captured.")
+    return True
+
+
+def run_automated(kit, workspace: Path, selection: str) -> int:
+    folders_path = workspace / "folders.json"
+    if not folders_path.is_file():
+        raise Error(f"{folders_path} not found; run bootstrap-test-vm.py first")
+    folders = json.loads(folders_path.read_text(encoding="utf-8"))
+
+    # Verify evidence-branch fetch/push access *before* spending a single AI
+    # call, and keep the worktree open for the whole session -- across
+    # every model run, not just one -- instead of tearing it down and
+    # re-creating it per model (one credential prompt total, not several).
+    # Finding an access problem only after running the whole campaign
+    # (previously: only at push time, with captured responses sitting in
+    # an auto-deleted tempdir) meant a mistyped git password destroyed
+    # every response the campaign had just paid for in AI calls and time.
+    worktree_dir = workspace / "evaluation-evidence-worktree"
+    print("Verifying evidence-branch access (fetch/push credentials)...")
+    ensure_evidence_worktree(worktree_dir)
+    print("Evidence-branch access OK.")
+
+    rows = kit.selected_rows(kit.scenario_rows(), selection)
+    source = kit.source_state()
+
+    # One model at a time, but without leaving the session: once a model's
+    # scenarios finish (successfully pushed, or failed-and-preserved), ask
+    # whether to pick up right here with another model, rather than making
+    # the operator exit and re-invoke the whole script -- re-verifying
+    # access and re-answering the mode prompt -- just to run Codex after
+    # Claude already succeeded.
+    ran: list[dict] = []
+    overall_ok = True
+    while True:
+        remaining = [m for m in MODELS if m not in ran]
+        model_entry = choose_model(remaining)
+        overall_ok = run_one_model(kit, model_entry, rows, folders, source, workspace, worktree_dir) and overall_ok
+        ran.append(model_entry)
+        remaining = [m for m in MODELS if m not in ran]
+        if not remaining:
+            print("\nAll available models have been run this session.")
+            break
+        answer = input(f"\nRun another model now ({', '.join(m['label'] for m in remaining)})? [y/N] ").strip().lower()
+        if answer != "y":
+            break
+
+    run(["git", "-C", str(ROOT), "worktree", "remove", "--force", str(worktree_dir)], check=False)
+    print(f"\nAutomated campaign session complete: {len(ran)} model(s) run.")
+    return 0 if overall_ok else 1
 
 
 def main() -> int:

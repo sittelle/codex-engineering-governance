@@ -16,7 +16,10 @@ it can be pushed.
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
+import json
 import shutil
 import subprocess
 import sys
@@ -170,6 +173,48 @@ def test_failed_push_preserves_evidence_and_retries_cleanly(failures: list[str])
         assert_true(count == 1, f"retry should not duplicate the evidence commit, found {count}", failures)
 
 
+def test_multi_model_session_continues_without_restart(failures: list[str]) -> None:
+    """After one model's scenarios are captured and pushed, the operator
+    must be able to continue straight into the next model within the same
+    script invocation -- no restart, and evidence-branch access verified
+    once for the whole session, not once per model."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        origin, work = make_scratch_repo(tmp)
+        (work / "VERSION").write_text("2.0.0\n", encoding="utf-8")
+        run(["git", "-C", str(work), "add", "VERSION"])
+        run(["git", "-C", str(work), "commit", "-m", "add VERSION for metadata"])
+        mod = load_runner_with_scratch_root(work)
+
+        def fake_invoke(prompt, cwd, model, effort):
+            return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": "fake response\n"}
+        mod.invoke_codex = fake_invoke
+        mod.invoke_claude = fake_invoke
+
+        kit = mod.load_campaign_kit()
+        workspace = tmp / "workspace"
+        workspace.mkdir()
+        (workspace / "folders.json").write_text(json.dumps({"GLOBAL_KERNEL": str(tmp)}), encoding="utf-8")
+
+        answers = iter(["1", "y"])
+        mod.input = lambda prompt="": next(answers)
+
+        captured = io.StringIO()
+        with contextlib.redirect_stdout(captured):
+            exit_code = mod.run_automated(kit, workspace, "GOV-001")
+        output = captured.getvalue()
+
+        assert_true(exit_code == 0, f"multi-model session should exit 0, got {exit_code}", failures)
+        access_checks = output.count("Verifying evidence-branch access")
+        assert_true(access_checks == 1, f"evidence-branch access should be verified once per session, not {access_checks} times", failures)
+        assert_true("All available models have been run this session" in output, "session should recognize both models were run without a restart", failures)
+
+        run(["git", "-C", str(work), "fetch", "origin", mod.EVIDENCE_BRANCH])
+        log = run(["git", "-C", str(work), "log", f"origin/{mod.EVIDENCE_BRANCH}", "--oneline"]).stdout
+        assert_true("codex" in log, "codex model's evidence did not land on the evidence branch", failures)
+        assert_true("claude" in log, "claude model's evidence did not land on the evidence branch", failures)
+
+
 def test_path_confinement_guard_refuses_stray_changes(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -204,6 +249,7 @@ def main() -> int:
     test_second_run_reuses_and_extends_branch(failures)
     test_stale_worktree_registry_self_heals(failures)
     test_failed_push_preserves_evidence_and_retries_cleanly(failures)
+    test_multi_model_session_continues_without_restart(failures)
     test_path_confinement_guard_refuses_stray_changes(failures)
 
     if failures:
@@ -217,6 +263,7 @@ def main() -> int:
     print("- a second run reuses and extends the same branch")
     print("- a worktree directory removed without `git worktree remove` self-heals via `git worktree prune`")
     print("- a failed push preserves the captured campaign directory and retries cleanly, no duplicate commit")
+    print("- a multi-model session continues to the next model without restarting or re-verifying access")
     print("- a commit touching anything outside the dedicated evidence folder is refused before it can be pushed")
     return 0
 

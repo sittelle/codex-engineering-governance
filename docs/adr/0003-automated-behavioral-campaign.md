@@ -64,13 +64,19 @@ manual kit's behavior on a maintainer's own machine is unchanged.
   existing `prepare`/`conduct` commands unchanged.
 - `scripts/run-behavioral-campaign-auto.py`: offers the operator a choice
   of manual (hands off to the existing `conduct` command) or automated. The
-  automated path prompts for a model (initially GPT-5.6 Terra / High effort,
-  Claude Sonnet 5 / High effort; list is extensible), then for every
-  scenario from `scenario_rows()`, invokes the corresponding CLI
+  automated path verifies evidence-branch access once, then loops: prompts
+  for a model (initially GPT-5.6 Terra / High effort, Claude Sonnet 5 /
+  High effort; list is extensible), runs every scenario from
+  `scenario_rows()` against it, invokes the corresponding CLI
   non-interactively with its working directory set to that scenario's
   context directory (`contexts/global-kernel`, `contexts/governed-project`,
   or the framework root for `GOVERNANCE_FRAMEWORK_REPOSITORY`), captures the
-  plain-text response, and writes campaign evidence.
+  plain-text response, writes campaign evidence, and -- once that model's
+  evidence is pushed -- asks whether to continue straight into another
+  model from the same session rather than requiring the operator to exit
+  and re-invoke the script (re-verifying access, re-choosing mode) just to
+  run Codex after Claude already succeeded. Once every model in `MODELS`
+  has been run, or the operator declines to continue, the session ends.
 
 ### CLI invocation
 
