@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -188,17 +189,34 @@ def cli_version(executable: str) -> str | None:
 
 def codex_signed_in() -> bool:
     """codex login status exits 0 when credentials are present, per OpenAI's
-    own CLI reference (https://developers.openai.com/codex/cli/reference)."""
+    own CLI reference (https://developers.openai.com/codex/cli/reference).
+    Codex also authenticates directly off OPENAI_API_KEY/CODEX_API_KEY when
+    either is set, bypassing stored login state entirely, so treat those the
+    same as a confirmed login rather than relying on the status subcommand
+    alone."""
+    if os.environ.get("OPENAI_API_KEY") or os.environ.get("CODEX_API_KEY"):
+        return True
     proc = run(["codex", "login", "status"], check=False)
     return proc.returncode == 0
 
 
-def claude_signed_in(home: Path) -> bool:
-    """Claude Code's own docs (https://code.claude.com/docs/en/authentication)
-    document credential storage at ~/.claude/.credentials.json (mode 0600)
-    on Linux, not a documented non-interactive status subcommand; check for
-    that file rather than relying on an undocumented CLI status command."""
-    credentials = home / ".claude" / ".credentials.json"
+def _anthropic_profile_signed_in() -> bool:
+    """Claude Code's Console "sign in without an API key" route (the
+    recommended one, see
+    https://code.claude.com/docs/en/authentication#sign-in-without-an-api-key)
+    stores an OAuth profile under the Anthropic configuration directory --
+    <config_dir>/credentials/<profile>.json -- not under
+    ~/.claude/.credentials.json. See
+    https://platform.claude.com/docs/en/manage-claude/wif-reference for the
+    exact layout and the active_config/ANTHROPIC_PROFILE resolution order,
+    which Claude Code also honors."""
+    config_dir = Path(os.environ.get("ANTHROPIC_CONFIG_DIR", "")) if os.environ.get("ANTHROPIC_CONFIG_DIR") else Path.home() / ".config" / "anthropic"
+    profile = os.environ.get("ANTHROPIC_PROFILE")
+    if not profile:
+        active_config = config_dir / "active_config"
+        profile = active_config.read_text(encoding="utf-8").strip() if active_config.is_file() else ""
+        profile = profile or "default"
+    credentials = config_dir / "credentials" / f"{profile}.json"
     if not credentials.is_file():
         return False
     try:
@@ -206,6 +224,29 @@ def claude_signed_in(home: Path) -> bool:
     except (OSError, json.JSONDecodeError):
         return False
     return bool(data)
+
+
+def claude_signed_in(home: Path) -> bool:
+    """Claude Code accepts several distinct credential sources beyond a
+    claude.ai subscription login stored at ~/.claude/.credentials.json (mode
+    0600, https://code.claude.com/docs/en/authentication): an
+    ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN environment variable, a
+    CLAUDE_CODE_OAUTH_TOKEN, and an Anthropic Console sign-in stored as a
+    profile (see _anthropic_profile_signed_in). Check all of them -- a
+    Console sign-in that never touches .credentials.json is not a login
+    failure."""
+    if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN") or os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+        return True
+    config_dir_override = os.environ.get("CLAUDE_CONFIG_DIR")
+    credentials = (Path(config_dir_override) if config_dir_override else home / ".claude") / ".credentials.json"
+    if credentials.is_file():
+        try:
+            data = json.loads(credentials.read_text(encoding="utf-8"))
+            if data:
+                return True
+        except (OSError, json.JSONDecodeError):
+            pass
+    return _anthropic_profile_signed_in()
 
 
 def prompt_sign_in_vscode(profile: Path) -> None:
