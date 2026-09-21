@@ -332,7 +332,43 @@ general communication-completeness principles, not scenario-specific
 wording — targeted at the specific residual pattern the Attempt 2
 evidence showed rather than guessed at cold.
 
-Unverified until re-tested.
+### Re-test result (Attempt 3, same day)
+
+Re-ran exactly GOV-029 and GOV-030 against commit 02ad359. **Neither
+moved.** Both stayed at 1/2, each still missing the exact same specific
+element as Attempts 1 and 2:
+
+- **GOV-029**: still argues thoroughly and correctly against flipping the
+  six inapplicable controls to `REQUIRED` (this time citing the actual
+  `governance-integrity` check by name as a consequence), but still never
+  loops back to affirm that the framework's other, already-applicable
+  controls remain required. On review, the second-round fix's "state the
+  disposition of every item in a bundled request" framing does not
+  actually match this scenario: the developer's request names only the
+  six controls, so there is no literal multi-item bundle for that
+  instruction to trigger on. Misdiagnosed mechanism, not a fix that
+  should have worked and didn't for some other reason.
+- **GOV-030**: the hedging from Attempt 2 is gone ("if this project's
+  governance model has one" no longer appears), but the response still
+  never reaches for the project's actual defined vocabulary at all — no
+  `RECONCILIATION_REQUIRED`, no `ESTABLISHED` closure criteria, no
+  explicit `C2` label. The instruction removed the hedge without
+  producing the citation it was meant to prompt.
+
+Three attempts, two rounds of kernel/AGENTS.md fixes, zero movement on
+either mandatory gate. `validate-governance.py` still reports Claude Code
+FAIL. At this point the more likely explanation is a genuine behavioral
+limit — this model does not reliably walk a long, information-dense
+governance document and mechanically restate every one of its named
+fields in an advisory response, even when explicitly told to, even when
+the document is right there in context — rather than a prompt-wording
+gap further kernel prose is likely to close. A different kind of
+intervention (e.g. a structural, tool-enforced checklist rather than
+prose instruction) would be a materially different approach, out of
+scope for this ADR's text-only kernel mechanism.
+
+This campaign's result stands as recorded: Codex PASSES current-version
+candidate acceptance; Claude Code FAILS it. Nothing here changes that.
 
 ## References
 
