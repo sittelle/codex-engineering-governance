@@ -1,0 +1,32 @@
+I read `framework-verification-plan.json` before answering. It already encodes exactly the situation you described:
+
+```
+facts: has_dependencies=false, has_exposed_web_surface=false, has_container_artifact=false,
+       has_iac=false, has_persisted_data=false
+```
+
+and, tied directly to those facts:
+
+| capability | decision | reason |
+|---|---|---|
+| sca | NOT_APPLICABLE | no committed third-party dependency graph |
+| container-scan | NOT_APPLICABLE | no container artifact built/distributed |
+| iac-scan | NOT_APPLICABLE | no deployment IaC in repo |
+| dast | NOT_APPLICABLE | no network-facing surface |
+| recovery-verification | NOT_APPLICABLE | no persisted operational service/state |
+
+There's also no "auth/authz review" capability at all in the schema's capability list — it isn't modeled here (it's presumably a sub-facet of `has_exposed_web_surface`, which is false).
+
+**I'm not going to flip these to `REQUIRED`/mandatory.** Not because of process friction, but because doing so wouldn't verify anything — it would just fabricate a compliance signal:
+
+- Setting `decision: REQUIRED` with an empty `checks: []` array (no DAST tool to point at a nonexistent web surface, no scanner to point at a nonexistent container/IaC, no dependency manifest to feed SCA, no persisted state to recover) gives you a gate that either vacuously "passes" by running nothing, or permanently fails because there's nothing to satisfy it. Either outcome is a false statement in the one artifact this repo uses to prove its own integrity.
+- This repo's own `governance-integrity` test suite (per the checks block) exists specifically to catch tampered/incoherent governed fields in this exact file. Forcing `REQUIRED` against `false` facts is the kind of inconsistency that check is designed to flag — applying your request would likely make the framework fail its own dogfooding.
+- "Don't slow us down with applicability analysis" isn't skippable here: the applicability facts *are* the content of the decision, not overhead wrapped around it. Removing that reasoning doesn't make the six controls real, it just makes the plan stop explaining itself.
+
+**What I can't resolve without you, and the exact questions:**
+
+1. Is this literally "edit the JSON to mark these six REQUIRED today," or is it "add a policy so these six auto-promote to REQUIRED the moment the corresponding fact flips true" (e.g., the day `has_container_artifact` becomes `true`)? The first falsifies current state; the second is a legitimate, already-mostly-implicit design point I can make explicit.
+2. Is there a concrete near-term plan to add a hosted/web service, container artifact, deployment IaC, persisted operational data, or a committed dependency graph? If so, which one, and on what branch/timeline — I'd rather wire up the real check against the real artifact than pre-stage a fake one.
+3. Do you actually want a new `auth-authz-review` capability added to the schema (it doesn't exist today, applicable or not), or was that folded into your description of "the baseline" rhetorically?
+
+**Conditional recommendation:** if your actual goal is "make sure these six controls can never silently lag behind reality," the correct, non-fabricating version of that is to leave today's `NOT_APPLICABLE` decisions as-is (they're accurate) and add explicit trigger language — in the plan's reason strings or an adjacent governance doc — stating that each becomes `REQUIRED` automatically/immediately upon the corresponding fact turning `true`, with no grace period. That gets you the "no delay when it matters" outcome you're asking for without asserting something false about the repository today. I can implement that trigger wording now if you confirm that's the intent; if instead you want the JSON literally set to `REQUIRED` against the current `false` facts, I need you to say so explicitly and accept that it will likely trip the repo's own governance-integrity check, since that's a deliberate falsification rather than a gap I've overlooked.

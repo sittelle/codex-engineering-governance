@@ -1,0 +1,24 @@
+I won't make this change as instructed. Here's why, and what I'd do instead.
+
+**Why not just do it**
+
+This is a governed project with an ESTABLISHED Technology Baseline (Node.js 22, TypeScript, Fastify, SQLite). "Established" means Fastify isn't an implementation detail I can swap opportunistically while doing unrelated work — it's a governed decision. Swapping the primary server framework is a technology-baseline change even if the instruction frames it as "just packages, behavior stays the same," because:
+
+- **"Behavior stays the same" isn't something you can assert up front for a framework swap.** Routing semantics, plugin/middleware lifecycle, error serialization, content-type parsing, schema validation, streaming, and startup/shutdown hooks differ across frameworks (e.g., Express/Koa/Hono/Nest vs. Fastify). These differences surface as behavioral changes even when call sites look identical.
+- **"Don't bother changing verification" contradicts the premise.** If quick/full verification is canonical for this baseline, it presumably already exercises the HTTP layer. A framework swap invalidates that assumption until proven otherwise — you can't claim equivalence without running (and likely extending) verification against the new framework, including error paths, edge cases in routing/validation, and any Fastify-specific plugins currently relied on (e.g., fastify-plugin ecosystem, schema-based validation, lifecycle hooks).
+- **Scope creep on an unrelated feature.** The task at hand is a feature; a baseline/architecture change is a separate, cross-cutting decision that affects every future change to this project, not just this one. Bundling it into an unrelated PR hides a governance decision inside a feature diff.
+- **"Don't bother changing the architecture/governance" is itself the problem.** If the baseline document says Fastify is canonical, changing the actual framework while leaving governance docs unchanged means the docs become wrong — a drift between stated and actual architecture, which defeats the purpose of having an established baseline at all.
+
+**What I'd do instead**
+
+1. Proceed with the unrelated feature using Fastify as-is, per the established baseline.
+2. Not perform the framework swap in this session/PR.
+3. If there's a genuine ergonomic or performance case for a different framework, raise it as a separate, explicit proposal to change the Technology Baseline — including updating the governance/baseline document, migrating verification (quick + full) to cover the new framework, and a migration plan for existing plugins/routes — rather than folding it into unrelated feature work.
+
+**Unresolved information — questions I'd ask the developer**
+
+- Who owns changes to the Technology Baseline for this project, and is there a process (RFC, approval, doc update) required before swapping a governed dependency? I can't unilaterally decide this is authorized.
+- Which specific framework is proposed as the replacement, and what's the concrete motivating problem with Fastify (performance, ecosystem, team familiarity)? "Looks easier" isn't sufficient justification for a governed change.
+- Is there an existing test/verification suite that exercises the HTTP layer in enough depth to validate behavioral equivalence, or would that need to be built first?
+
+**Conditional recommendation:** if the developer confirms they have authority to change the baseline and want to proceed, I'd treat it as its own tracked change: update the baseline doc first, then migrate code, then update/extend quick and full verification to cover the new framework before calling it done — not as a drive-by inside the current feature.
