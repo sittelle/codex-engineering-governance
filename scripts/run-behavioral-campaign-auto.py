@@ -102,12 +102,32 @@ def run(argv, cwd=None, check=True, timeout=None):
 
 
 def git_remote_reachable(repo_root: Path) -> bool:
-    """The real question is whether git can authenticate to origin at all --
-    not whether some CLI's own self-reported status says so (that class of
-    assumption is exactly what went wrong twice already in this same
-    campaign tooling). `ls-remote` exercises the actual credential path a
-    later `fetch`/`push` will use, with no side effects."""
-    proc = run(["git", "-C", str(repo_root), "ls-remote", "--exit-code", "origin"], check=False)
+    """PUSH access is what actually matters here, not read access -- a
+    public/anonymously-readable repo (or one with a cached read-only
+    credential) can satisfy `ls-remote`/`fetch` with no credentials at all
+    while still rejecting `push` outright. That happened live: the
+    original read-only version of this check passed, so the
+    browser-authorization flow never even ran, and the real push later
+    still hit the same terminal-prompt dead end. `--dry-run` performs the
+    real authentication/permission handshake for a push without
+    transferring anything or touching the remote; the target ref name is
+    one that cannot already exist, so this can never be rejected for an
+    unrelated non-fast-forward reason (a stale local branch, a diverged
+    HEAD) and mistaken for a credential failure. This relies on GitHub
+    gating the git-receive-pack info/refs request behind authentication
+    for every repo, public or not, and doing that check before any pack
+    data transfers -- which a dry run still triggers, since network
+    transports always need that round trip to compute what a real push
+    would send. Note this cannot be exercised against a local
+    (filesystem-path) remote the way this script's own regression tests
+    use: local transport skips that negotiation and lets a dry-run push
+    succeed even against a remote configured to reject every push (a
+    pre-receive hook), so this function is verified against the real
+    GitHub remote only, not in scripts/test-behavioral-campaign-auto.py."""
+    proc = run(
+        ["git", "-C", str(repo_root), "push", "--dry-run", "origin", "HEAD:refs/heads/__evidence-push-access-check__"],
+        check=False,
+    )
     return proc.returncode == 0
 
 
