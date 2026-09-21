@@ -40,6 +40,7 @@
           "registration-conformance",
           "coverage-semantics",
           "validation-checklist-heuristic",
+          "behavioral-campaign-auto-evidence",
           "lifecycle-common",
           "lifecycle-windows",
           "lifecycle-posix"
@@ -351,6 +352,34 @@
         "scripts/test-validation-checklist.py"
       ],
       "reason": "WS7 business-led link: governance.py project validation-checklist's automated_test keyword heuristic finds a plausibly related test file for an approved capability, does not false-match an unrelated test file, and never matches the purpose item.",
+      "timeout_seconds": 120,
+      "working_directory": null,
+      "environment": {},
+      "verified_targets": [],
+      "result_policy": {
+        "mode": "STANDARD"
+      },
+      "execution": {
+        "allowed_contexts": [
+          "LOCAL",
+          "CI",
+          "SPECIALIZED"
+        ],
+        "required_contexts": [
+          "ANY"
+        ]
+      }
+    },
+    {
+      "id": "behavioral-campaign-auto-evidence",
+      "stages": [
+        "full"
+      ],
+      "command": [
+        "python",
+        "scripts/test-behavioral-campaign-auto.py"
+      ],
+      "reason": "Automated behavioral campaign evidence mechanism (docs/adr/0003-automated-behavioral-campaign.md): orphan evaluation-evidence branch creation, reuse across runs, self-heal from an interrupted prior run's stale worktree/branch state, and the path-confinement guard that refuses to push a commit touching anything outside its own dedicated evidence folder. Exercised against a throwaway scratch git repository, never the framework's own git state; the actual Codex/Claude CLI invocations require live tools and a real VM and are not exercised here.",
       "timeout_seconds": 120,
       "working_directory": null,
       "environment": {},

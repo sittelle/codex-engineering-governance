@@ -145,3 +145,19 @@ Record the lock SHA-256, OS release, installed versions, selected host/model,
 and profile mode in the campaign's runtime settings. Do not copy the VS Code
 profile, its authentication state, installer cache, or raw response data into
 Git or a scoring packet.
+
+## Automated campaign on a dedicated isolated test VM
+
+The rule above protects a captured response that might contain something
+from a real session on a real machine. On one dedicated, isolated Ubuntu
+test VM used for nothing else — no real projects, no real credentials
+beyond the test sign-in itself — that risk does not apply, and
+`scripts/bootstrap-test-vm.py` plus `scripts/run-behavioral-campaign-auto.py`
+implement a fully automated path for it: they call the Codex/Claude CLIs
+directly, retain raw plain-text responses, and push both responses and
+metadata to a dedicated orphan `evaluation-evidence` branch (never `main`
+or any feature branch) under `tests/governance/evaluations/`. See
+`docs/adr/0003-automated-behavioral-campaign.md` for the full design and
+reasoning. This is a scoped exception for that one machine; the rule above
+is unchanged for the manual and checksum-locked routes on every other
+machine.

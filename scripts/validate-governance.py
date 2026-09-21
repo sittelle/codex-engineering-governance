@@ -46,6 +46,7 @@ required = [
     "assurance/capability-matrix.md", "assurance/registration.schema.json", "templates/repository/registration.yml", "templates/github/governance-verify.yml", "templates/gitlab/governance-pipeline-policy.yml", "templates/repository/verification-plan.json",
     "scripts/bootstrap-assurance.py", "scripts/bootstrap-assurance.ps1", "scripts/bootstrap-assurance.sh",
     "governance.py", "scripts/manual-behavioral-campaign.py", "scripts/test-management.py", "scripts/test-assurance-integration.py", "scripts/test-governance-integrity.py",
+    "scripts/bootstrap-test-vm.py", "scripts/run-behavioral-campaign-auto.py", "scripts/test-behavioral-campaign-auto.py",
     "scripts/run-registration-conformance.py", "scripts/test-registration-conformance.py", "scripts/test-coverage-semantics.py", "scripts/test-validation-checklist.py", "semgrep/capabilities/python.yml", "semgrep/capabilities/typescript.yml",
     "tests/capabilities/python/positive.py", "tests/capabilities/python/negative.py", "tests/capabilities/typescript/positive.ts", "tests/capabilities/typescript/negative.ts",
     "workflows/refactor/WORKFLOW.md",
