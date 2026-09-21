@@ -30,6 +30,26 @@ CAMPAIGN_KIT = ROOT / "scripts" / "manual-behavioral-campaign.py"
 EVIDENCE_BRANCH = "evaluation-evidence"
 EVIDENCE_ROOT = "tests/governance/evaluations"
 INVOCATION_TIMEOUT_SECONDS = 600
+GIT_AUTH_RETRY_LIMIT = 3
+# Official Debian/Ubuntu apt install for the GitHub CLI, verbatim from
+# https://github.com/cli/cli/blob/trunk/docs/install_linux.md -- run through
+# bash rather than re-derived, so this matches the documented commands
+# exactly instead of risking a transcription error the way this session's
+# earlier CLI-flag assumptions (sourced from search summaries, not the
+# primary docs directly) turned out wrong against the real VM.
+GH_INSTALL_SCRIPT = r"""
+set -e
+(type -p wget >/dev/null || (sudo apt update && sudo apt install wget -y))
+sudo mkdir -p -m 755 /etc/apt/keyrings
+out=$(mktemp)
+wget -nv -O "$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg
+sudo cp "$out" /etc/apt/keyrings/githubcli-archive-keyring.gpg
+sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+sudo mkdir -p -m 755 /etc/apt/sources.list.d
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+sudo apt update
+sudo apt install gh -y
+"""
 
 MODELS = [
     {
@@ -65,6 +85,65 @@ def run(argv, cwd=None, check=True, timeout=None):
     if check and proc.returncode != 0:
         raise Error(f"command failed ({' '.join(str(a) for a in argv)}): {proc.stdout}\n{proc.stderr}")
     return proc
+
+
+def git_remote_reachable(repo_root: Path) -> bool:
+    """The real question is whether git can authenticate to origin at all --
+    not whether some CLI's own self-reported status says so (that class of
+    assumption is exactly what went wrong twice already in this same
+    campaign tooling). `ls-remote` exercises the actual credential path a
+    later `fetch`/`push` will use, with no side effects."""
+    proc = run(["git", "-C", str(repo_root), "ls-remote", "--exit-code", "origin"], check=False)
+    return proc.returncode == 0
+
+
+def ensure_gh_installed() -> None:
+    if shutil.which("gh"):
+        return
+    print("Installing GitHub CLI (gh) via apt, per https://github.com/cli/cli/blob/trunk/docs/install_linux.md ...")
+    proc = subprocess.run(["bash", "-c", GH_INSTALL_SCRIPT])
+    if proc.returncode != 0 or not shutil.which("gh"):
+        raise Error(
+            "gh install failed; install it yourself "
+            "(https://github.com/cli/cli/blob/trunk/docs/install_linux.md) and rerun"
+        )
+
+
+def authorize_git_in_browser(repo_root: Path) -> None:
+    """Directs the operator through GitHub's own browser device-code flow --
+    no typed username/password, which GitHub's HTTPS git remotes have not
+    accepted in years anyway (this is very likely why a typed password
+    failed in the first place). Inherits this process's stdio so the
+    operator sees the one-time code and URL directly, including the
+    plain-URL fallback `gh` prints when the VM is headless and can't open
+    a browser itself."""
+    ensure_gh_installed()
+    print("\nAuthorizing this machine for git access to GitHub via your browser...")
+    print("If this VM has no browser, gh will print a URL and one-time code to open on another device.")
+    login = subprocess.run(["gh", "auth", "login", "--hostname", "github.com", "--git-protocol", "https", "--web"], cwd=str(repo_root))
+    if login.returncode != 0:
+        raise Error("gh auth login did not complete successfully")
+    setup = subprocess.run(["gh", "auth", "setup-git"], cwd=str(repo_root))
+    if setup.returncode != 0:
+        raise Error("gh auth setup-git failed to wire git's credential helper")
+
+
+def ensure_git_remote_access(repo_root: Path) -> None:
+    if git_remote_reachable(repo_root):
+        return
+    print("Cannot reach origin with the current git credentials.")
+    attempts = 0
+    while True:
+        attempts += 1
+        authorize_git_in_browser(repo_root)
+        if git_remote_reachable(repo_root):
+            print("Git access to origin confirmed via GitHub CLI.")
+            return
+        if attempts >= GIT_AUTH_RETRY_LIMIT:
+            raise Error(f"still cannot reach origin after {GIT_AUTH_RETRY_LIMIT} browser-authorization attempts")
+        answer = input("Still cannot reach origin. Try browser authorization again? [y/N] ").strip().lower()
+        if answer != "y":
+            raise Error("git authorization declined; unable to push evidence")
 
 
 def choose_mode() -> str:
@@ -333,6 +412,7 @@ def push_existing(workspace: Path, folder_name: str) -> int:
         raise Error(f"{campaign_dir} does not look like a completed campaign run (no EVALUATION-METADATA.json)")
     worktree_dir = workspace / "evaluation-evidence-worktree"
     try:
+        ensure_git_remote_access(ROOT)
         ensure_evidence_worktree(worktree_dir)
         push_evidence(worktree_dir, campaign_dir, folder_name)
     except Error as exc:
@@ -407,6 +487,7 @@ def run_automated(kit, workspace: Path, selection: str) -> int:
     # every response the campaign had just paid for in AI calls and time.
     worktree_dir = workspace / "evaluation-evidence-worktree"
     print("Verifying evidence-branch access (fetch/push credentials)...")
+    ensure_git_remote_access(ROOT)
     ensure_evidence_worktree(worktree_dir)
     print("Evidence-branch access OK.")
 

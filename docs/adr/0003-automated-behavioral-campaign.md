@@ -150,6 +150,18 @@ operator's home directory or the wider filesystem.
   credential prompt appeared only after the whole campaign had already run
   and consumed real AI calls; failing fast up front means a credential
   problem costs nothing to retry.
+- That preflight (and `push_existing`'s own) checks `git ls-remote origin`
+  first via `ensure_git_remote_access()`, and if it fails, walks the
+  operator through GitHub's own browser device-code flow instead of a
+  typed username/password -- installing `gh` via apt if needed (verbatim
+  from GitHub's own Debian/Ubuntu install docs), running
+  `gh auth login --web`, then `gh auth setup-git` to wire git's credential
+  helper, then re-checking, with a bounded retry (`GIT_AUTH_RETRY_LIMIT`).
+  Directly prompted by the operator mistyping a password at a raw git
+  credential prompt: GitHub's HTTPS remotes have not accepted typed
+  passwords in years, so that prompt could never have succeeded regardless
+  of what was typed -- the fix is a real, working authorization path, not
+  a better error message for one that can't work.
 - Captured responses live in a durable `<workspace>/campaign-runs/<folder>/`
   directory, never an auto-deleted `tempfile.TemporaryDirectory()`. The
   original version used a tempdir, which meant a push failure (wrong git

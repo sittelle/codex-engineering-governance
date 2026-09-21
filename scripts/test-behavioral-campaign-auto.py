@@ -215,6 +215,62 @@ def test_multi_model_session_continues_without_restart(failures: list[str]) -> N
         assert_true("claude" in log, "claude model's evidence did not land on the evidence branch", failures)
 
 
+def test_git_remote_access_retries_through_browser_auth(failures: list[str]) -> None:
+    """ensure_git_remote_access() must call the browser-authorization flow
+    when the remote isn't reachable, re-check afterward, and stop retrying
+    once access is confirmed -- exercised against stubs, since the real
+    `gh auth login --web` flow needs a live VM and a human in a browser."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        origin, work = make_scratch_repo(tmp)
+        mod = load_runner_with_scratch_root(work)
+
+        reachable_calls = {"count": 0}
+        auth_calls = {"count": 0}
+
+        def fake_reachable(repo_root):
+            reachable_calls["count"] += 1
+            return reachable_calls["count"] > 1  # unreachable first, reachable after "authorizing"
+
+        def fake_authorize(repo_root):
+            auth_calls["count"] += 1
+
+        mod.git_remote_reachable = fake_reachable
+        mod.authorize_git_in_browser = fake_authorize
+
+        mod.ensure_git_remote_access(work)
+        assert_true(auth_calls["count"] == 1, f"browser authorization should run exactly once, ran {auth_calls['count']} times", failures)
+        assert_true(reachable_calls["count"] == 2, f"should re-check reachability once after authorizing, checked {reachable_calls['count']} times", failures)
+
+        # Already reachable: must not attempt browser authorization at all.
+        reachable_calls["count"] = 10  # forces fake_reachable to keep returning True
+        auth_calls["count"] = 0
+        mod.ensure_git_remote_access(work)
+        assert_true(auth_calls["count"] == 0, "already-reachable remote must not trigger browser authorization", failures)
+
+
+def test_git_remote_access_gives_up_after_retry_limit(failures: list[str]) -> None:
+    """A remote that never becomes reachable (e.g. authorization declined
+    every time) must fail with a clear error after GIT_AUTH_RETRY_LIMIT
+    attempts, not hang or loop forever, and must never call the real
+    interactive retry prompt more than the bound allows."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        origin, work = make_scratch_repo(tmp)
+        mod = load_runner_with_scratch_root(work)
+
+        mod.git_remote_reachable = lambda repo_root: False
+        mod.authorize_git_in_browser = lambda repo_root: None
+        mod.input = lambda prompt="": "y"
+
+        try:
+            mod.ensure_git_remote_access(work)
+        except mod.Error:
+            pass
+        else:
+            failures.append("ensure_git_remote_access should raise when the remote never becomes reachable")
+
+
 def test_path_confinement_guard_refuses_stray_changes(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -250,6 +306,8 @@ def main() -> int:
     test_stale_worktree_registry_self_heals(failures)
     test_failed_push_preserves_evidence_and_retries_cleanly(failures)
     test_multi_model_session_continues_without_restart(failures)
+    test_git_remote_access_retries_through_browser_auth(failures)
+    test_git_remote_access_gives_up_after_retry_limit(failures)
     test_path_confinement_guard_refuses_stray_changes(failures)
 
     if failures:
@@ -264,6 +322,8 @@ def main() -> int:
     print("- a worktree directory removed without `git worktree remove` self-heals via `git worktree prune`")
     print("- a failed push preserves the captured campaign directory and retries cleanly, no duplicate commit")
     print("- a multi-model session continues to the next model without restarting or re-verifying access")
+    print("- unreachable git remote access retries through browser authorization until reachable")
+    print("- unreachable git remote access gives up with a clear error after the retry limit")
     print("- a commit touching anything outside the dedicated evidence folder is refused before it can be pushed")
     return 0
 
