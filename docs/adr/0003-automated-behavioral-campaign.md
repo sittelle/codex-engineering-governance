@@ -138,6 +138,28 @@ operator's home directory or the wider filesystem.
   already prefers containing blast radius structurally over gating with a
   prompt (the `inform`/`block` enforcement switch, Layer 1/2/3). On a
   rejected (non-fast-forward) push, fetch and retry once; never force-push.
+- `run_automated()` verifies evidence-branch fetch/push access (a real
+  `ensure_evidence_worktree()` call) *before* invoking a single scenario,
+  not only at push time at the end. Found live, on the test VM, when a git
+  credential prompt appeared only after the whole campaign had already run
+  and consumed real AI calls; failing fast up front means a credential
+  problem costs nothing to retry.
+- Captured responses live in a durable `<workspace>/campaign-runs/<folder>/`
+  directory, never an auto-deleted `tempfile.TemporaryDirectory()`. The
+  original version used a tempdir, which meant a push failure (wrong git
+  credentials, network blip, a rejected non-fast-forward) silently deleted
+  every response the campaign had just paid for in AI calls and time, with
+  no way to recover except re-running the whole thing. The directory is
+  removed only after a confirmed successful push; on failure it is left in
+  place and the error names it explicitly, along with the exact retry
+  command (`run-behavioral-campaign-auto.py --workspace <ws> --push-existing
+  <folder>`, added for this), which re-pushes the already-captured evidence
+  with no further AI calls. `push_evidence()` is idempotent against this
+  retry: it detects a commit its own prior (failed-push) attempt already
+  made in the same worktree and re-pushes it directly rather than trying to
+  re-copy the campaign directory into a path that attempt already created
+  (which previously would have failed with "evidence folder already
+  exists").
 
 ### What is retained, and the explicit exception this represents
 

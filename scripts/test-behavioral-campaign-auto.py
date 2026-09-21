@@ -128,6 +128,48 @@ def test_stale_worktree_registry_self_heals(failures: list[str]) -> None:
         assert_true(worktree_dir.is_dir(), "worktree did not recreate after self-heal", failures)
 
 
+def test_failed_push_preserves_evidence_and_retries_cleanly(failures: list[str]) -> None:
+    """A `git push` failure (simulated here by making origin briefly
+    unreachable, standing in for a credential/network problem on the real
+    VM) must not lose the captured campaign directory, and a retry against
+    the same worktree must not fail with "already exists" against the copy
+    the failed attempt already made."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        origin, work = make_scratch_repo(tmp)
+        mod = load_runner_with_scratch_root(work)
+        worktree_dir = tmp / "worktree"
+        campaign_dir = make_campaign_dir(tmp, "c1", "GOV-001")
+
+        mod.ensure_evidence_worktree(worktree_dir)
+        unreachable_origin = tmp / "origin.git.unreachable"
+        origin.rename(unreachable_origin)
+        try:
+            mod.push_evidence(worktree_dir, campaign_dir, "run-retry")
+        except mod.Error:
+            pass
+        else:
+            failures.append("push_evidence should have failed while origin was unreachable")
+            return
+        finally:
+            unreachable_origin.rename(origin)
+
+        assert_true(campaign_dir.is_dir(), "campaign_dir must survive a failed push", failures)
+        assert_true((campaign_dir / "responses" / "GOV-001.txt").is_file(), "captured response must survive a failed push", failures)
+
+        # Retry against the SAME worktree (as push_existing does): must not
+        # re-copy (the failed attempt's commit already has the folder) and
+        # must succeed now that origin is reachable again.
+        mod.push_evidence(worktree_dir, campaign_dir, "run-retry")
+
+        run(["git", "-C", str(work), "fetch", "origin", mod.EVIDENCE_BRANCH])
+        log = run(["git", "-C", str(work), "log", f"origin/{mod.EVIDENCE_BRANCH}", "--oneline"]).stdout
+        assert_true("run-retry" in log, "retried push did not land on the evidence branch", failures)
+        # Exactly one evidence commit for this folder, not a duplicate from the retry.
+        count = log.count("evidence run-retry")
+        assert_true(count == 1, f"retry should not duplicate the evidence commit, found {count}", failures)
+
+
 def test_path_confinement_guard_refuses_stray_changes(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -161,6 +203,7 @@ def main() -> int:
     test_first_push_creates_orphan_branch(failures)
     test_second_run_reuses_and_extends_branch(failures)
     test_stale_worktree_registry_self_heals(failures)
+    test_failed_push_preserves_evidence_and_retries_cleanly(failures)
     test_path_confinement_guard_refuses_stray_changes(failures)
 
     if failures:
@@ -173,6 +216,7 @@ def main() -> int:
     print("- first-ever push creates the orphan evaluation-evidence branch, confined to its own path")
     print("- a second run reuses and extends the same branch")
     print("- a worktree directory removed without `git worktree remove` self-heals via `git worktree prune`")
+    print("- a failed push preserves the captured campaign directory and retries cleanly, no duplicate commit")
     print("- a commit touching anything outside the dedicated evidence folder is refused before it can be pushed")
     return 0
 

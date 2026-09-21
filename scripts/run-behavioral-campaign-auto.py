@@ -250,34 +250,94 @@ def ensure_evidence_worktree(worktree_dir: Path) -> None:
          "commit", "-m", "chore: initialize evaluation-evidence branch"])
 
 
+def _commit_subject(folder_name: str) -> str:
+    return f"test: automated behavioral campaign evidence {folder_name}"
+
+
+def _already_committed_locally(worktree_dir: Path, folder_name: str) -> bool:
+    """True when this worktree already carries a local, not-yet-pushed
+    commit for folder_name from a prior attempt whose `git push` itself
+    failed (wrong credentials, network blip) -- so a retry should just
+    re-push, not re-copy/re-commit (which would fail with "already
+    exists" against the copy this same worktree already made). False for
+    a genuine folder_name collision against history already fetched from
+    origin, where HEAD lands exactly on origin's tip with nothing of ours
+    on top yet."""
+    head = run(["git", "-C", str(worktree_dir), "rev-parse", "HEAD"], check=False)
+    if head.returncode != 0:
+        return False
+    origin_ref = run(["git", "-C", str(worktree_dir), "rev-parse", "--verify", "--quiet", f"origin/{EVIDENCE_BRANCH}"], check=False)
+    if origin_ref.returncode == 0 and head.stdout.strip() == origin_ref.stdout.strip():
+        return False
+    subject = run(["git", "-C", str(worktree_dir), "log", "-1", "--format=%s"], check=False).stdout.strip()
+    return subject == _commit_subject(folder_name)
+
+
 def push_evidence(worktree_dir: Path, campaign_dir: Path, folder_name: str) -> None:
     target = worktree_dir / EVIDENCE_ROOT / folder_name
-    target.parent.mkdir(parents=True, exist_ok=True)
-    if target.exists():
-        raise Error(f"evidence folder already exists on the evidence branch: {target}")
-    shutil.copytree(campaign_dir, target)
-    run(["git", "-C", str(worktree_dir), "add", "--", f"{EVIDENCE_ROOT}/{folder_name}"])
+    if not _already_committed_locally(worktree_dir, folder_name):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            raise Error(f"evidence folder already exists on the evidence branch: {target}")
+        shutil.copytree(campaign_dir, target)
+        run(["git", "-C", str(worktree_dir), "add", "--", f"{EVIDENCE_ROOT}/{folder_name}"])
 
-    staged = run(["git", "-C", str(worktree_dir), "diff", "--cached", "--name-only"]).stdout.splitlines()
-    outside = [path for path in staged if not path.startswith(f"{EVIDENCE_ROOT}/{folder_name}/")]
-    if outside:
-        run(["git", "-C", str(worktree_dir), "reset"], check=False)
-        raise Error(f"refusing to commit: staged changes outside the dedicated evidence folder: {outside}")
+        staged = run(["git", "-C", str(worktree_dir), "diff", "--cached", "--name-only"]).stdout.splitlines()
+        outside = [path for path in staged if not path.startswith(f"{EVIDENCE_ROOT}/{folder_name}/")]
+        if outside:
+            run(["git", "-C", str(worktree_dir), "reset"], check=False)
+            raise Error(f"refusing to commit: staged changes outside the dedicated evidence folder: {outside}")
 
-    run(["git", "-C", str(worktree_dir), "-c", "user.email=automated-campaign@localhost", "-c", "user.name=Automated Behavioral Campaign",
-         "commit", "-m", f"test: automated behavioral campaign evidence {folder_name}"])
+        run(["git", "-C", str(worktree_dir), "-c", "user.email=automated-campaign@localhost", "-c", "user.name=Automated Behavioral Campaign",
+             "commit", "-m", _commit_subject(folder_name)])
 
     push = run(["git", "-C", str(worktree_dir), "push", "origin", EVIDENCE_BRANCH], check=False)
     if push.returncode != 0:
-        # Non-fast-forward: fetch and retry once. Never force-push.
-        run(["git", "-C", str(worktree_dir), "fetch", "origin", EVIDENCE_BRANCH])
-        rebase = run(["git", "-C", str(worktree_dir), "rebase", f"origin/{EVIDENCE_BRANCH}"], check=False)
-        if rebase.returncode != 0:
+        # Could be a rejected non-fast-forward (someone else pushed to the
+        # evidence branch meanwhile) or a credential/network failure --
+        # `check=False` here deliberately, so an auth failure on this fetch
+        # surfaces as the same clear message below instead of a raw
+        # "command failed" dump from run()'s default check=True.
+        fetch = run(["git", "-C", str(worktree_dir), "fetch", "origin", EVIDENCE_BRANCH], check=False)
+        if fetch.returncode == 0:
+            rebase = run(["git", "-C", str(worktree_dir), "rebase", f"origin/{EVIDENCE_BRANCH}"], check=False)
+            if rebase.returncode == 0:
+                retry = run(["git", "-C", str(worktree_dir), "push", "origin", EVIDENCE_BRANCH], check=False)
+                if retry.returncode == 0:
+                    print(f"Pushed evidence: {EVIDENCE_ROOT}/{folder_name} -> origin/{EVIDENCE_BRANCH}")
+                    return
+                raise Error(f"evidence branch push failed after retry: {retry.stderr.strip()}")
             raise Error(f"evidence branch push rejected and could not be reconciled automatically: {push.stderr.strip()}")
-        retry = run(["git", "-C", str(worktree_dir), "push", "origin", EVIDENCE_BRANCH], check=False)
-        if retry.returncode != 0:
-            raise Error(f"evidence branch push failed after retry: {retry.stderr.strip()}")
+        raise Error(f"evidence branch push failed (could not fetch origin either -- check git credentials/network): {push.stderr.strip()}")
     print(f"Pushed evidence: {EVIDENCE_ROOT}/{folder_name} -> origin/{EVIDENCE_BRANCH}")
+
+
+def _push_retry_hint(workspace: Path, campaign_dir: Path, folder_name: str) -> str:
+    return (
+        f"captured responses are preserved at {campaign_dir} (not deleted); "
+        f"fix the git credential/network problem, then retry with: "
+        f"python3 {Path(__file__).name} --workspace {workspace} --push-existing {folder_name}"
+    )
+
+
+def push_existing(workspace: Path, folder_name: str) -> int:
+    """Push an already-captured campaign directory without re-running any
+    scenarios (no AI calls). For recovering from a push failure -- wrong git
+    credentials, network blip, non-fast-forward conflict -- without
+    re-paying for the whole campaign."""
+    campaign_dir = workspace / "campaign-runs" / folder_name
+    if not (campaign_dir / "EVALUATION-METADATA.json").is_file():
+        raise Error(f"{campaign_dir} does not look like a completed campaign run (no EVALUATION-METADATA.json)")
+    worktree_dir = workspace / "evaluation-evidence-worktree"
+    try:
+        ensure_evidence_worktree(worktree_dir)
+        push_evidence(worktree_dir, campaign_dir, folder_name)
+    except Error as exc:
+        raise Error(f"{exc} -- {_push_retry_hint(workspace, campaign_dir, folder_name)}") from exc
+    run(["git", "-C", str(ROOT), "worktree", "remove", "--force", str(worktree_dir)], check=False)
+    shutil.rmtree(campaign_dir)
+    print(f"Pushed previously-captured campaign: {folder_name}")
+    return 0
 
 
 def run_automated(kit, workspace: Path, selection: str) -> int:
@@ -286,33 +346,53 @@ def run_automated(kit, workspace: Path, selection: str) -> int:
         raise Error(f"{folders_path} not found; run bootstrap-test-vm.py first")
     folders = json.loads(folders_path.read_text(encoding="utf-8"))
 
+    # Verify evidence-branch fetch/push access *before* spending a single AI
+    # call, and keep the worktree open for the actual push at the end
+    # instead of tearing it down and re-creating it (one credential
+    # prompt, not two). Finding an access problem only after running the
+    # whole campaign (previously: only at push time, with captured
+    # responses sitting in an auto-deleted tempdir) meant a mistyped
+    # git password destroyed every response the campaign had just paid
+    # for in AI calls and time.
+    worktree_dir = workspace / "evaluation-evidence-worktree"
+    print("Verifying evidence-branch access (fetch/push credentials)...")
+    ensure_evidence_worktree(worktree_dir)
+    print("Evidence-branch access OK.")
+
     model_entry = choose_model()
     rows = kit.selected_rows(kit.scenario_rows(), selection)
     source = kit.source_state()
 
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     folder_name = f"{stamp}-{model_entry['host']}-{model_entry['key']}"
-    with tempfile.TemporaryDirectory() as tmp:
-        campaign_dir = Path(tmp) / folder_name
-        (campaign_dir / "responses").mkdir(parents=True)
-        (campaign_dir / "prompts").mkdir(parents=True)
+    # Deliberately NOT a tempfile.TemporaryDirectory(): captured responses
+    # are real AI-call output and must survive a failed push (git
+    # credential issue, network blip, non-fast-forward conflict) so the
+    # operator can retry the push with --push-existing instead of
+    # re-running -- and re-paying for -- the whole campaign.
+    campaign_dir = workspace / "campaign-runs" / folder_name
+    campaign_dir.mkdir(parents=True)
+    (campaign_dir / "responses").mkdir()
+    (campaign_dir / "prompts").mkdir()
 
-        records = []
-        for row in rows:
-            print(f"[{row['test_id']}] ({row['context']}) invoking {model_entry['host']}...")
-            record = run_scenario(kit, row, model_entry, folders, campaign_dir)
-            records.append(record)
-            print(f"  -> {record['status']}" + (f" ({record['reason']})" if record["reason"] else ""))
+    records = []
+    for row in rows:
+        print(f"[{row['test_id']}] ({row['context']}) invoking {model_entry['host']}...")
+        record = run_scenario(kit, row, model_entry, folders, campaign_dir)
+        records.append(record)
+        print(f"  -> {record['status']}" + (f" ({record['reason']})" if record["reason"] else ""))
 
-        metadata = build_metadata(kit, model_entry, records, source)
-        (campaign_dir / "EVALUATION-METADATA.json").write_text(
-            json.dumps(metadata, indent=2) + "\n", encoding="utf-8", newline="\n"
-        )
+    metadata = build_metadata(kit, model_entry, records, source)
+    (campaign_dir / "EVALUATION-METADATA.json").write_text(
+        json.dumps(metadata, indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
 
-        worktree_dir = workspace / "evaluation-evidence-worktree"
-        ensure_evidence_worktree(worktree_dir)
+    try:
         push_evidence(worktree_dir, campaign_dir, folder_name)
-        run(["git", "-C", str(ROOT), "worktree", "remove", "--force", str(worktree_dir)], check=False)
+    except Error as exc:
+        raise Error(f"{exc} -- {_push_retry_hint(workspace, campaign_dir, folder_name)}") from exc
+    run(["git", "-C", str(ROOT), "worktree", "remove", "--force", str(worktree_dir)], check=False)
+    shutil.rmtree(campaign_dir)
 
     failures = [r for r in records if r["status"] != "CAPTURED"]
     if failures:
@@ -328,10 +408,13 @@ def main() -> int:
     parser.add_argument("--workspace", required=True, type=Path, help="the workspace bootstrap-test-vm.py created (contains folders.json and the three context directories)")
     parser.add_argument("--select", default="all", help="all, or a GOV-NNN[-GOV-MMM] range/list, same syntax as the manual conductor")
     parser.add_argument("--manual-args", nargs=argparse.REMAINDER, help="arguments forwarded to manual-behavioral-campaign.py conduct when manual mode is chosen")
+    parser.add_argument("--push-existing", metavar="FOLDER_NAME", help="skip mode selection and scenario invocation; push a previously-captured campaign-runs/<FOLDER_NAME> that failed to push earlier (e.g. after a git credential problem), with no AI calls")
     args = parser.parse_args()
 
-    kit = load_campaign_kit()
     try:
+        if args.push_existing:
+            return push_existing(args.workspace, args.push_existing)
+        kit = load_campaign_kit()
         mode = choose_mode()
         if mode == "manual":
             print("Manual mode selected: hand off to `python3 scripts/manual-behavioral-campaign.py conduct ...` directly.")
