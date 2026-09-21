@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -24,6 +25,19 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Without this, `git ls-remote`/`fetch`/`push` fall back to git's own raw
+# terminal username/password prompt whenever no credential is cached --
+# exactly the prompt this script's browser-authorization flow exists to
+# replace (GitHub's HTTPS remotes haven't accepted typed passwords in
+# years, so that prompt could never succeed anyway). Disabling it makes
+# those commands fail fast instead, so ensure_git_remote_access() gets a
+# clean, quick "not reachable" signal and can run the browser flow itself,
+# rather than git silently taking over the terminal first. Has no effect
+# on `gh`'s own login prompts (different program, different variable) or
+# on git operations once `gh auth setup-git` has installed its credential
+# helper, since a working helper answers non-interactively either way.
+os.environ.setdefault("GIT_TERMINAL_PROMPT", "0")
 
 ROOT = Path(__file__).resolve().parents[1]
 CAMPAIGN_KIT = ROOT / "scripts" / "manual-behavioral-campaign.py"
