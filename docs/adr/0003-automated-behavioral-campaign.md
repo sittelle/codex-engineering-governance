@@ -280,10 +280,35 @@ closes the loading/completeness gap the evidence actually showed without
 encoding any GOV-file wording into the kernel, which would corrupt a
 future re-run's validity.
 
-This is unverified until re-tested: the 2026-09-21 evaluation records
-remain unchanged (historical evidence is immutable per
-`tests/governance/evaluations/README.md`), and a fresh campaign is needed
-to confirm the fix actually moves the affected scores.
+### Re-test result (Attempt 2, same day)
+
+A targeted re-run of exactly these 11 scenarios against Claude Sonnet 5
+(commit d22d8ec, after the fix) landed as `Attempt: 2` records, same
+filenames plus `-attempt-2`, per
+`tests/governance/evaluations/README.md`'s retry convention; the original
+Attempt 1 records are unchanged. Result: **3 of 11 improved from 1/2 to
+2/2** (GOV-014, GOV-015, GOV-020); **8 of 11 stayed at 1/2** (GOV-006,
+GOV-009, GOV-011, GOV-016, GOV-022, GOV-025, GOV-029, GOV-030), each still
+missing the exact same specific element identified in the diagnosis above.
+Both mandatory-2 gates (GOV-029, GOV-030) are among the 8 that did not
+improve, so Claude Code's current-version campaign still FAILS candidate
+acceptance either way — the fix helped, partially, but did not close the
+two scenarios that actually decide the outcome. `validate-governance.py`
+independently confirms: Codex PASS, Claude Code FAIL, using each host's
+latest attempt.
+
+Split by which half of the diagnosis applies: of the 4 scenarios governed
+by a workflow/skill file rather than an inline kernel checklist
+(GOV-009/011/014/015 — data-migration and authentication-design), 2
+improved (GOV-014, GOV-015) — a genuine, if partial, positive signal for
+the "advisory requests load the routed workflow/skill" theory. Of the 7
+governed by an already-maximally-explicit numbered checklist already
+present verbatim in the loaded context (GOV-006/016/020/022/025/029/030),
+only 1 improved (GOV-020, and only on vocabulary precision, not full
+closure of everything that checklist names). Further iteration on that
+second half — or accepting it as a real, if narrower, limit on how
+reliably this model reproduces an enumerated checklist from a large
+context file even when directly present — remains open.
 
 ## References
 
