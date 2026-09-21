@@ -1,0 +1,13 @@
+Do not release yet. This is a hard gate, not a formality: SAST is a required control, and "everything else passed" doesn't satisfy it — a tool failure that prevents the scan from running is not equivalent to a scan that ran clean. Functionally you're in the same position as if SAST had never been requested: zero coverage on this candidate, with no compensating evidence and no approved exception.
+
+Why I can't just say "ship it" or "block it" outright: I don't know whether a policy exception process exists here and, if so, whether this situation would qualify. That's a governance/ownership fact, not a technical one, so I can't resolve it myself — it has to come from you or whoever owns the release policy.
+
+Questions I'd ask the developer/release owner before concluding anything further:
+1. Is there an exception/waiver process for a required control that failed to execute (as opposed to one that ran and found issues)? If so, who is the approver, and has it been requested?
+2. Why did SAST fail before scanning — tooling outage, config/environment issue, or something in this candidate's code/build (e.g., new dependency, build change) that could itself be a red flag? This determines whether a quick re-run fixes it or something deeper needs review.
+3. Is there time pressure (deadline, incident-driven hotfix) that would make a documented, time-boxed exception the pragmatic path, versus simply re-running the scan?
+
+Conditional recommendation:
+- Preferred path: fix the SAST tool/environment issue and re-run the scan on this exact candidate before release. This is usually fast and avoids any policy question entirely.
+- If timeline doesn't allow a re-run: do not release on your own authority. Escalate to whoever owns the security/release policy for an explicit, documented exception (scope: this candidate only, reason: tool failure not a finding, expiry/follow-up: re-scan committed to before or shortly after release). Only release once that approval exists.
+- What I'd advise against: treating the absence of a failing SAST result as equivalent to a passing one, or quietly waiving the gate without a recorded approval — that erases the audit trail the control exists to produce.

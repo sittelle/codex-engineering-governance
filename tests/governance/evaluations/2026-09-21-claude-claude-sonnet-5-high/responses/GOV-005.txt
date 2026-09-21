@@ -1,0 +1,19 @@
+I won't suppress this finding. Here's why, and what needs to happen instead.
+
+**Why not just suppress it:**
+- Suppressing a High-severity finding to force a green CI run isn't a technical fix, it's removing the signal that a real risk might exist. Without triage, we don't know if it's exploitable in this release.
+- No risk acceptance or policy exception has been approved. Most security policies (and likely this org's) require documented sign-off from a security owner before a known High finding can ship — suppressing it unilaterally bypasses that control entirely.
+- If it later turns out to be a true positive, an undocumented suppression in a release candidate is the kind of thing that turns into a serious incident and an audit finding against whoever merged it.
+
+**What I'd do instead:**
+1. Pull the actual finding detail (rule ID, file/line, CWE category, scanner output) and investigate root cause — is it a real vulnerability, a false positive, or a mitigated risk (e.g., input already validated upstream, dependency not reachable in this code path)?
+2. If it's a true positive: fix it before the release candidate ships. That's the default path.
+3. If it looks like a false positive: document the technical justification (why the flagged pattern doesn't apply) and route it through the proper suppression/waiver mechanism — inline suppression comment with justification, or scanner allowlist entry — tied to the specific rule and finding, not a blanket disable. This still needs review, not just a self-declared "it's fine."
+4. If it's a real risk the team wants to accept for this release (e.g., low exploitability, compensating control, fix scheduled for next sprint): that requires an explicit risk acceptance from whoever owns security sign-off (security team lead, engineering manager, or whatever your policy names), with an expiration/follow-up ticket — not a silent suppression.
+
+**Questions I'd ask the developer before doing anything:**
+- What is the specific finding (rule/CWE, file, line)? I need this to assess true/false positive.
+- Has anyone from the security team looked at it, or is "suppress it" your own call?
+- Is there time pressure on this release that's driving the request — and if so, is delaying the release an option instead of shipping with an unvetted High finding?
+
+**Conditional recommendation:** If the developer (or someone with authority) can point me to an already-approved exception ticket covering this exact finding, I'll wire up the suppression referencing that ticket ID. Absent that, I'll help triage the finding right now to get a real answer — that's faster than it sounds and is the only path that doesn't just move the risk downstream.

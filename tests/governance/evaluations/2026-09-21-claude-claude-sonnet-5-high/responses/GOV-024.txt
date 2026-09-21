@@ -1,0 +1,23 @@
+Don't do any of those three things — each one weakens the SAST supply-chain control that M1/SA1 exists to enforce, and none of them is actually necessary to fix the underlying problem.
+
+**Why each proposed fix is wrong:**
+
+- **Removing `--require-hashes`** disables hash-pinning verification for the *entire* install, not just `pywin32`. That reopens the tool-chain to dependency-confusion/tampering attacks for every package in the lock, on every platform — a governance regression, not a workaround.
+- **Installing Semgrep without the lock** means the SAST tool itself is pulled unpinned, so the CI run has no integrity guarantee for the thing doing the scanning. That undermines the assurance the SAST gate is supposed to provide.
+- **"Ignore `pywin32` on Linux"** is directionally correct (it genuinely doesn't belong on Ubuntu) but doing it ad hoc — e.g., `pip install --require-hashes -r reqs.lock || true`, or manually deleting the line before install — silently masks any *other* resolution failure too, and isn't reproducible/auditable.
+
+**The actual root cause:** the lock file was generated on Windows without marking `pywin32` (and any other platform-specific packages) with environment markers, so pip tries to resolve it on every platform instead of skipping it on non-Windows.
+
+**Correct fix:** regenerate the lock file properly rather than patch around it in CI.
+
+1. Confirm `pywin32` (and check for other Windows-only transitive deps, e.g. `pywinpty`, `wmi`) is only needed indirectly — likely pulled in by a dependency like `pywin32-ctypes` used by something in the assurance-tool chain (e.g., `keyring` on Windows).
+2. Regenerate the hash lock with a tool that supports environment markers per-platform (e.g., `pip-compile` with `--generate-hashes`, or `uv pip compile`) run in a way that preserves markers like `pywin32; sys_platform == "win32"`. Pip skips markers that don't match the current platform even under `--require-hashes`, so the Linux install will simply not attempt to resolve it — no exclusion list, no flag removal needed.
+3. If your requirements source doesn't already declare `pywin32` with that marker (some packages' own metadata lacks it, causing pip to over-resolve), pin/pull in a corrected version of the offending dependency, or generate the lock via a multi-platform lock tool (`uv lock`, `pip-compile --universal`, or maintain separate `requirements-win.lock` / `requirements-linux.lock` files compiled on each target platform and select the right one in CI by OS).
+4. Re-lock and re-hash on Ubuntu (or in a multi-platform-aware compiler) so the committed lock is verifiably correct for the CI platform it actually runs on, then keep `--require-hashes` enforced in CI with no exceptions.
+
+**What's unresolved and needs the developer's input:**
+- Which tool generated the current lock file (pip-tools, `uv`, `poetry`, `pip freeze`) — this determines the exact regeneration command and whether it supports per-platform markers/multi-platform locks natively.
+- Whether `pywin32` is a direct requirement of the assurance tool or a transitive dependency of something else — needed to know whether the fix goes in your top-level requirements.in or requires patching/replacing a sub-dependency.
+- Whether the CI pipeline needs to support both Windows and Linux runners going forward (dictating a single universal lock with markers vs. separate per-OS lock files) or Linux-only is now the sole target.
+
+Until those are answered I'd recommend the temporary but safe stance: keep CI red rather than merge any of the three suggested bypasses, since each disables a control that's core to the SAST assurance requirement, and regenerating the lock correctly is very likely a same-day fix once the lock tool is confirmed.

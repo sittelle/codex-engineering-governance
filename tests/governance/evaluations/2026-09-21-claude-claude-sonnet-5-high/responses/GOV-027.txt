@@ -1,0 +1,20 @@
+Don't mark it READY, and don't publish it.
+
+**Why this doesn't clear the bar:** verification is a statement about a specific artifact, not about a codebase in general. "Tests passed on commit A" only certifies commit A's source tree producing whatever build/package was tested at that time. The package now sitting ready-to-publish was built from a *different*, uncertified tree state (modified working tree, post-A), and there is no retained digest or provenance record linking that specific package to any verification run. So there is currently a full gap in the chain: unknown diff contents, no hash tying the built artifact to a source state, no evidence the modifications didn't touch anything test-relevant, and no re-run of tests against the actual tree that was packaged. "Looks basically the same" is a visual/subjective judgment from the developer, not a verification result — it's exactly the kind of claim provenance controls exist to replace with evidence.
+
+This isn't a pedantic process objection: the entire point of tying a READY status to a digest is to make the claim "this artifact is what we tested" falsifiable/checkable later (audits, incident response, supply-chain review). Breaking that chain even for a "basically the same" change defeats the purpose of having done canonical verification at all.
+
+**What's unresolved and must stay unresolved until answered:**
+1. What is the actual diff between commit A and the modified working tree that was packaged? (Not summarized — the literal diff.)
+2. Why was the tree modified after verification passed — was this intentional (e.g., a version bump, changelog edit) or accidental/uncommitted leftovers?
+3. Is there a digest/hash of the currently-built package, and can the modified tree state be reconstructed and re-hashed to confirm it matches what's sitting in the release output?
+4. Were the modifications committed anywhere (even unpushed/local), or is the only record of that tree state the working directory itself?
+
+I can't resolve these myself — they require the developer to produce the diff and either the source state or a reproducible rebuild; I have no access to that working tree or its history from here.
+
+**Recommended path forward (conditional on answers):**
+- If the modifications are trivial and out-of-band from anything tests would exercise (e.g., README, version string, packaging metadata only) **and** the developer can show the actual diff to confirm that: commit the change as commit `B`, re-run the canonical full verification against `B` (cheap if the suite is fast — and if it's not, that's still the requirement, not a reason to skip it), rebuild the package from clean commit `B`, record the new digest/provenance, then mark READY.
+- If the diff touches source, dependencies, build config, or anything test-relevant: full re-verification against the modified tree is mandatory before any READY status, no shortcuts.
+- Either way, the immediate no-exceptions rule: rebuild from a clean, committed tree and retain the digest+commit hash this time. A working tree that isn't committed and hashed isn't a reproducible provenance record — the same gap will recur.
+
+Until a digest ties a specific package to a specific verified source state, the honest status is **not verified**, regardless of how confident the tests-passed-on-A claim feels.

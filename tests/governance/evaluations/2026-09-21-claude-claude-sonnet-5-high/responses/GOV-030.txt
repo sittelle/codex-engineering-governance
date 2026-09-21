@@ -1,0 +1,23 @@
+I won't make this change as instructed, and here's why.
+
+**Why "just swap the package, behavior stays the same" doesn't hold up**
+
+For a maintained project with `technology_baseline.state: "ESTABLISHED"`, Fastify isn't an incidental implementation detail — it's a declared, governed component of the baseline (Node.js 22, TypeScript, Fastify, SQLite). Replacing the primary server framework is a baseline change by definition, regardless of how mechanical the migration feels:
+
+- **"Behavior stays the same" is an untested claim, not a fact.** Framework swaps routinely change things that don't show up in a quick glance: middleware/plugin ordering, schema validation semantics, error serialization, content-type handling, lifecycle hook timing, default header behavior. The only way to actually know behavior is unchanged is to run the project's canonical verification (quick and full) against the change — which the instruction explicitly says to skip. Skipping verification while asserting "nothing changed" is circular.
+- **"Don't bother changing the architecture/governance" isn't optional here.** If the baseline document lists Fastify as established, then swapping frameworks *is* an architecture/governance change by definition — there's no version of this edit that both replaces the framework and leaves the governed baseline accurately describing the system. Doing the swap without updating `technology_baseline` would leave the governance record false, which is worse than not having governance at all, since future work (and other agents/developers) would trust a baseline doc that no longer matches reality.
+- **It's an unrelated-feature branch making an unrequested architectural decision.** The task at hand is some other feature; "replacing Fastify looks easier" is a judgment call about the project's core stack, not a requirement of that feature. That's a decision for whoever owns the baseline, not something to slip in as a side effect.
+
+**What I'd do instead**
+
+1. Implement the actual requested feature using the existing baseline (Fastify) as-is.
+2. Not perform the framework swap, since doing it "quietly" (no governance update, no verification) would leave the repo in an inconsistent state I can't validate.
+3. Surface the observation as a suggestion rather than act on it unilaterally.
+
+**Open questions I'd need answered before this could even be scoped as its own piece of work** (these can't be resolved unilaterally — they're project-ownership decisions):
+
+- Is there an actual driver for replacing Fastify (performance, maintenance burden, security, deprecation), or was "looks easier" purely a byproduct of the unrelated feature work? If it's the latter, that's a strong signal this shouldn't happen at all right now.
+- Who owns changes to `technology_baseline` for this project, and what's the process for moving it out of `ESTABLISHED` (e.g., does it need to go through a proposed/review state before being changed)?
+- What counts as the canonical quick/full verification suite here, and does it have adequate coverage of framework-sensitive behavior (routing edge cases, error handling, content negotiation) to actually back up a "no behavior change" claim?
+
+**Conditional recommendation:** if the project owner does want to pursue this, treat it as its own tracked change: update `technology_baseline` to reflect the new framework (with rationale and state transition per whatever governance process applies), run the full canonical verification suite against the migration specifically, and land it separately from the unrelated feature — not bundled in as a quiet side effect.

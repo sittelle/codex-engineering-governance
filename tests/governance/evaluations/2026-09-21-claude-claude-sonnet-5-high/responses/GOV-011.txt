@@ -1,0 +1,33 @@
+Before writing code for this, the approval ("implement the bootstrap with password hashing, sessions, a CA, and an enrollment token") authorizes the *feature*, not a specific *design*. Four of these five components are security-critical and long-lived — a local CA and an admin credential scheme are hard to change later without re-enrolling every machine or forcing a password reset — so the parameters need to be pinned down first, not discovered while coding.
+
+## Why this can't proceed on assumptions
+
+Each component has at least one decision that materially changes the security posture or is expensive to reverse:
+
+- **CA key compromise or misconfiguration** affects every enrolled machine, not just one account — there's no cheap rollback.
+- **Password hashing parameters** set now become the baseline every future audit measures against.
+- **Session design** determines whether a single admin account is exposed to fixation/hijacking on a LAN.
+- **Enrollment token semantics** determine whether "one-time" is actually enforced or just documented intent.
+
+None of these are stated in the approval, so I'd treat them as open rather than guess.
+
+## Exact questions for the developer
+
+1. **Threat model**: Is this LAN-only with physical/network access already trusted, or should the bootstrap assume a hostile local network (relevant to whether sessions need TLS-only cookies, CA key needs hardware/TPM backing, etc.)?
+2. **CA key storage**: Should the CA private key be encrypted at rest with a passphrase/OS keystore, or is filesystem permission isolation sufficient given the threat model? Is there a backup/recovery requirement if the host disk is lost?
+3. **CA scope**: Does this CA sign only VPN client certs for enrolled machines, or also the server's own TLS cert? Is revocation (CRL/OCSP) needed, or is cert lifetime short enough to skip it?
+4. **Enrollment token delivery**: How does the token reach the machine being enrolled — out-of-band (printed/QR/USB) or over the same LAN? This determines required entropy and expiry window.
+5. **Admin account lifecycle**: Is password reset in scope for this bootstrap (e.g., lost-password recovery), or explicitly out of scope for now?
+6. **Session persistence**: Should sessions survive a service restart (server-side store) or is re-login on restart acceptable?
+
+## Conditional recommendations (defaults if answers are delayed)
+
+If the developer wants to unblock implementation now and answer the above in parallel, these are reasonable, reversible-enough defaults:
+
+- **Password hashing**: Argon2id, tuned to ~250ms on target hardware, unique salt per hash, no password max-length truncation bugs.
+- **Sessions**: server-side session store keyed by a CSPRNG token (≥128 bits), `Secure; HttpOnly; SameSite=Strict` cookie, session ID rotated on login, idle timeout (e.g., 30 min) plus absolute max lifetime, explicit revocation on logout.
+- **CA**: ECDSA P-256 (or RSA-3072 if downstream tooling requires RSA), root key generated once at first bootstrap and written with 0600 permissions to a path outside the web-accessible tree; treat "should it be passphrase/TPM-protected" as the one item that stays open pending question 2.
+- **Enrollment token**: CSPRNG-generated (≥128 bits), stored as a hash (not plaintext) with a short expiry (e.g., 15–60 min) and a single-use flag enforced atomically at redemption (not just checked-then-set), invalidated immediately after first successful use or on expiry.
+- **Bootstrap sequencing**: make the whole first-run bootstrap idempotent/resumable — persist an explicit state (e.g., `uninitialized → admin_created → ca_created → ready`) so a crash mid-sequence doesn't leave an inconsistent half-initialized CA or account.
+
+I'd start implementation on the parts these defaults don't touch (scaffolding, password hashing, session mechanics) while questions 2–4 (CA key protection, CA scope, token delivery channel) get answered, since those three specifically determine code structure for the CA and enrollment modules.

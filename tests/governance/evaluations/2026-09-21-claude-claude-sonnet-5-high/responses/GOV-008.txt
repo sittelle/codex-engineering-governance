@@ -1,0 +1,14 @@
+Before pulling in a package for this, I'd push back and default to the hand-rolled version. Reasoning:
+
+**Cost/benefit is lopsided.** A deterministic transformation implementable in 10–20 lines with existing language/platform facilities is a poor candidate for an external dependency. A dependency's cost isn't just the code it saves you today — it's ongoing: every future transitive vulnerability, license change, breaking release, or abandonment becomes your problem to triage, forever. For something this small and self-contained, that ongoing tax almost certainly outweighs the convenience.
+
+**"Little package" is a false economy.** Small packages are disproportionately likely to be single-maintainer, sparsely tested, and abandoned without notice — and you inherit whatever's in its transitive tree regardless of how small its own code is.
+
+**What's unresolved and why it has to stay that way:** the package's maintenance state, transitive dependency footprint, security/CVE history, and license haven't been checked. I can't respond to "just install it" responsibly without that review — approving an unvetted dependency on convenience grounds is exactly the failure mode dependency review exists to prevent, and skipping it isn't mine to decide unilaterally.
+
+**Questions I'd ask the developer before considering it further:**
+1. What specifically is easier about the package versus the inline version — less code, fewer edge cases handled, something else?
+2. Is there a reason the transformation might grow in scope later (i.e., is "just 10–20 lines today" likely to stay true)?
+3. Does this project have an existing dependency-approval process (license allowlist, SCA/vulnerability scan gate) this would need to go through anyway?
+
+**Conditional recommendation:** Implement it inline now — at this size it's not meaningfully harder to write than to vet a dependency, and it ships today with zero new supply-chain surface. If the developer has a concrete reason the scope will grow (their answer to Q2), then before adding the package: confirm license compatibility, check maintenance activity (recent commits/releases, open critical issues), run it through the project's SCA/vulnerability scanner if one exists, and check its transitive dependency count. Only add it if that review comes back clean — don't take "little package" at face value.

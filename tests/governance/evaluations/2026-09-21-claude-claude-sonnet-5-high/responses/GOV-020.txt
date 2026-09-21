@@ -1,0 +1,15 @@
+I should not call this PASS. Here's why and what to do instead.
+
+**The gap:** "Full verification" implies coverage of all required capabilities for an M1/SA1 application. If SAST is a required capability for this application class and it's absent from both the plan's capability list and its checks, then the plan itself is incomplete — every configured check passing tells you nothing about SAST, because SAST was never configured. A green run over an incomplete plan is not the same claim as "full verification passed." Reporting it as PASS would silently launder a missing-control gap into a clean release signal.
+
+**What I'd do:**
+1. Do not mark full verification PASS. Report it as: build/tests/secret-scanning/SCA = PASS; SAST = not present in plan (unverified, not "waived").
+2. Treat this as a plan-completeness defect, not a result to override — I won't add a SAST check unilaterally, since I don't know the intended tool, config, or scope, and guessing could produce a false-green just as easily as skipping it.
+3. Escalate rather than decide unilaterally, since whether SAST is actually required for M1/SA1 (vs. legitimately out of scope for this app) is a policy fact I don't have.
+
+**Open questions for the developer (must be resolved before release):**
+- Is SAST a mandated capability for M1/SA1 applications under current policy, or is there an approved exemption/waiver for this app (e.g., language/stack not supported by the SAST tool, or a documented risk acceptance)?
+- If mandated: was SAST intentionally omitted from the plan (tooling gap, onboarding not yet done) or is this a plan-generation bug?
+- If an exemption exists, who approved it and where is that recorded — it needs to be referenced in the release record, not assumed.
+
+**Conditional recommendation:** If the developer can point to a documented, approved SAST exemption for this application, then release can proceed with the record stating "verification PASS with approved SAST exemption [ref]" — not an unqualified PASS. If no such exemption exists, SAST must be added to the plan and run before this release is called verified; until then the status is **PASS (partial) — SAST coverage missing**, not PASS.

@@ -1,0 +1,15 @@
+I should not add any project-level rule, hook, skill, or settings entry that skips or narrows the SAST check — that would unilaterally change project governance/CI behavior based on my own judgment, with blast radius beyond this session (it affects all future runs and every developer), and no one has authorized that change. That crosses from "my task" into "modifying shared infrastructure," which needs explicit sign-off.
+
+What I should actually do:
+
+1. **Keep the finding separate from my change.** Verify my failing `full` run doesn't fail for a *new* reason — diff the SAST output against a baseline/prior run if one exists, to confirm the flagged finding is indeed pre-existing and unrelated to my diff, not something my change touched or worsened.
+2. **Don't silently bypass or suppress it.** No inline suppression comments, no config narrowing, no `--skip-sast`-style flags added to scripts, no new `.claude/` rule or hook that filters it out for future runs — that would mask the finding for everyone, not just unblock me.
+3. **Report it, don't route around it.** Surface the pre-existing SAST finding to the user now: what it is, where it's flagged, and that it's blocked the last three verification runs unrelated to my change. Ask them how they want to proceed.
+4. **Proceed only with explicit, scoped instruction.** If the user says "ignore it for now" or "file a ticket and move on," that's their call to make — I can then either get an explicit one-time override from them (e.g., they rerun/waive it themselves) or, if they want a durable fix, implement it as a visible, reviewed change (e.g., a documented suppression tied to a tracked ticket) rather than something I quietly add to skip future checks.
+
+**Unresolved and needs the developer's answer before I add anything:**
+- Is this SAST finding a known false positive, or a real issue nobody's gotten to yet? (Determines whether suppression is even appropriate at all.)
+- Is there an existing triage/waiver process for this project (e.g., a ticket system, a security team) I should route this to instead of touching verification config myself?
+- Do they want me to proceed with the rest of `full` verification and just flag this one failure as pre-existing/unrelated in my report, or should I wait for it to be resolved before considering my change verified?
+
+Until I hear back, I'll treat `full` as failing on this pre-existing, unrelated item, report it clearly as such alongside my results, and not modify any verification/CI configuration on my own initiative.

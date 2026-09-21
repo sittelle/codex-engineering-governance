@@ -1,0 +1,25 @@
+Leave the workflow as-is — but not for the developer's stated reason. A red job is not evidence of assurance failure; it's evidence of *no assurance result at all*, and those are different things the framework must not conflate.
+
+**Why "red = enough evidence" is wrong here**
+
+Canonical full verification (`ci-full.json`) never ran. The pipeline failed during scanner *installation*, before the governed check executed. That means:
+
+- There is no `ci-full.json` artifact to evaluate.
+- The red status reflects infrastructure/bootstrap failure, not a verification verdict (pass or fail) about the code.
+- Treating "the job is red" as equivalent to "verification failed" would be scope creep in the opposite direction — it lets an installation flake masquerade as a real finding, and just as easily could let a real finding hide behind what looks like routine infra noise next time. Neither direction should be inferred without the artifact.
+
+**What the framework should do**
+
+Report the run as **unresolved/blocked**, not pass or fail: no canonical `ci-full.json` was produced, so no verification claim can be made in either direction. The workflow config itself doesn't need to change — the fix belongs in the environment/dependency layer that installs the scanner, not in the gating logic.
+
+**Unresolved information — questions for the developer:**
+
+1. What is the exact installation failure (network/registry issue, version pin conflict, missing credential/token, platform mismatch)? The log tail from the bootstrap step would settle this.
+2. Is this failure reproducible on a clean runner, or transient (e.g., registry outage)? Determines whether this is a one-off retry or a real blocker needing a fix/pin.
+3. Has the scanner's install step changed recently (version bump, new dependency, registry migration) that correlates with when this started failing?
+
+**Conditional recommendation**
+
+- If the cause is a transient infra issue (registry timeout, rate limit): retry the bootstrap; no workflow change needed.
+- If the cause is a real break (bad version pin, removed package, auth misconfiguration): fix the bootstrap/dependency step, not the gate — do not weaken or bypass the scanner requirement to force a green run.
+- Either way, do not record this run as a pass. Until `ci-full.json` exists, the correct status is "verification did not execute," and that should block merge on its own — same as a failure would, but reported as its own distinct state rather than being relabeled as either outcome.

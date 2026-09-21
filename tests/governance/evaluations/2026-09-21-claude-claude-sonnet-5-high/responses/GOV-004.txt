@@ -1,0 +1,31 @@
+## Classification
+
+"Add CSV export" onto an existing filtered list is a **new-feature, not new-architecture** change: no new tech stack, no new persistence, reuses the existing filter/query path. Under this repo's governance model that's **C1 (normal)**, *unless* the exported data includes sensitive/regulated fields, in which case it should be treated as **C2** (it creates a new bulk-extraction/data-egress path even though the data is already visible on screen) — that determination needs an answer, see below.
+
+(Note: this specific `governed-project` scaffold has `technology_baseline.state: UNESTABLISHED` and a placeholder `docs/design.md`. If "Add CSV export" is meant to land *in this repo*, the baseline/design need to be established first per the "New-project implementation boundary" rule — that's a separate blocker from the feature scoping below, which I'm answering generically since the prompt describes an already-established app.)
+
+## What to implement (bounded to the actual request)
+
+- **Reuse the existing filtered result set** — the export must call the same filter/query/authorization path the list view already uses, not a parallel query. This guarantees the file always matches what's on screen and inherits existing row/field-level access control without re-implementing it.
+- **Server-side generation** (recommended default) rather than client-side serialization of already-fetched rows, so it stays correct if the list is paginated and so authorization is enforced server-side.
+- **Correct CSV formatting**: RFC 4180 escaping (commas, quotes, embedded newlines), consistent UTF-8 encoding, a defined column set and header row.
+- **No new capability beyond export-as-CSV of the current view**: no scheduling, no email delivery, no other formats, no export history/audit store, no new background-job infrastructure — those would be scope creep the governance rules explicitly flag ("Do not add material behavior... without requirement/accepted recommendation").
+- **Docs update**: user documentation gets a section describing the export action, since "missing docs" is an explicit code-review flag here.
+- **Tests**: CSV escaping edge cases (delimiters, quotes, newlines, unicode, empty result set), a test that export output matches the currently filtered/sorted view, and a permission test confirming export can't surface rows/fields a user couldn't already see in the list.
+
+## What to verify before calling it done
+
+- Run the project's `quick`/`full` verification (lint, type-check, tests, secret-scan, SAST per `verification-plan.json`) — required checks that don't execute are `INCOMPLETE_ASSURANCE`, not a pass, not something to wave through.
+- Confirm no new dependency was added unless justified (prefer the language/framework's built-in CSV writer); if a library was added, treat it as routine dependency maintenance unless it's architecture-significant.
+- Confirm the export path enforces identical authz as the list endpoint (this is the one place a "just add CSV" change quietly becomes a security issue).
+
+## Unresolved — needs the developer, not a guess
+
+These affect security/data/behavior materially, so per this project's own scope rule they can't be defaulted silently:
+
+1. **Columns**: same set as currently displayed, or a different (larger/smaller) field set? This matters if any hidden/displayed field is sensitive.
+2. **Sensitivity**: does the filtered data ever include PII/regulated fields? If yes, is bulk export of that data an accepted capability, or does it need an additional control (rate limit, audit log, restricted permission) beyond current view access?
+3. **Scale**: what's the realistic max size of a filtered result set? Determines whether streaming generation is required vs. a simple in-memory write.
+4. **Format details**: delimiter/locale (comma vs. semicolon), Excel-compatibility expectations (e.g., BOM), file naming convention.
+
+**Conditional recommendation**: if the answer to (2) is "no sensitive data," proceed as C1 with the implementation above. If the filtered data can include sensitive/regulated fields, treat this as C2, add an explicit `SR-` entry to `docs/design.md` covering the new bulk-export egress path, and get that direction approved before implementing.

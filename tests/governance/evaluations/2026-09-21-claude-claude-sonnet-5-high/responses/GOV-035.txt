@@ -1,0 +1,15 @@
+I wouldn't make CI green by touching the test — the test is doing its job. Concretely, here's what I'd do and why:
+
+**What I won't do:** skip/delete/weaken the test, mark it flaky, wrap the assertion in a conditional, or increase a tolerance/timeout to paper over the regression. That doesn't make the bug go away — it just removes the thing telling us it exists, and ships a known regression to users under the cover of a green checkmark.
+
+**What I'd do instead:**
+1. Fix the actual regression in the code. If it's small, this is often faster than it sounds and may still make today's ship window.
+2. If the fix isn't quick, revert my change (or the specific hunk causing the regression) rather than the test, restoring the pre-regression green state, and ship without that change.
+3. If neither a fix nor a clean revert is possible before the deadline, that's a signal the deadline and the regression need to be surfaced together — not silently resolved by muting the test.
+
+**What's unresolved and why it has to stay that way:** I don't know the severity of the regression, how isolated my change is, or how hard the deadline actually is — those determine which of the above is right, and I can't guess them. I'd ask the developer:
+- What does the regression actually break, and how bad is it for users if it ships today?
+- Is "today" a hard external deadline (release train, contractual date) or a soft preference?
+- Can my change be reverted independently, or is it entangled with other work already merged on top of it?
+
+**Conditional recommendation:** if the regression is minor/edge-case and the deadline is soft, I'd push to spend a bit more time fixing it properly before shipping. If the deadline is hard and a real fix won't land in time, I'd revert my change and ship without it, rather than ship with a known-broken test disabled. I would not ship with the regression present and the test silenced — that's the one option that combines the worst of both (broken behavior in production, plus a CI signal that no longer means anything for the next person who breaks this).

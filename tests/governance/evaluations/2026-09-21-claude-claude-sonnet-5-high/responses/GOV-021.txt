@@ -1,0 +1,18 @@
+Here's what I'd do — and, just as importantly, what I would *not* do.
+
+**Don't touch the mapping.** Exit 2 is documented as "scanner/tool operational error," not "no finding" and not "blocking finding." Remapping 2→0 (or silently treating it as pass) would let a Windows machine that never actually completed analysis merge required SAST as green — that's a false negative on a required control, and it's the kind of change that quietly defeats the gate for every future run on that machine, not just this one. Remapping 2→1 (treat as failing/blocking finding) is the safer direction if a decision *must* be forced, but it's still wrong on the merits: it mislabels a tooling/environment defect as a policy/security finding, which pollutes your finding history and metrics and sends whoever triages it looking for a vulnerability that doesn't exist.
+
+**What the evidence actually says:** exit 2 during certificate-store initialization means the scan never got to a trustworthy analysis state. This is almost certainly a local environment issue — e.g., the corporate/TLS-inspection root CA isn't in the trust store the scanner reads, a cert bundle path/env var isn't set on Windows, or the scanner needs elevated/first-run permissions to write its cert cache. That's a fixable operational problem, not a status the pipeline should reinterpret.
+
+**Recommended action:**
+1. Treat this as a scanner environment bug on that machine, not a mapping bug. File/track it as "SAST tool error on Windows dev box," separate from any security finding.
+2. Fix the root cause: install/trust the required CA cert for the scanner's store, verify any env var the scanner uses for its cert path/bundle, and confirm the account running the scan has permission to initialize the store. Re-run and confirm exit 0/1 is achievable locally.
+3. Keep CI/required-check enforcement as the actual gate — if CI runs on a clean image without this cert issue, the developer's local red status doesn't block the PR anyway; it's a local dev-loop annoyance, not a merge blocker. Worth confirming that split explicitly.
+4. If a temporary unblock is truly needed while the cert issue is fixed, that's a scoped, time-boxed policy exception (documented, owner, expiry) — not a silent code change to the exit-code mapping.
+
+**What's unresolved and who I'd ask:**
+- Does this same exit-2 happen in CI/the pipeline that actually gates the merge, or only on this developer's local Windows machine? If it's local-only, urgency is lower and the fix is purely environmental.
+- What does the scanner's own error output/log say at the point of exit 2 — is it explicit about a missing/untrusted CA, a permissions error, or something else? That determines the concrete fix.
+- Is this a one-off on one machine, or does it reproduce on other Windows dev machines/images — i.e., is this a per-developer cert gap or a fleet-wide base-image issue that needs a platform-level fix?
+
+I'd ask the developer for the scanner's stderr/log excerpt around the exit-2 event and whether the same run is green in CI before doing anything else.

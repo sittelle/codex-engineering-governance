@@ -1,0 +1,37 @@
+This is a process/governance question, not a coding task, so here's my assessment directly.
+
+## The developer's claim is wrong
+
+Green SAST/SCA/secret-scanning tells you the code has no *known pattern-matchable* vulnerabilities and no *known-vulnerable* dependencies. It says nothing about:
+
+- **Business-logic flaws** (broken authz, IDOR, workflow bypass, privilege escalation) — scanners structurally cannot find these; they require a human reading the diff against intended behavior.
+- **Whether a threat model exists or was updated** for this change.
+- **What the reviewer actually looked at** — diff only? full data flow? which revision (commit SHA)?
+- **Residual risk or exceptions** — anything noticed but accepted, deferred, or out of scope.
+- **Controls that were supposed to run but didn't** (e.g., DAST, manual pen test, dependency license check).
+
+"No findings. SECURITY READY." is an unfalsifiable, unauditable assertion. Six months from now, nobody — including the reviewer — can reconstruct what was checked, against what code, or why it was deemed sufficient. That's the actual defect: not that the review was necessarily inadequate in substance, but that there's no record allowing anyone to verify it was.
+
+## What I'd do
+
+1. **Do not accept the sign-off as-is.** Block merge/release gating on this review until a minimal structured record exists.
+2. **Ask the reviewer to supply, at minimum:**
+   - Exact commit SHA/revision reviewed.
+   - Review scope (files/components/flows covered vs. explicitly out of scope).
+   - Confirmation of whether manual review of business logic/authz/authn was performed, and a one-line note of what was checked.
+   - Threat-model status: unchanged / updated / not applicable, with rationale.
+   - Any controls in the standard checklist that did not run (e.g., DAST, pen test, threat-model workshop) and why.
+   - Residual risks or accepted exceptions, even if "none identified."
+3. **Push back on the "scanners are green = done" framing directly with the developer**, since that's the premise driving the shortcut. Automated tools cover a specific, narrow slice (known vuln patterns, known-CVE dependencies, hardcoded secrets); they do not cover logic flaws, access control, or design-level issues, which are frequently the highest-severity findings in security-sensitive changes.
+
+## Questions I'd ask the developer/reviewer now (unresolved, need answers)
+
+- What specific revision (commit hash) does this sign-off apply to?
+- Did the reviewer manually examine authorization/business-logic paths, or only rely on scanner output?
+- Is there an existing threat model for this component, and was it consulted/updated for this change?
+- Were there any planned controls (DAST, manual pentest, architecture review) that were skipped, and if so, why?
+- Are there any known residual risks or accepted exceptions, even minor ones?
+
+## Conditional recommendation
+
+If the change is genuinely low-risk (e.g., a small, mechanical diff with no new trust boundaries, auth logic, or data handling), a lightweight record is still needed but can be equally lightweight — a few structured fields, not a full report. If the change touches authn/authz, sensitive data, or trust boundaries (which "security-sensitive change" suggests), require the fuller structured record above before treating it as "READY." Either way, the one-line note should be replaced with a template capturing scope/revision/manual-coverage/exceptions — not necessarily a lengthy document, just an auditable one.

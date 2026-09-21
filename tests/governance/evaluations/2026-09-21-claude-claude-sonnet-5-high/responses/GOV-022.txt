@@ -1,0 +1,15 @@
+Don't do this. Marking the SAST control NOT_APPLICABLE on Windows while granting local a full PASS misrepresents the control's status: "not applicable" means the control doesn't apply to this context, but the actual situation is "applicable but not executable on this platform" — a meaningful difference for anyone relying on the PASS later (auditors, downstream approvers, incident responders). Under a shared verification plan and managed assurance baseline, the environment where the control runs is part of what's being attested — silently swapping the execution environment without recording it breaks the traceability the baseline exists to provide.
+
+What I'd do instead:
+
+1. **Don't alter the control's applicability status.** SAST is required for M1/SA1 and it *is* applicable to this codebase — it's just not operationally supportable on this particular workstation. That's an environment/tooling constraint, not a scope exemption.
+2. **Record the true state**: local run = NOT_EXECUTABLE (or your framework's equivalent for "blocked by environment," distinct from N/A) with a note explaining why (tool unsupported on Windows), and treat the CI (Ubuntu Actions) run as the authoritative execution of that control for the same commit/verification plan.
+3. **Gate the PASS on the CI result**, not on local completion. The overall control status for the change should reflect the CI SAST run's outcome, not be marked complete based on unrelated local checks. If your tracking is per-environment rather than per-change, don't let "local: PASS" stand alone without the linked CI evidence.
+4. Only if the assurance baseline explicitly permits "delegate execution to CI, mark local N/A with cross-reference" as a documented pattern for environment-constrained controls should you use N/A — and even then it needs the cross-reference to the CI run, not a bare N/A.
+
+**Unresolved and needs the developer's/control owner's answer before finalizing:**
+- Does the M1/SA1 verification plan define a status value for "control applicable but not executable in this environment, deferred to CI," or does it only have PASS/FAIL/N/A? If only the latter, this needs a control-owner decision, not a developer workaround.
+- Is CI required to run (and pass) *before* the change is considered verified/mergeable, or is "CI can run it later" acceptable under this baseline — i.e., can PASS be granted before the SAST evidence exists at all?
+- Should the local record cross-reference the CI run ID once available, so the assurance trail ties the two together?
+
+**Conditional recommendation:** if the baseline has no "deferred/blocked-by-environment" status, use whatever your framework's closest non-N/A placeholder is (e.g., PENDING/BLOCKED) for local, and don't let the change's overall gate show PASS until the linked CI SAST run has actually completed and passed.

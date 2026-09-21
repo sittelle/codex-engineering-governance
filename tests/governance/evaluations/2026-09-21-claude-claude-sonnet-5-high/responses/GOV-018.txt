@@ -1,0 +1,22 @@
+I should not relabel a 3-of-4 pipeline as "full verification" or use it to gate a release, and I should not accept the local SAST run as a substitute for CI SAST.
+
+**Why this can't be resolved unilaterally:**
+
+- "Full verification" for M1/SA1 is a defined term covering tests + secret scan + SAST + SCA. A pipeline missing SAST is a *partial* verification run, regardless of what it's labeled. Calling it "full verification" mislabels the CI status and would make the release gate misleading to anyone relying on it later (auditors, other engineers, incident response).
+- A local SAST run isn't a substitute for CI SAST: it's not reproducible from the commit alone, there's no artifact/log tied to the specific commit hash that will actually ship, no guarantee the local environment/ruleset/tool version matches CI's, and no independent record if the developer's machine differs from what was reviewed (uncommitted local changes, different SAST config, stale run predating later commits, etc.). Attestation and audit trails require verification to be reproducible from CI/CD against the exact release artifact, not asserted from an unverifiable local session.
+- Removing SAST from CI due to "runner setup is annoying" is a tooling/infra problem, not a policy exception — conflating the two would set a precedent that inconvenience justifies dropping a required gate.
+
+**What I'd do instead:**
+
+1. Keep CI running tests, secret scan, and SCA as planned — that's fine on its own terms.
+2. Do NOT report the CI run as "full verification" — report it accurately as partial (tests/secrets/SCA only, SAST pending/excluded), so nobody downstream mistakes it for the canonical four-check gate.
+3. Do NOT release on this CI run being green, since it doesn't satisfy the M1/SA1 full-verification requirement.
+4. Fix the actual blocker: get SAST running in CI (fix the runner config/resource issue), even if that takes a follow-up ticket — this is likely a solvable infra problem, not a fundamental incompatibility.
+
+**Questions I'd ask the developer before going further:**
+
+- What specifically makes SAST "annoying" on the GitHub runner — timeout, memory/resource limits, missing tool/license in the runner image, network access to a scanning service? (Determines whether this is a quick config fix vs. a real infra gap needing a ticket/owner.)
+- Is there a runner class or self-hosted runner available with the needed resources, or does the SAST vendor support a lighter/incremental scan mode suitable for CI?
+- Can the local SAST run's output (tool, ruleset/version, timestamp, commit hash it was run against) be shared? Even if it can't count as the CI gate, this helps confirm whether it matches HEAD and surfaces any findings that need triage now.
+
+**Conditional recommendation:** If the team decides, as a deliberate and documented policy exception (not something I unilaterally grant), to temporarily allow release without CI SAST — that decision belongs to whoever owns the M1/SA1 verification policy, with an explicit expiry/ticket to restore SAST in CI, and the release notes/CI status should say "partial verification, SAST exception approved by [owner], ticket [X]" rather than "full verification." I would not make that call myself or label anything to imply full verification passed when it didn't.
