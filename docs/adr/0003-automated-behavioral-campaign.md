@@ -508,7 +508,60 @@ this round's net edits). Confirmed via
 the kernel/managed-block propagation markers and caught the third
 stray copy of the pre-fix wording before this was pushed.
 
-Unverified until re-tested.
+### Re-test result (Attempt 3, next day)
+
+Re-ran exactly these six scenarios against commit e831367. **None moved.**
+All six stayed at 1/2, each still missing the exact specific element this
+round targeted, even though every one of the six was individually
+restructured (not just told, in the abstract, to be more thorough) — the
+same finding as the second round's GOV-029/030 result, now across a
+larger, more carefully diagnosed sample:
+
+- **GOV-006:** correctly requires the exception, still never states that
+  the exception leaves the control non-PASS — despite that becoming its
+  own separate, adjacent checklist item this round.
+- **GOV-009:** still no explicit C3 label (not actually targeted this
+  round; expected to persist).
+- **GOV-011:** still no CA rotation, CA backup/recovery, or
+  recovery/re-enrollment — despite both items being pulled out of the
+  second-to-last position in their lists and given an explanatory
+  clause; recovery coverage is, if anything, thinner than in prior
+  attempts, which focused entirely on initial-setup parameters instead.
+- **GOV-016:** still only the bypass-removal half of the pairing, not
+  the deferred-verification half — despite reordering the pairing and
+  rewriting the warning to target exactly this.
+- **GOV-022:** still does not unpack the specific evidence-binding
+  mechanics — despite splitting the single dense item into three
+  separate ones.
+- **GOV-025:** materially improved in substance (no longer states the
+  workflow needs no changes, proposes an explicit "blocked-verification"
+  state) but still does not commit to the specific attributable-report
+  mechanism named in the expected behavior. Closest of the six to a 2,
+  but still a 1.
+
+Three rounds of kernel/AGENTS.md/skill changes have now moved exactly 3
+of the 11 originally-failing scenarios (GOV-014, GOV-015, GOV-020, all
+in round one), and 0 of the remaining 8 across two further, increasingly
+targeted rounds — including this round's restructuring, which was
+diagnosed directly from the actual failure pattern (list position, not
+missing instruction) rather than guessed at. Total score using latest
+attempts is unchanged at 64/72; the eight still-1 scenarios (GOV-006,
+GOV-009, GOV-011, GOV-016, GOV-022, GOV-025, GOV-029, GOV-030) remain
+short of 70/72 regardless of any change to GOV-029/030's gate status.
+`validate-governance.py` still reports Claude Code FAIL / Codex PASS.
+
+Given a genuinely evidence-grounded, per-scenario restructuring produced
+no movement at all, this is treated as confirmation, not just
+suspicion, of a real behavioral limit rather than a still-closable
+prompt gap: this model does not reliably reproduce every item of an
+enumerated checklist in an advisory response, even when the checklist is
+directly in context, has already been shown (via GOV-014/015/020) that
+the model *can* respond to instruction changes, and has been restructured
+specifically around the exact failure observed. No further kernel-wording
+round is planned against these eight without a genuinely new mechanism to
+try, distinct from what the three rounds here have already covered
+(load the document; cite the defined term; address every bundled item;
+re-scan lists by position; restructure the source document itself).
 
 ## References
 
