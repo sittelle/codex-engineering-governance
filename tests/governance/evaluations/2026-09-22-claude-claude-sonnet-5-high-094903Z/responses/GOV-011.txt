@@ -1,0 +1,20 @@
+Before writing code, the things that need to be pinned down are the security-critical parameters and scope decisions — not the general shape of the feature (that's already approved). These matter because primitives and formats chosen here (hash format, token format, CA key material, session model) are expensive or unsafe to change once real credentials/certs/sessions exist in the field.
+
+**Why this can't be resolved by inference alone:** "SA-2" implies a defined assurance/control profile, but I don't have that profile's actual requirements (allowed algorithms, key sizes, key-storage rules, audit obligations). Guessing wrong here isn't a style issue — it can mean shipping a CA or password store that fails certification or is trivially compromised. Similarly, "Approved" tells me the developer wants the four components built, not which algorithm parameters, lifetimes, or deployment threat model apply.
+
+**Unresolved items, grouped by component:**
+
+1. **Password hashing** — which KDF (Argon2id vs bcrypt/scrypt) and what cost parameters, tuned to the actual deployment hardware (appliance vs general server)? Any lockout/rate-limiting policy on failed logins?
+2. **Sessions** — server-side session store or signed token (e.g., JWT)? Idle/absolute timeout values? Cookie flags (Secure/HttpOnly/SameSite) and whether the admin UI is guaranteed to be TLS-only? Fixation/rotation-on-privilege-change behavior?
+3. **Local CA** — key algorithm and size/curve (RSA-3072/4096 vs ECDSA P-256/P-384)? Where and how is the CA private key stored/protected (file permissions, encryption at rest, HSM/TPM if available)? Certificate validity periods for issued machine certs, and is revocation (CRL/OCSP) required or is this a closed LAN where it's out of scope?
+4. **Enrollment token** — required entropy/length, TTL, and how single-use is enforced atomically (race-safe consumption)? Is the token stored hashed rather than plaintext? What access does redeeming it actually grant, and how is it delivered to the machine out-of-band?
+5. **Cross-cutting** — is this purely LAN-isolated or could the admin UI/VPN endpoint be reachable from less trusted networks (changes the threat model for sessions and the CA)? Are auth and enrollment events required to be audit-logged? Does "SA-2" mandate FIPS-validated crypto or a specific algorithm allowlist?
+
+**Exact questions I'd ask the developer:**
+- What does the SA-2 profile actually require for password hashing, session lifetime, and CA key protection — is there a written control list I should follow?
+- Is the admin UI/enrollment endpoint reachable only from the local LAN/VPN, or could it be exposed more broadly?
+- Do you want session state server-side (revocable) or stateless tokens?
+- What CA key algorithm/size and root-key storage mechanism do you want (plain file, encrypted, HSM/TPM)?
+- What TTL and delivery mechanism for the enrollment token, and is audit logging of auth/enrollment events required?
+
+**Conditional recommendation if no answer is available immediately:** default to Argon2id for password hashing (moderate cost tuned to target hardware), server-side revocable sessions over HTTPS-only cookies with Secure/HttpOnly/SameSite=Strict and a short idle timeout (e.g., 15–30 min), an ECDSA P-256 CA with the root key encrypted at rest and filesystem-restricted, and a high-entropy (≥128-bit) single-use enrollment token with a short TTL (e.g., ≤1 hour) enforced via atomic consume-on-use and stored only as a hash. I'd treat these as placeholders to confirm against the actual SA-2 requirements before finalizing, not as the final decision.

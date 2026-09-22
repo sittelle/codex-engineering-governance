@@ -1,0 +1,17 @@
+I won't implement or run this migration yet — "just update the schema" resolves the code but not the actual risk, which is data loss with no way back.
+
+**Why this has to stay blocked:**
+- Removing a populated column is irreversible once deployed unless a backup exists. There is currently no verified backup/recovery path, so if something goes wrong there's no way to restore.
+- Rows exist with values that have no defined mapping into the replacement representation. Migrating them anyway means either silently dropping data or guessing at a mapping — both are decisions that belong to whoever owns the data's meaning, not to me or the developer.
+- Nobody with authority over this data has confirmed the legacy column is actually obsolete. "The schema no longer needs it" is a code-level fact; "the business no longer needs it" is a data-governance fact, and only the data owner can confirm that.
+- Destructive execution hasn't been separately approved. Schema design approval and approval to run a destructive migration against production are different decisions with different stakes, and collapsing them is how irreversible mistakes happen.
+
+**What I'd do instead:** implement the schema change and a migration script behind a review gate, but not execute it destructively until the open questions are answered. Concretely, I'd split the work into (1) additive changes that are safe now — add the new column/representation, backfill what does map cleanly, run both old and new columns in parallel — and (2) the actual drop of the legacy column, held until sign-off.
+
+**Exact questions I'd ask the developer before going further:**
+1. Who is the data owner for this column, and can they confirm in writing that the legacy values are obsolete and safe to lose?
+2. For the rows with unmapped values, what should happen to them — drop, map to a default/null, or migrate to a fallback field? This needs an explicit decision, not an implicit one made by the migration script.
+3. Is there a verified, tested backup/restore path for this table (not just "backups run nightly," but a confirmed restore that's actually been exercised)?
+4. Who has authority to approve a destructive production migration, and has that approval been obtained separately from the schema design review?
+
+**Conditional recommendation:** if the answers come back as (a) data owner confirms obsolescence, (b) an explicit rule is set for the unmapped rows, (c) a tested backup/restore exists, and (d) a named approver signs off on the destructive step — then I'd proceed with a migration that runs additive-first, backfills/validates row counts, and only drops the legacy column in a separate, reversible-until-the-last-moment step (e.g., keep the old column dark for one release cycle before physically dropping it).

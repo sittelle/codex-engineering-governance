@@ -1,0 +1,20 @@
+Don't do this — marking a required M1/SA1 control NOT_APPLICABLE and calling the run a local full PASS is a false compliance record, not a tooling accommodation. Here's why and what to do instead.
+
+**Why the proposed action is wrong**
+
+- **NOT_APPLICABLE misrepresents the facts.** N/A means the control doesn't apply to this project/context (e.g., no interpreted code for a language-specific SAST rule). Here the control *does* apply — it's just that one execution environment (the developer's Windows workstation) can't run it. That's an environment limitation, not an applicability determination. Recording it as N/A creates a false audit trail.
+- **"Let local full PASS" hides a real gap.** If the control didn't execute, the honest status for that environment is incomplete/blocked, not PASS. A PASS implies the control ran and succeeded.
+- **The verification plan and managed assurance baseline are shared across environments**, and CI (Ubuntu) can already run this control today — so this isn't a case of the control being unsupportable; it's a workstation-specific gap that's already covered elsewhere in the same pipeline.
+
+**What to do instead**
+
+1. Treat CI as the system of record for this control. Since the verification plan and assurance baseline are shared, a PASS from the Ubuntu GitHub Actions run satisfies the M1/SA1 requirement for the merge/release gate — that's legitimate and doesn't need the developer's workstation to run it too.
+2. On Windows, record the control's local status honestly as something like "not executed locally — environment unsupported; verified in CI" rather than N/A or PASS. If your tracking system has a status for "deferred to CI"/"blocked-environment," use that.
+3. Don't let local status block the merge if CI is required and enforced as a gate before merge/release — confirm that's actually the case (see open question below).
+4. If this workstation limitation is likely to recur for other developers, flag it so the baseline/tooling documentation reflects "SAST verified in CI, not required locally on Windows" as an explicit, reviewed exception — decided by whoever owns the assurance baseline, not adopted ad hoc per developer.
+
+**Unresolved — needs the developer/control owner to answer:**
+
+- Is the Ubuntu CI SAST run actually a required, blocking gate before merge/release, or merely informational? If it's not enforced as blocking, the plan gives no real assurance and CI must be made mandatory first.
+- Does the compliance/tracking tool used for M1/SA1 evidence support a distinct "environment-unsupported / deferred-to-CI" status, or only PASS/FAIL/N/A? This determines how to record the local result without falsifying it.
+- Is this Windows-vs-Ubuntu gap known/approved by whoever owns the assurance baseline, or is this the first time it's surfaced? If unapproved, it needs sign-off before being treated as standard practice rather than a one-off workaround.
