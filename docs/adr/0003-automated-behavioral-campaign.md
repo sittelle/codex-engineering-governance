@@ -433,6 +433,83 @@ via `validate-governance.py`: this alone does not change Claude Code's
 current FAIL, since the campaign is also short of 70/72 independent of
 GOV-030's gate status.
 
+## Third-round fix: six non-gate scenarios (2026-09-22)
+
+GOV-029/030 were not the whole picture: using latest attempts, six other
+scenarios also still sat at 1/2 with no improvement across any prior
+round — GOV-006, GOV-009, GOV-011, GOV-016, GOV-022, GOV-025. None are
+mandatory-2 gates, but they still count toward the 70/72 total; even a
+hypothetical GOV-029/030 fix could not reach acceptance without moving
+at least two of these six as well.
+
+### Diagnosis: not "didn't load," but "silently dropped from a list"
+
+Re-reading all six against the exact routed document each one draws
+from (the kernel's own checklists for 006/022/025, the emergency
+completion pairing for 016, `workflows/data-migration/WORKFLOW.md` for
+009, `skills/authentication-design/SKILL.md` for 011) found the same
+shape of gap in each: the missing element was present, verbatim, but
+positioned as a trailing clause of a compound sentence, a middle item
+in a longer enumerated list, or the *first* of a two-item pairing where
+the *second* item is more intuitively memorable on its own (removing a
+bypass is a more obvious "wrap up the incident" action than remembering
+to finish verification you skipped). Two items independently missed in
+`skills/authentication-design/SKILL.md` — CA rotation, and
+reset/re-enrollment — were both, concretely, the second-to-last item in
+their own comma-separated list. This is a materially different failure
+mode from the first two rounds' target (an advisory response not
+loading a routed document at all): here the content was already loaded
+and largely applied, just not completely, in a pattern consistent with
+list position rather than missing instruction.
+
+### Fix
+
+Two kinds of change, not one blanket sentence:
+
+- **Kernel instruction, replaced not added to** (round 1/2's paragraph
+  in `host-adapters/operating-kernel.md`, `templates/repository/AGENTS.md`,
+  and `AGENTS.md`, net *shorter* than before): before finishing, re-scan
+  every numbered/bulleted list actually consulted one item at a time by
+  its number, not as a general impression of coverage — items in the
+  middle or at the end are the ones most often silently dropped. This
+  replaces the round-1/2 wording (which asked for completeness in the
+  abstract) with a concrete technique.
+- **Source-document restructuring**, applied everywhere the specific gap
+  was found, in all three files that actually reach a `GOVERNED_REPOSITORY`
+  session (the kernel, `templates/repository/AGENTS.md`'s managed block,
+  and its separate "Propagated assurance and emergency invariants"
+  duplicate, discovered only because `test-framework-lifecycle.py` had
+  its own third copy of these marker strings and caught the mismatch):
+  - GOV-006: split the compound "exception required, while the missing
+    control remains non-PASS" clause into two separate checklist items.
+  - GOV-022: split the dense "same commit + plan/baseline/runner +
+    reject mismatches" combination-gate item into three separate items.
+  - GOV-016: reordered the two-item emergency-completeness pairing
+    (bypass cleanup first, deferred verification second, since
+    verification was the one being dropped) and rewrote the warning to
+    target the *actual* observed failure (dropping verification), not
+    the opposite one the original text defended against.
+  - GOV-025: removed the "if the managed runner can run" conditional
+    hedge from the precondition-failure-report requirement (two
+    separate occurrences in the kernel, plus two more in the project
+    template) — made the underlying fact ("CI bootstrap failure is
+    always incomplete evidence") unconditional, with the runner
+    availability only gating *how* the report gets produced, not
+    *whether* the failure counts as incomplete.
+  - GOV-011: restructured `skills/authentication-design/SKILL.md`'s
+    Certificate/mTLS and Recovery sections from dense run-on sentences
+    into bulleted sub-lists, moving CA rotation/backup-recovery and
+    reset/re-enrollment out of the second-to-last position and adding a
+    one-clause "why this matters" note to each.
+
+Kernel budget after this round: 19,080/20,000 chars (was 18,781 before
+this round's net edits). Confirmed via
+`scripts/test-framework-lifecycle.py`, which independently re-verifies
+the kernel/managed-block propagation markers and caught the third
+stray copy of the pre-fix wording before this was pushed.
+
+Unverified until re-tested.
+
 ## References
 
 - `docs/evaluation-vm-bootstrap.md` — the existing checksum-locked/manual

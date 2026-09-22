@@ -40,11 +40,22 @@ If one-time enrollment tokens are used, define entropy/source, storage represent
 
 ## Certificate / mTLS Identity
 
-If certificate identity is used, define CA ownership, private-key storage, subject/device identity, issuance, validity, renewal, revocation/replacement, CA backup/recovery, CA rotation, and compromise response. Do not generate a local CA without defining its lifecycle.
+If certificate identity is used, define the full CA lifecycle, not just issuance:
+- ownership, private-key storage, and subject/device identity;
+- issuance, validity, and renewal;
+- **CA rotation and CA backup/recovery** — plan these explicitly, not as an afterthought; a CA with no rotation plan becomes an outage, or a forced insecure workaround, the day it actually needs renewing;
+- revocation/replacement and compromise response.
+
+Do not generate a local CA without defining its lifecycle.
 
 ## Recovery
 
-Recovery flows are authentication flows. Define who may recover, proof required, lost-device/controller behavior, reset/re-enrollment, and emergency administrator recovery. Avoid recovery weaker than the normal authentication model without explicit rationale.
+Recovery flows are authentication flows. Define:
+- who may recover and what proof is required;
+- **lost-device/lost-machine behavior and reset/re-enrollment** — a machine that needs to be re-enrolled is a recovery case, not just an enrollment case; leaving it undefined means the first real device loss has no defined path;
+- emergency administrator recovery.
+
+Avoid recovery weaker than the normal authentication model without explicit rationale.
 
 ## Authorization Separation
 

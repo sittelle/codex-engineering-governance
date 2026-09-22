@@ -82,7 +82,7 @@ For a governed repository:
 
 If the locator or required governance material is unavailable, surface that as incomplete governance context before C2/C3 or release work. Do not silently substitute memory for missing normative material.
 
-A request to recommend, evaluate, or decide is governed the same as a request to do the work: load the applicable routed workflow/skill first, then check the finished response against every field, label, or status term it names as explicitly required, rather than trusting overall judgment to imply coverage. When repository files define a specific status/state term for the exact situation described, name and use that actual term rather than a generic paraphrase or hedging about whether one exists. When a request bundles several items and only some should proceed, state the disposition of every item explicitly, not only the ones being declined or qualified.
+A request to recommend, evaluate, or decide is governed the same as a request to do the work: load the applicable routed workflow/skill first. Before finishing, re-scan every numbered or bulleted list you consulted one item at a time by its actual number, not as a general impression of having covered it — items in the middle or at the end of a list are the ones most often silently dropped.
 
 ## Workflow routing
 
@@ -100,7 +100,7 @@ When emergency work skips or compresses normal verification, explicitly record w
 
 ### Emergency-response completeness
 
-When an emergency recommendation can involve deferred checks or temporary measures, a complete response MUST explicitly state both post-stabilization obligations: (1) complete/reconcile deferred verification, and (2) review and remove or deliberately reconcile temporary bypasses, toggles, exceptions, and emergency risk acceptances. Mentioning only deferred verification is incomplete.
+When an emergency recommendation can involve deferred checks or temporary measures, a complete response MUST explicitly state both post-stabilization obligations: (1) review and remove or deliberately reconcile temporary bypasses, toggles, exceptions, and emergency risk acceptances, and (2) complete/reconcile deferred verification. Mentioning only the bypass cleanup and not the deferred verification is incomplete — verification is the one that is easy to forget once the bypass itself is gone.
 
 For nontrivial refactoring or architectural cleanup intended to preserve behavior, load `workflows/refactor/WORKFLOW.md`. Separate public API, data/schema, dependency, security, and product-behavior changes from pure refactoring rather than hiding them inside cleanup.
 
@@ -123,8 +123,9 @@ When a required control is missing, omitted, or `DID_NOT_EXECUTE` and the questi
 1. the control is required/applicable;
 2. the evidence state and readiness consequence (`DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`, or omitted required capability);
 3. accepting risk from a known vulnerability/finding is distinct from a governance/policy exception to proceed without the required control, and finding-risk acceptance cannot substitute for that missing-control exception;
-4. if policy permits proceeding without the control, it requires a separate explicit governance/policy exception, while the missing control itself remains non-PASS;
-5. when multiple approved execution contexts are involved, completion evidence must bind to the same clean checked-out commit, committed identities of the verification plan, managed assurance baseline, and runner, compatible runner semantics, and the required-check inventory. Do not combine evidence from a dirty/unknown tree or any mismatched identity. Any attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS.
+4. if policy permits proceeding without the control, it requires a separate explicit governance/policy exception;
+5. that exception, even if granted, never makes the missing control itself PASS — it stays recorded as non-PASS regardless;
+6. when multiple approved execution contexts are involved, completion evidence must bind to the same clean checked-out commit, committed identities of the verification plan, managed assurance baseline, and runner, compatible runner semantics, and the required-check inventory. Do not combine evidence from a dirty/unknown tree or any mismatched identity. Any attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS.
 
 Do not omit these distinctions merely because the immediate recommendation is already "do not release" or because another context can execute the control.
 
@@ -134,16 +135,18 @@ For a concrete assurance scenario, state the governing conclusion rather than of
 
 - If a required control can run only in an approved CI or specialized context, keep it required. A local report without that attributable evidence is `INCOMPLETE_ASSURANCE`, and a combined result requires the same clean checked-out commit plus the committed verification-plan, assurance-baseline, and runner identities, compatible runner semantics, and required-check inventory. Reject dirty, unknown, or mismatched evidence; an attributable executed `FAIL` is still fail-dominant.
 - For clean tracked artifacts whose checkout bytes differ only because of platform line endings, use the committed Git content and the actual checked-out commit for attribution. Treat checkout byte hashes only as diagnostics. Do not offer working-tree normalization, `.gitattributes`, `core.autocrlf`, or disabling identity checks as an alternative attribution mechanism. Dirty, untracked, or mismatched artifacts remain ineligible for aggregation.
-- If CI bootstrap prevents a required check from starting but the managed runner can run, it MUST invoke the canonical precondition-failure/report path and emit the attributable machine-readable incomplete-assurance report. This is required regardless of release intent; a generic red job is not the report and the job remains non-green.
+- If CI bootstrap prevents a required check from starting, that is always incomplete evidence, whether or not the managed runner happens to be available right now: when the managed runner can run, it MUST invoke the canonical precondition-failure/report path and emit the attributable machine-readable incomplete-assurance report regardless of release intent; a generic red job is never the report on its own, and the job remains non-green either way.
 
 ### Required local/CI split response checklist
 
-When a developer asks to mark an applicable control `NOT_APPLICABLE` or pass local `full` because the control runs only in an approved CI or specialized context, a complete answer MUST explicitly state all of the following:
+When a developer asks to mark an applicable control `NOT_APPLICABLE` or pass local `full` because the control runs only in an approved CI or specialized context, a complete answer MUST explicitly state all of the following as separate points, not folded together:
 
 1. **Requiredness:** the control remains required; local tool support does not change applicability.
 2. **Local state:** the local report is `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE` until attributable external evidence is combined; it is not local PASS.
-3. **Combination gate:** only reports for the same clean checked-out commit, committed verification-plan, assurance-baseline, and runner identities, compatible runner semantics, and required-check inventory may combine. Dirty, unknown, or mismatched evidence is rejected.
-4. **Failure rule:** any attributable completed `FAIL` remains fail-dominant even if another approved context passes.
+3. **Same commit:** the combined result may only use reports for the exact same clean checked-out commit.
+4. **Same plan/baseline/runner:** those reports must also share the committed verification-plan identity, assurance-baseline identity, and runner identity, with compatible runner semantics and the same required-check inventory.
+5. **Reject mismatches:** dirty, unknown, or mismatched evidence on any of the above is rejected outright, not combined.
+6. **Failure rule:** any attributable completed `FAIL` remains fail-dominant even if another approved context passes.
 5. **Exception boundary:** a governance/policy exception may authorize proceeding with incomplete assurance where policy permits, but it cannot relabel the missing control, local `full`, or the combined result as PASS.
 
 Do not compress this checklist into a generic statement that CI will run the control later, or ask whether an exception should make local `full` green.
@@ -156,7 +159,7 @@ A required capability may be evidenced in an approved CI or specialized environm
 
 ## Assurance tool bootstrap invariant
 
-Assurance tool locks are environment-bound unless demonstrated universal. A lock resolved for one OS/runtime must not be silently reused for an incompatible environment. Missing/incompatible lock or bootstrap failure is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`; never remove integrity hashes, float versions, or mark a required capability N/A merely to make CI green. When the managed runner is available, CI bootstrap failure must invoke its canonical precondition-failure/report path and produce an attributable machine-readable incomplete-assurance report for the same commit/plan/baseline/runner state. The CI job remains non-green; a generic red job is not a substitute for that evidence.
+Assurance tool locks are environment-bound unless demonstrated universal. A lock resolved for one OS/runtime must not be silently reused for an incompatible environment. Missing/incompatible lock or bootstrap failure is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`; never remove integrity hashes, float versions, or mark a required capability N/A merely to make CI green. CI bootstrap failure is always incomplete evidence; if the managed runner is available, it must invoke its canonical precondition-failure/report path and produce an attributable machine-readable incomplete-assurance report for the same commit/plan/baseline/runner state either way. The CI job remains non-green; a generic red job is not a substitute for that evidence.
 
 For the full evidence-aggregation, commit-bound-identity, and platform-tool-locking mechanics behind the assurance invariants above, read `assurance/architecture.md` before release/aggregation work; the rules above are the obligation, that document is the reference.
 

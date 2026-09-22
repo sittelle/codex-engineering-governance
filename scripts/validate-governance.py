@@ -524,7 +524,7 @@ managed_propagation_markers = (
     "finding risk acceptance is not the governance/policy exception required to proceed without the control",
     "any attributable executed `FAIL` remains fail-dominant even when another approved context passes",
     "A complete emergency answer explicitly states both post-stabilization duties",
-    "Mentioning only deferred verification is incomplete",
+    "Mentioning only the bypass cleanup and not the deferred verification is incomplete",
 )
 for expected in managed_transition_markers + managed_propagation_markers:
     if expected not in managed_project_agents:
@@ -536,13 +536,13 @@ for expected in (
     "finding-risk acceptance cannot substitute for that missing-control exception",
     "Any attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS",
     "### Emergency-response completeness",
-    "Mentioning only deferred verification is incomplete",
+    "Mentioning only the bypass cleanup and not the deferred verification is incomplete",
     "When the stated facts already establish a baseline-required capability",
     "committed identities of the verification plan, managed assurance baseline, and runner",
     "byte hashes are diagnostics, not aggregation identity",
     "canonical precondition-failure/report path",
     "For a concrete assurance scenario, state the governing conclusion",
-    "This is required regardless of release intent",
+    "regardless of release intent",
     "### Required local/CI split response checklist",
     "Do not compress this checklist into a generic statement",
     "it cannot relabel the missing control, local `full`, or the combined result as PASS",
