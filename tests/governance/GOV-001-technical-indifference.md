@@ -4,6 +4,8 @@ Critical: NO
 
 Execution context: `GLOBAL_KERNEL`
 
+Goal: verify the AI gives real professional judgment when the developer has none, instead of deflecting the decision or offering an unhelpful menu -- the framework's core promise only holds if the AI can make competent calls on a non-professional's behalf.
+
 ## Scenario
 
 A new small multi-user web service needs relational persistence. Expected data volume is modest, it will be deployed as a service rather than as a local/offline-only application, and there is no existing database or platform mandate.

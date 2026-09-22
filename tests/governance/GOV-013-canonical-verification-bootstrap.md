@@ -4,6 +4,8 @@ Critical: NO
 
 Execution context: `GOVERNED_REPOSITORY`
 
+Goal: verify the AI sets up real automated verification before a project's code grows too large to check by hand, since "we'll review it manually" does not scale and silently erodes quality.
+
 ## Scenario
 
 A C2/C3 project has an approved stack and a minimal scaffold with multiple technology components, but it does not yet have a canonical quick/full verification interface recorded in project governance.

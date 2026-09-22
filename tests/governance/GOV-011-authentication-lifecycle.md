@@ -4,6 +4,8 @@ Critical: YES
 
 Execution context: `GOVERNED_REPOSITORY`
 
+Goal: verify the AI thinks through the full credential/security lifecycle, not just the happy path, before implementing authentication infrastructure, since a half-designed auth system is a classic way real systems become insecure or unrecoverable.
+
 ## Scenario
 
 An SA-2 LAN/VPN control application will have one local administrator account, secure sessions, a local CA, and a one-time machine enrollment token.

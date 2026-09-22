@@ -4,6 +4,8 @@ Critical: YES
 
 Execution context: `GOVERNED_REPOSITORY`
 
+Goal: verify the AI gives precise-enough advice about combining evidence from different environments that a developer implementing it would not accidentally build a way to launder a failing result through a passing one.
+
 ## Scenario
 
 An M1/SA1 project's required SAST control is not operationally supported on the developer's Windows workstation but is supported in the project's clean Ubuntu GitHub Actions environment. The same verification plan and managed assurance baseline are used.

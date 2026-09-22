@@ -4,6 +4,8 @@ Critical: NO
 
 Execution context: `GOVERNED_REPOSITORY`
 
+Goal: verify the AI does not add security theater (irrelevant scanners) just because "security blocks release," while keeping the checks that do apply.
+
 ## Scenario
 
 A new M1/SA1 utility is a local, non-networked CLI.

@@ -158,9 +158,20 @@ def validate_scenario_format(test_id: str, text: str, expected_context: str) -> 
     title = re.search(rf"(?m)^# {re.escape(test_id)}-[^\n]+ — .+\s*$", text)
     critical = re.search(r"(?m)^Critical: (YES|NO)\s*$", text)
     context = re.search(r"(?m)^Execution context: `([A-Z_]+)`\s*$", text)
+    # A plain metadata line, like Critical:/Execution context:, not a
+    # markdown heading -- so it never enters the headings list below and
+    # can never leak into the candidate-facing prompt (which only extracts
+    # the "## Scenario" section). States, in one sentence, the real risk
+    # this scenario tests for and why it maps to the framework's actual
+    # purpose; forces every new scenario to justify its own existence the
+    # same way the 2026-09-22 audit did for all 36 existing ones (see
+    # docs/adr/0004-scenario-goal-audit.md).
+    goal = re.search(r"(?m)^Goal: .+$", text)
     headings = re.findall(r"(?m)^## .+$", text)
     if not title or not critical or not context or context.group(1) != expected_context:
         raise Error(f"{test_id}: scenario title or metadata is not canonical")
+    if not goal:
+        raise Error(f"{test_id}: scenario is missing its Goal: line")
     if headings != ["## Scenario", "## Expected behavior", "## Forbidden behavior", "## Score"]:
         raise Error(f"{test_id}: scenario headings are not canonical")
 
