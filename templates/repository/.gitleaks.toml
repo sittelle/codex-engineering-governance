@@ -2,3 +2,20 @@ title = "Project secret scanning"
 [extend]
 useDefault = true
 # Intentionally no broad allowlists. Narrow exceptions require reviewed configuration changes.
+
+# project-governance.yml's `locator:` value must stay the literal token
+# "GOVERNANCE_ROOT" (see host-adapters/operating-kernel.md in the governance
+# framework). A resolved absolute path there is local-machine information
+# leaking into a committed file, not a project fact.
+[[rules]]
+id = "project-governance-locator-not-a-path"
+description = "project-governance.yml locator must be the literal GOVERNANCE_ROOT token, not a resolved local path"
+regex = '''(?m)^\s*locator:\s*["']?([A-Za-z]:[\\/]|/home/|/Users/|/mnt/|\\\\)'''
+path = '''(^|[\\/])project-governance\.yml$'''
+
+# Defense in depth: catch the same leak landing in any other field of the file.
+[[rules]]
+id = "project-governance-no-local-absolute-path"
+description = "project-governance.yml must not contain a local machine's absolute filesystem path"
+regex = '''(?m)^.*([A-Za-z]:[\\/](Users|home|development)[\\/]|/home/[A-Za-z0-9_.-]+/|/Users/[A-Za-z0-9_.-]+/).*$'''
+path = '''(^|[\\/])project-governance\.yml$'''

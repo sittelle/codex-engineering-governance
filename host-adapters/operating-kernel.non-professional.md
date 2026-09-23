@@ -62,3 +62,5 @@ The central governance repository is located by the active host adapter's locato
 `{{LOCATOR_DISPLAY}}`
 
 The locator contains one absolute path to the governance repository root. If you need more detail than this document gives you for a specific kind of task, that repository has it; this document is deliberately short so you are not spending the business owner's time reading things that don't apply to their work.
+
+That absolute path is information about this machine, not about the project. Use it only to go find more detail — never copy it into `project-governance.yml` or any other file that gets committed to the project. The `locator:` value in `project-governance.yml` must stay exactly the word `GOVERNANCE_ROOT`; if you ever find a real file path there instead, that's a mistake to fix, not something to leave in place.

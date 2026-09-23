@@ -40,6 +40,8 @@ For M1+ C2/C3:
 - initialize Git after the approved design and Technology Baseline direction are recorded;
 - capture an approved-design baseline commit before substantial implementation.
 
+Instantiate the new project's `project-governance.yml` by copying `templates/repository/project-governance.yml` verbatim for the `governance:` block, then editing only the project-specific fields below it. Do not hand-author the `governance:` block from memory: its `locator:` value must remain exactly the literal string `"GOVERNANCE_ROOT"`, never a resolved absolute path, because this file is committed to the new project's repository.
+
 ## Verification bootstrap
 
 After Technology Baseline establishment and initial repository scaffold:

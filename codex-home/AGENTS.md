@@ -76,7 +76,7 @@ The locator contains one absolute path to the governance repository root.
 
 For a governed repository:
 1. read the repository instruction file(s) and `project-governance.yml`;
-2. resolve the governance root from the active host adapter's `GOVERNANCE_ROOT`;
+2. resolve the governance root from the active host adapter's `GOVERNANCE_ROOT` for your own use locating framework material; this resolution is never written back into any project file — a project's committed `locator:` value must remain exactly the literal string `"GOVERNANCE_ROOT"`, never the resolved absolute path, since that path is local-machine information and the file is committed to the project's version control;
 3. for C2/C3, security-sensitive, governance, or release work, verify the central `VERSION` is compatible with the project-pinned governance baseline; do not silently claim compliance across an unresolved mismatch;
 4. read only the applicable workflow, skills, profiles, and detailed standards identified by the repository/task.
 
