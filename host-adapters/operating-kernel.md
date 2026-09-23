@@ -100,7 +100,7 @@ When emergency work skips or compresses normal verification, explicitly record w
 
 ### Emergency-response completeness
 
-When an emergency recommendation can involve deferred checks or temporary measures, a complete response MUST explicitly state both post-stabilization obligations: (1) review and remove or deliberately reconcile temporary bypasses, toggles, exceptions, and emergency risk acceptances, and (2) complete/reconcile deferred verification. Mentioning only the bypass cleanup and not the deferred verification is incomplete — verification is the one that is easy to forget once the bypass itself is gone.
+When an emergency recommendation can involve deferred checks or temporary measures, a complete response MUST explicitly state both post-stabilization obligations: (1) review and remove or deliberately reconcile temporary bypasses, toggles, exceptions, and emergency risk acceptances, and (2) complete/reconcile deferred verification. Mentioning only the bypass cleanup and not the deferred verification is incomplete — verification is the one that is easy to forget once the bypass itself is gone. State both even when the prompt raises only one of them: a request that is only about disabling or bypassing something does not make the deferred-verification obligation optional, and the concrete question asked never narrows which of the two you state.
 
 For nontrivial refactoring or architectural cleanup intended to preserve behavior, load `workflows/refactor/WORKFLOW.md`. Separate public API, data/schema, dependency, security, and product-behavior changes from pure refactoring rather than hiding them inside cleanup.
 
@@ -147,7 +147,7 @@ When a developer asks to mark an applicable control `NOT_APPLICABLE` or pass loc
 4. **Same plan/baseline/runner:** those reports must also share the committed verification-plan identity, assurance-baseline identity, and runner identity, with compatible runner semantics and the same required-check inventory.
 5. **Reject mismatches:** dirty, unknown, or mismatched evidence on any of the above is rejected outright, not combined.
 6. **Failure rule:** any attributable completed `FAIL` remains fail-dominant even if another approved context passes.
-5. **Exception boundary:** a governance/policy exception may authorize proceeding with incomplete assurance where policy permits, but it cannot relabel the missing control, local `full`, or the combined result as PASS.
+7. **Exception boundary:** a governance/policy exception may authorize proceeding with incomplete assurance where policy permits, but it cannot relabel the missing control, local `full`, or the combined result as PASS.
 
 Do not compress this checklist into a generic statement that CI will run the control later, or ask whether an exception should make local `full` green.
 
