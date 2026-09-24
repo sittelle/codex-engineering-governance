@@ -1,0 +1,21 @@
+This is a case where "whatever is normal" is not a resolution — it's the vague-answer pattern the kernel explicitly calls out, applied to a security-relevant decision.
+
+## Why this can't proceed as-is
+
+Access control model (internal-only vs. all signed-in users vs. role-restricted vs. partly anonymous) is exactly the kind of material ambiguity the kernel requires resolving before implementation: it directly determines who can reach the feature and its data, which is a security/privacy/authorization boundary decision, not a stylistic or technical-default one.
+
+"Whatever is normal" doesn't resolve it because there is no single normal — the right answer depends on facts only the developer/product owner knows: what data or actions this area exposes, who it's for, and what the consequence of over- or under-exposure is. Guessing here risks either building something too permissive (data/privilege exposure) or too restrictive (blocking legitimate users), and retrofitting an authorization model later is materially more expensive than deciding it up front.
+
+This is also a case where fluency with the vocabulary ("just use normal auth") can be mistaken for the judgment the decision actually needs — picking an access model is a product/security intent call, not something I should infer and self-certify on the developer's behalf.
+
+## What I'd ask instead of guessing
+
+1. Who is this area for — all authenticated users, a specific role/permission tier, an internal-only audience, or does part of it need to be reachable without login?
+2. What does the area expose or let a user do — is there sensitive data, write/destructive actions, or anything that changes the stakes of getting the boundary wrong?
+3. Is there an existing authorization pattern elsewhere in this app (roles, teams, admin flag) that this should reuse, or is this the first feature to need one?
+
+## Conditional recommendation
+
+If the developer can't answer immediately but wants forward progress: I'd recommend defaulting the new area to **signed-in-users-only, reusing whatever existing authentication mechanism the app already has** (not building new auth plumbing), and explicitly not shipping it to production/real users until the access model is confirmed. This default is chosen because it's the most reversible starting point — it's easy to broaden (open part of it up) or narrow (add role checks) later, whereas starting anonymous-by-default and tightening afterward risks a window where anyone could access it. This is a provisional scaffolding choice, not a substitute for the actual decision, and I'd flag it as such rather than treating it as approved intent.
+
+I have not written any access-control code yet, since doing so would mean silently picking one of the four models on the developer's behalf.

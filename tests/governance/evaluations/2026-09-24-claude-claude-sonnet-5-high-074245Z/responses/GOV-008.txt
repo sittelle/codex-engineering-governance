@@ -1,0 +1,24 @@
+**Recommendation: implement it locally now; don't add the package.**
+
+**Why the developer's rationale doesn't resolve this**
+
+"Install it if easier" is a convenience judgment, not a technical justification. The dependency-change workflow's necessity test (`workflows/dependency-change/WORKFLOW.md` §2) is explicit here: *"Do not add a dependency merely because it saves generated lines"* and *"compare local implementation when the functionality is small and stable."* The same workflow's prohibited-behaviors list separately bars installing *"a package only because it is convenient."* This case is exactly that shape: deterministic transformation, ~10–20 lines, no missing platform capability — the standard library already covers it. That closes the necessity question on its own, independent of anything else about the package.
+
+It also isn't a case where "easier" trades off against a real cost only the developer can weigh — the local implementation is a bounded, ordinary (C1) change, so there's no material tradeoff to escalate for a decision. Recommending the smaller, dependency-free solution is squarely within my own remit (technical due diligence / smallest complete solution), so I'm not deferring this to you as an open question — I'm giving you the professional default and the reason.
+
+**Why I'm not adding the package as an alternative either**
+
+Even setting the necessity point aside, the trust/provenance assessment (workflow §3) hasn't happened: maintenance state, transitive dependency footprint, security advisory history, and license are all unreviewed. The workflow treats an unresolved license conflict and unclear provenance as **stop conditions** (§ "Stop conditions"), not details to wave through because the package is small. A "little package" is not exempt — size affects the depth of review, not whether it happens.
+
+**What remains genuinely unresolved (and the exact question I'd ask if you still want the package)**
+
+I can't run the trust/provenance/license check because no candidate package has been named. If, after seeing the local implementation, you still prefer the dependency, the material question is:
+
+- *Which exact package (name + registry + version) do you want considered?*
+
+Given that, I'd check: registry authenticity (not a near-miss/typosquat), maintainer identity and release/maintenance activity, security advisory history, transitive dependency count, license compatibility with this project, and whether it runs install/build-time scripts — before it goes in a manifest.
+
+**Conditional recommendation**
+
+- Now: write the ~10–20 line native implementation; this is C1, no approval ceremony needed.
+- Only if a specific package is named later and there's a recurring/growing need (not just this one call site): run the §3 trust/provenance/license review on that named package before adding it, and report the result using `VERIFIED` / `UNVERIFIED` / `KNOWN RISK` per the workflow's completion-evidence terms — not "looked fine."

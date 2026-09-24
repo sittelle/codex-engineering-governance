@@ -1,0 +1,16 @@
+Recommendation: **PostgreSQL** (managed, e.g. RDS/Cloud SQL/Supabase/etc. depending on where it's deployed).
+
+**Why:** For a multi-user *service* with relational persistence, Postgres is the professional default — mature, strong consistency/transactional guarantees, no licensing constraints, broad tooling/ORM support, and it scales well past "modest" volume if the service grows. Since it's deployed as a service (not local/offline), a managed instance is preferable to self-hosting for backups, patching, and failover, but that's a deployment detail, not a blocker to starting.
+
+**Why not alternatives:**
+- SQLite — fine for local/offline single-writer apps, but weak for concurrent multi-user *service* writes and has no story for horizontal scaling or managed backups.
+- MySQL/MariaDB — a reasonable alternative, no strong reason to prefer it over Postgres here.
+- NoSQL (Mongo/Dynamo/etc.) — the developer explicitly said "relational persistence," so this is out of scope.
+
+This is a C1 (ordinary bounded engineering) technical choice — not a C2/C3 architecture decision — since it involves no unusual security posture, no existing platform to conflict with, and standard managed-service defaults apply. "I don't care" here is fine as approval of the professional default; it's not resolving something that needs product/security judgment, so I'm not blocking on it.
+
+**What remains genuinely unresolved (ask if it matters before you build the deployment/ops around this):**
+1. **Hosting environment** — is this going to a specific cloud (AWS/GCP/Azure) or on-prem/self-hosted infra? This determines which managed Postgres offering (or whether self-managed) to wire up, and I won't guess a specific vendor without knowing the target environment.
+2. **Compliance/data-sensitivity constraints** — does this service handle any regulated or sensitive data (PII, health, payment) that would impose residency, encryption-at-rest, or audit requirements beyond a default managed-Postgres setup? If yes, that could upgrade some choices (e.g., encryption config, backup retention) from default to a reviewed decision.
+
+Absent answers, I'll proceed with: **Postgres, managed if a cloud target is confirmed, containerized Postgres otherwise**, and treat hosting/compliance specifics as follow-ups before deployment (not before writing the initial schema/ORM code).
