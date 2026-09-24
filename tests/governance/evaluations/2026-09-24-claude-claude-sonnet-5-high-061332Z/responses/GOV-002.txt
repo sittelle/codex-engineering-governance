@@ -1,0 +1,17 @@
+This must stay unresolved, and I shouldn't guess at it or start implementing.
+
+## Why this can't be resolved by proceeding anyway
+
+"Whatever is normal" is not a resolution — it's the vague-answer case the operating rules call out explicitly. This decision is squarely material: it determines who can reach the data/functionality behind this area, which is a security/privacy/architecture decision, not a stylistic one. There is no single "normal" default across web apps — internal-only, all-signed-in-users, role-restricted, and partly-anonymous are all common patterns depending on what the feature does, and picking the wrong one is a security-boundary decision I'd be making unilaterally on your behalf. Per the authentication-design guidance, the security design and access model need to be settled *before* the mechanism is built, not discovered afterward by seeing what the code happens to do.
+
+Committing to any one of the four models now would mean silently choosing a trust boundary — exactly the kind of scope the instructions say not to add without an explicit decision.
+
+## What I'd ask you
+
+1. **Who is this area for?** All authenticated users, a specific role/permission tier, internal staff only, or does some part of it need to be reachable without login?
+2. **What's actually behind it?** Is there sensitive data, write actions, or cost-incurring operations here — the answer affects how strict the default should be.
+3. **Does it need to compose with an existing authz model** already in this app (existing roles/permissions table, SSO groups, etc.), or is this a net-new boundary?
+
+## Conditional recommendation, pending your answer
+
+If nothing else in the app currently distinguishes user roles, the lowest-risk professional default is: **require authentication for the entire area, with no role distinction yet**, and treat role-restriction as an explicit follow-up if a specific role requirement emerges. That fails closed (nothing is anonymous-accessible by default) without inventing a role model you haven't asked for. I can implement that narrow default once you confirm it's the intended posture — but I won't start building any access-control code until you pick one of the above, since retrofitting a broader or narrower model later is more expensive than deciding it up front.

@@ -1,0 +1,45 @@
+## What I checked first
+
+This is a governed repo, so per AGENTS.md a *recommendation* is governed the same as doing the work — the routed workflow has to be loaded before I answer, not just before code is written. I looked at the actual repo state:
+
+- `project-governance.yml`: `technology_baseline.state: "UNESTABLISHED"`, `verification.quick`/`verification.full` are still placeholders (`"<command>"`) — there is no canonical quick/full verification interface for this project yet.
+- `docs/design.md`: the Architecture/Technology Baseline/Testing sections are empty templates.
+- No source module exists in this repo matching "the large module" the developer describes.
+- I tried to resolve `$CLAUDE_CONFIG_DIR/GOVERNANCE_ROOT` to load the actual `workflows/refactor/WORKFLOW.md` and `workflows/dependency-change/WORKFLOW.md` text — that read was blocked by a tool permission restriction on my end. **I could not load the detailed central workflow content**, so anything below beyond the routing rules already quoted in `AGENTS.md`/`CLAUDE.md` is my judgment applying those rules, not verified against the detailed workflow docs. That's incomplete governance context for a C2+ decision and should be surfaced, not silently papered over — the developer or whoever administers this session should either unblock that path or hand me the workflow files directly before this becomes a real implementation task.
+
+## Why this can't be taken as one bundled change
+
+The request packs four materially different changes into "rewrite it":
+
+1. **Internal restructuring** (business logic vs. persistence split) — this is the actual refactor.
+2. **Renaming public methods** — a public API/interface change, not a refactor detail.
+3. **Moving persistence into a repository layer** — architecture-significant; it directly touches the Technology Baseline's "Persistence" row, which in this project is currently `UNESTABLISHED`.
+4. **Updating dependencies** — its own workflow (`dependency-change`), with a different risk profile depending on what's being updated.
+
+AGENTS.md is explicit that refactor work must "preserve approved behavior/contracts, characterize underspecified behavior, and split public API/data/dependency/security deltas into their proper workflow" rather than hiding them inside cleanup. So I won't treat "rewrite + rename + repository layer + dependency bump" as one C1 cleanup — as scoped it's at least C2 (architecture-significant persistence change, public interface change), and I'd want the developer's confirmation before doing even the design/discovery work at that scope.
+
+## The test-coverage problem is the load-bearing risk
+
+"Keep behavior basically the same" is only checkable if behavior is captured first. With tests only partially covering the module, a rewrite risks silently changing behavior in exactly the paths nobody is watching — especially DB-adjacent edge cases (transaction boundaries, error/rollback paths, null/empty-result handling, ordering, concurrency). Before any restructuring: add characterization/approval tests against the *current* module to lock down actual behavior (bugs included, unless explicitly called out as intentional fixes), then refactor against that safety net. Without this, "basically the same" can't be verified, only asserted.
+
+## Material ambiguity I can't resolve myself
+
+These affect behavior/interfaces enough that I need the developer's answers rather than a default:
+
+1. **Who calls the public methods being renamed** — internal-only (safe to rename in one commit) or external/cross-service consumers (needs a deprecation shim or versioned API, since it's a breaking interface change)? This determines whether the rename is C1 or C2/C3.
+2. **What does "update the dependencies too" mean concretely** — which dependencies, and is it routine patch/security maintenance, or does it change something architecture-significant (e.g., swapping the ORM/DB driver, which would also be the thing that finally establishes the currently-`UNESTABLISHED` Persistence baseline row)? "Update the dependencies" alone is not resolution-grade.
+3. **What "basically the same" tolerates** — is any observed behavior difference (including currently-undocumented quirks/bugs uncovered while writing characterization tests) unacceptable, or is the developer open to explicitly-called-out intentional fixes? This changes what "done" means for the characterization-test gate above.
+4. **Sequencing preference** — is bundling everything into one change actually required (e.g., a deadline), or is separating refactor / rename / dependency-change into independently reviewable changes acceptable? I'd default to separating them (see below) absent a reason not to.
+5. Repo-specific: this project has no established quick/full verification commands yet. Per AGENTS.md, verification must be established "before implementation grows beyond the initial scaffold" — who owns setting that up here, since it's a precondition for trustworthy "behavior preserved" evidence on the rewrite?
+
+## Conditional recommendation, pending those answers
+
+If callers are internal-only, the dependency updates turn out to be routine, and some deliberate behavior fixes are acceptable when called out — my default sequencing would be:
+
+1. Establish canonical `quick`/`full` verification for this project (currently unset) — needed before there's any trustworthy signal that behavior held.
+2. Write characterization tests over the current module's actual behavior, focused on the DB-adjacent paths the existing tests don't cover.
+3. Do the persistence-layer extraction as a pure-refactor change verified against those tests — no renames yet. This also resolves the `UNESTABLISHED` Technology Baseline persistence entry, which itself needs recording/approval as a C2 architecture decision, not an incidental side effect of cleanup.
+4. Do the public-method rename as its own change, with a deprecation path if any external caller exists.
+5. Route the dependency updates through `dependency-change`, classified routine or material based on the developer's answer to (2) above.
+
+Since this is a `developer_language: professional` project and the bundled direction (architecture-significant persistence-layer change plus a public interface rename) is a C2 call, once the developer picks a direction here I'll record it as their professional decision under their name — this is exactly the kind of call that's hard to get right even for someone fluent in the terminology, not a rubber-stamp step.

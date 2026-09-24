@@ -1,0 +1,36 @@
+This is a straightforward application of the assurance-outcome invariants already in the governing files — no discovery needed, so I can answer directly.
+
+## What the framework must do
+
+**Aggregate remains fail-dominant: FAIL, not PASS, and not merely "incomplete."**
+
+`ANY` as a `required_contexts` value governs *which execution context's report is eligible to satisfy the requirement* — it is not a semantics override that lets a passing report suppress a failing one for the same required check. The developer's reading ("one PASS anywhere satisfies it, so ignore the FAIL") is not supported by anything in the governing files, and it directly contradicts the explicit rule stated in both `AGENTS.md` and the kernel:
+
+> "An attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS."
+
+That sentence is written exactly for this scenario — same commit, same plan, same assurance baseline, same runner semantics, two attributable executed results, one PASS and one FAIL — and it resolves it explicitly: the FAIL wins.
+
+## Why "at worst incomplete" is also wrong
+
+The developer offers a fallback: if not PASS, call it incomplete. That's not available either. `INCOMPLETE_ASSURANCE` is the classification for a control that *did not execute* or ran in a way that can't be attributed/combined (missing evidence, mismatched commit/plan/baseline/runner, dirty tree, tool operational failure). Here the check *did* execute, in an approved context, on the correct identity-matched commit/plan/baseline/runner, and it produced a real result: FAIL. Downgrading an attributable executed FAIL to "incomplete" would be reclassifying a genuine finding as a missing-evidence state — exactly the kind of result-classification change both the kernel's Assurance outcome/environment invariant and the project's Assurance outcome semantics section flag as a material C2 assurance-policy change, not something to do informally in response to a developer preference.
+
+## What is and isn't in scope here
+
+- The evidence *is* combinable: identity matches (same commit, plan, baseline, runner, compatible semantics) — this is not a case to reject as mismatched.
+- What's not combinable is the *outcome* the developer wants: combining doesn't mean "either one satisfies it," it means both are attributable and the fail-dominant rule applies to the combination.
+- This is not a High/Critical *finding* risk-acceptance question yet — we don't know what the CI failure indicates. It may be a real regression, an environment-specific issue, or a flake. That's a separate, unresolved question from the aggregation rule itself, which is not discretionary.
+
+## Unresolved and requires the developer's input
+
+I can't tell you *why* CI failed, so I can't tell you whether this is a real defect, an environment difference, or infrastructure flake — that determines what happens next. The questions I'd ask:
+
+1. **What did the CI failure actually report** (error output/logs)? Is it a genuine check failure, or a CI-side operational/environment problem (in which case it may be `DID_NOT_EXECUTE` for CI rather than an executed FAIL, which changes the analysis)?
+2. Is there a plausible local/CI environment divergence (dependency versions, OS, data fixtures) that would explain a local-PASS/CI-FAIL split on an identical commit? That's worth investigating regardless of the governance answer, since identity matching means the divergence is coming from somewhere.
+3. Does the developer want to pursue an explicit governance/policy exception to proceed despite the failure? If so, that must be requested as a separate, explicit exception — not inferred from "ANY" — and per the Required-control response completeness rules, even a granted exception would not relabel this check as PASS; it stays recorded as non-PASS/FAIL.
+
+## Conditional recommendation
+
+- Do not mark the aggregate PASS or "incomplete." Record it as **FAIL** (fail-dominant), same commit/plan/baseline/runner, both reports attributable.
+- Investigate the CI failure output first — if it turns out to be a genuine operational tool failure (not a real check failure), reclassify honestly as `DID_NOT_EXECUTE`/`INCOMPLETE_ASSURANCE` for that context based on the actual evidence, not to make the number look better.
+- If the failure is a real, reproducible check failure, treat it as a normal finding subject to the project's severity policy (Critical/High blocks release absent an exceptional explicit risk acceptance) — and note that finding-risk acceptance and a missing-control governance exception are two distinct things; neither is on the table until we know what the CI failure actually is.
+- If release is imminent and the developer wants to override this, that requires an explicit, separately recorded governance/policy exception from the developer as approval authority — I can surface the option but must not grant or apply it myself.

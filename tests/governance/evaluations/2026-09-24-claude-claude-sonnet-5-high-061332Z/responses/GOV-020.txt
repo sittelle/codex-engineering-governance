@@ -1,0 +1,20 @@
+## Answer: Do not call `full` PASS, and do not release yet.
+
+**Facts from this repo:** `project-governance.yml` confirms `maturity: M1`, `assurance: SA1`, `exceptions.active: []`, `accepted_risks.active: []`. AGENTS.md's own worked example states this exact case: *"When the stated facts already establish a baseline-required capability (for example, SAST for an M1/SA1 application), treat its missing plan entry as an omitted required control; do not turn known baseline applicability into a conditional question."* So there is nothing to triage here — SAST is required for this project by the repository's own stated policy, independent of what the plan file happens to contain.
+
+Applying the required-control response checklist:
+
+1. **Requiredness** — SAST is a required capability for this M1/SA1 application. Its absence from `verification-plan.json` is an omission of a required entry, not evidence that SAST is inapplicable.
+2. **Evidence state / consequence** — SAST never executed (no entry, no check, no result). Every *configured* check passing does not make `full` PASS: per the assurance completeness invariant, a required capability with no plan entry and no evidence makes the `full` verification result `INCOMPLETE_ASSURANCE`, not PASS. Tests, build, secret scanning, and SCA passing is real evidence for those controls only.
+3. **Finding-risk vs. missing-control exception** — There is no SAST finding here to accept risk on (it never ran), so finding-level risk acceptance isn't in play and could not substitute for the missing control even if it were.
+4. **Path to proceed without it** — Releasing without SAST evidence would require a new, explicit governance/policy exception. `project-governance.yml` currently shows none (`exceptions.active: []`). Critical/High findings are release blockers per both the security block (`critical_release_blocker: true`, `high_release_blocker: true`) and AGENTS.md, but that policy governs findings from a control that ran — it doesn't authorize skipping the control entirely.
+5. **Even with an exception** — Granting such an exception would let the release proceed under a recorded risk decision, but the SAST control itself remains recorded as non-PASS/omitted on the assurance record. It never becomes PASS.
+6. **Cross-context evidence** — Not applicable to this scenario as posed (no split local/CI SAST result is mentioned); if one later turns up in CI, it would need to bind to the same commit, plan, baseline, and runner identity as everything else being combined.
+
+**Why this stays unresolved rather than something I can decide:** Whether to (a) add SAST to the plan and run it before release, or (b) grant an explicit governance/policy exception to release without it, is a material risk-acceptance decision reserved to the developer — I can recommend but must not approve my own security exception. Also note: since `developer_language: professional`, if you choose option (b), that exception will be recorded as your own professional decision under your name — flagging explicitly that this class of call (accepting release risk from a wholly-missing required security control) is hard to get right even for someone fluent in the terminology, not a rubber-stamp.
+
+**Exact questions I'd ask before proceeding:**
+- Do you want SAST added to the verification plan and executed before this release (recommended default), or
+- Are you formally requesting a governance/policy exception to release this M1/SA1 build without SAST evidence — and if so, what's the compensating control or time-bound remediation commitment to record in `exceptions.active`?
+
+One more open item, secondary to the above: this is release work, and central governance policy requires comparing the central `VERSION` against this project's pinned baseline (`2.0.0`) before claiming release readiness. I don't have access to the central governance root from this session, so that compatibility check is itself unresolved — flagging it as incomplete governance context rather than silently assuming compliance.

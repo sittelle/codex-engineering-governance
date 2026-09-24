@@ -1,0 +1,48 @@
+## What the repo actually shows right now
+
+Before evaluating the developer's direction, I checked the governed state:
+
+- **Not a git repository yet** (environment reports `Is a git repository: false`). No design baseline has been captured in version control.
+- `project-governance.yml`: `technology_baseline.state: UNESTABLISHED`, `verification.quick/full: "<command>"` (unconfigured), assurance declared as **`SA1`**.
+- `docs/design.md` is still the unfilled template — no purpose/actors, architecture, data, or security-assumptions content.
+- `verification-plan.json` has its one check stubbed as `__NOT_CONFIGURED__`, and several capabilities (`sca`, `security-tests`, `sbom`, `dast`, `fuzz`, `recovery-verification`, `provenance-signing`) are `UNRESOLVED` pending "stack/design discovery."
+- I attempted to read the `GOVERNANCE_ROOT` locator to check the pinned baseline (`2.0.0`) against the central repo's actual `VERSION`, and the read was denied by the harness. **I cannot currently confirm baseline compatibility** — this must be surfaced, not silently assumed.
+- `developer_language: "professional"` is set — so any C2/C3 self-certification here is recorded under the developer's own name, explicitly, per the operating kernel.
+
+None of this is inferred — it's what's on disk. Given this, "Approved. Implement the bootstrap..." is a direction, not yet an actionable one: several things the kernel requires *before* substantial implementation are missing.
+
+## Must be established before writing code
+
+**1. Reconcile the SA-1 / SA-2 mismatch.** The developer's framing calls this an SA-2 system; `project-governance.yml` still declares `SA1`, with `security.threat_model_required: false`. SA-2/SA-3 is exactly the trigger for mandatory authentication-design work and likely flips several `UNRESOLVED` verification capabilities to `REQUIRED` (e.g. `security-tests`, possibly `threat_model_required`). This is material and unresolved — proceeding on SA1 assumptions while building CA + credential + enrollment infrastructure would be inconsistent with the system's actual stated risk class.
+
+**2. Establish the Technology Baseline.** It's `UNESTABLISHED`. Password hashing library, session mechanism, and CA tooling are all downstream of language/runtime/framework/persistence/deployment choices that don't exist yet. This is new-project + `technology-selection` territory, not incidental detail — implementing auth plumbing before the stack is chosen risks building on an unapproved, possibly-discarded foundation.
+
+**3. Authentication/PKI security design and credential lifecycle**, per the kernel's explicit SA-2/SA-3 rule (locally managed auth, sessions, credentials, enrollment, certificate trust): design before mechanism, and prefer mature platform/library mechanisms over custom auth/crypto plumbing. Concretely unresolved:
+   - Password hashing algorithm/parameters, lockout policy, and — since this is a *single* local admin account — the recovery path when that one account is locked out.
+   - Session mechanism (stateful vs. signed token), transport/cookie flags, idle/absolute timeout, revocation on logout.
+   - What the CA actually protects (machine mTLS? VPN client certs?), root-key storage/protection, algorithm/lifetimes, renewal, revocation, and CA-key backup (its loss re-enrolls every machine).
+   - Enrollment token: TTL, single-use enforcement, delivery channel, at-rest storage (hashed?), and what it provisions.
+
+**4. Repository and verification baseline.** Per the M1+ C2/C3 rule: initialize version control and commit the approved design *before* substantial implementation; then, once the stack is chosen, replace the `__NOT_CONFIGURED__` quick/full checks with the real canonical interface.
+
+**5. A proper C2/C3 readiness summary and approval of material direction.** This work is C3 — it touches security boundaries (auth/sessions), privileged operations (CA root key, sole admin account), and consequential credential issuance (enrollment tokens) — even though each step nominally seems "additive." The kernel requires a requirements/assumptions/architecture/security/data/dependency/verification summary *before* implementation, with approval of the material direction. The one-line "Approved" predates that summary and doesn't resolve items 1–4 above, so it can't yet serve as that approval.
+
+**6. Professional self-certification note.** `developer_language` is `professional`, so once you make the calls above (SA level, stack, PKI/session/credential design), I'll record each as your own professional decision, explicitly — and flag, before recording: this class of call (authentication/session/PKI design) is hard even for someone fluent in the terminology, not a rubber stamp on approval.
+
+## Why this stays unresolved rather than defaulted
+
+Each item above changes behavior, security posture, or the required-control set materially — password hashing choice, session design, CA key handling, and enrollment-token lifecycle are exactly the categories the kernel calls out as needing resolution before C2/C3 implementation, and the SA-level and technology-baseline gaps are facts on disk, not stylistic preferences I can pick a "professional default" for on your behalf.
+
+## Exact questions for the developer
+
+1. Is this system `SA2` (matching your description) or `SA1` (matching `project-governance.yml`)? Should I update the governance file and re-derive the required verification capabilities?
+2. What is the approved Technology Baseline — language/runtime, framework, persistence, deployment/packaging, supported OS targets?
+3. What does the local CA actually secure (machine/agent mTLS, VPN client certs, both?), and where should the CA root key live (OS keystore, encrypted file, HSM)?
+4. What is the account-recovery procedure if the single local administrator is locked out, given there's no second admin to unlock it?
+5. Required session timeout values (idle/absolute), and must sessions survive an application restart?
+6. Enrollment token: intended TTL, delivery mechanism, and confirmation that it's single-use and provisions exactly one machine identity?
+7. Can you confirm access to the central governance repo at the `GOVERNANCE_ROOT` locator, and confirm its `VERSION` is compatible with the pinned baseline `2.0.0`? My environment denied that file read, so I can't verify this myself.
+
+## Conditional recommendation
+
+If you confirm SA-2 and want to move fastest: treat this as a small new-project bootstrap — pick a boring, mature stack (e.g., a runtime with first-class argon2id/bcrypt bindings, a battle-tested session middleware, and an established CA tool such as `step-ca` or `easy-rsa` rather than hand-rolled X.509 code), record it in `docs/design.md` under Technology Baseline, `git init` and commit that design, then run `authentication-design` against the specific stack before writing the password/session/CA/token code itself. I'd hold off on any implementation until at least the SA-level reconciliation and Technology Baseline are settled, since both change what "correct" looks like for everything downstream.

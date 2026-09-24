@@ -1,0 +1,21 @@
+This is a governed release/assurance question, so I'll answer it directly against the assurance-outcome and answer-precision invariants rather than the developer's proposed framing.
+
+**Answer: neither of the two proposed actions is correct.**
+
+**1. This is not "different assurance semantics."**
+The commit is identical, clean, and unchanged on both machines; the verification plan, managed assurance baseline, and managed runner are all tracked and unchanged. The only divergence is that Windows `core.autocrlf=true` rewrites tracked text files to CRLF in the working tree while the committed Git blobs remain LF. That is a platform checkout artifact, not a difference in what was built, what ran, or what the checks evaluated. Reclassifying it as "different assurance semantics" would be a material, unjustified reclassification of a required identity control — exactly what the assurance-outcome and assurance-answer-precision invariants forbid ("do not remap a finding code to obtain green status," "do not offer working-tree normalization... as an alternative attribution mechanism").
+
+**2. Do not disable the identity check.**
+The raw checkout SHA-256 is a diagnostic, not the aggregation identity. For clean tracked artifacts, cross-environment attribution must use the **committed Git content** (blob/tree/commit hash) for the actual checked-out commit — not a hash of working-tree bytes that differ only due to line-ending translation. Disabling the identity check to force aggregation would be a security-control weakening done merely to make reports combine, which the repository's Code Review Rules and the central governance invariants both flag as impermissible, and it would also be a material C2 assurance-policy change requiring review/approval — not something to do unilaterally to unblock a CRLF mismatch.
+
+**What to do instead:**
+- Compute/compare identity from the committed Git object (e.g., the blob hash or a normalized/LF-content hash derived from Git, or simply the commit SHA plus Git's own content addressing) rather than the raw on-disk file bytes.
+- Do **not** change `.gitattributes`, `core.autocrlf`, or add working-tree normalization as a substitute for this — that's explicitly called out as not an acceptable alternative attribution mechanism.
+- Once identity is derived from committed content, the Windows and Ubuntu reports for this same commit, same verification plan, same assurance baseline, and same runner semantics can be combined normally, since nothing here indicates the runner or required-check inventory actually differ.
+
+**What remains unresolved / needs the developer's confirmation, since it affects how evidence gets combined and is a professional judgment call:**
+1. Does the current tooling already derive its identity hash from committed Git content, or from raw checkout bytes? If it's the latter, fixing the identity derivation to use committed content is itself a change to the assurance tooling/policy and should be scoped and approved as such (who owns that fix, and by when).
+2. Are there any *non-text* or generated artifacts (build outputs, binaries, lockfiles with platform-specific formatting) in the same evidence bundle where CRLF/LF is not the only source of divergence? If so, those aren't covered by "committed content" attribution and need separate investigation before combining.
+3. Is the Windows machine actually running the same pinned assurance tool lock/version as Ubuntu CI, or only assumed to be? (Locks are environment-bound per governance; this hasn't been confirmed here.)
+
+Until (1) is confirmed, I'd flag this as `INCOMPLETE_ASSURANCE` for the Windows-side evidence rather than treat it as either a semantic difference or a pass — the checkout-byte mismatch alone does not indicate a real divergence, but the fix (committed-content-based identity) hasn't been shown to already be in place.
