@@ -95,7 +95,7 @@ def choose_test_mode(explicit: str | None) -> str:
             return "automated"
 
 
-def backup_existing_config(home: Path) -> list[str]:
+def backup_existing_config(home: Path, host: str) -> list[str]:
     """Rename (never delete) pre-existing Codex/Claude configuration so the
     bootstrapper establishes known test configuration itself -- stray
     settings, MCP server config, project instructions, and session history
@@ -112,12 +112,18 @@ def backup_existing_config(home: Path) -> list[str]:
     (https://code.claude.com/docs/en/authentication). A Console sign-in
     stored as an Anthropic profile lives under a separate directory
     (~/.config/anthropic, see _anthropic_profile_signed_in) that this reset
-    never touches at all."""
+    never touches at all.
+
+    Only the selected host(s) are reset: the reset removes that host's
+    installed governance kernel, and only the selected host(s) get it
+    reinstalled."""
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     codex_home = Path(os.environ["CODEX_HOME"]) if os.environ.get("CODEX_HOME") else home / ".codex"
     claude_config_dir = Path(os.environ["CLAUDE_CONFIG_DIR"]) if os.environ.get("CLAUDE_CONFIG_DIR") else home / ".claude"
+    targets = {"codex": (codex_home, "auth.json"), "claude": (claude_config_dir, ".credentials.json")}
+    selected = ("codex", "claude") if host == "all" else (host,)
     backed_up = []
-    for existing, credential_name in ((codex_home, "auth.json"), (claude_config_dir, ".credentials.json")):
+    for existing, credential_name in (targets[name] for name in selected):
         if not existing.exists():
             continue
         backup = existing.parent / f"{existing.name}.pre-test-backup-{stamp}"
@@ -391,7 +397,7 @@ def main() -> int:
         print(f"Mode: {mode}")
 
         home = Path.home()
-        backed_up = backup_existing_config(home)
+        backed_up = backup_existing_config(home, args.host)
         if backed_up:
             print("Reset pre-existing configuration (renamed, not deleted; stored auth credentials carried forward):")
             for path in backed_up:
