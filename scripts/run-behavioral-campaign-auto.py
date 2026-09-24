@@ -55,6 +55,7 @@ CONTEXT_PROBE_PREFIXES = {
     "GOVERNANCE_FRAMEWORK_REPOSITORY": "Preserve v2/v4 context-only",
 }
 PROBE_MATCH_WORDS = 8
+PROBE_ATTEMPTS = 2
 # Official Debian/Ubuntu apt install for the GitHub CLI, verbatim from
 # https://github.com/cli/cli/blob/trunk/docs/install_linux.md -- run through
 # bash rather than re-derived, so this matches the documented commands
@@ -333,15 +334,22 @@ def verify_instruction_loading(model_entry: dict, contexts: set[str], folders: d
             "line is in your context, write ABSENT for it.\n"
             + "\n".join(f"{i}. {prefix}" for i, (_, prefix, _) in enumerate(expected, 1))
         )
-        if host == "codex":
-            # Codex exec cannot deny file reads; the prompt forbids them instead.
-            result = invoke_codex(prompt, cwd, model_entry["model"], "low")
-        else:
-            result = invoke_claude(prompt, cwd, model_entry["model"], "low", extra_disallowed=("Read", "Glob", "Grep"))
-        if result["status"] != "CAPTURED":
-            raise Error(f"instruction-loading check for {context} did not execute: {result['reason']}")
-        answer = _normalize_probe_text(result["response"] or "")
-        missing = [label for label, _, continuation in expected if continuation not in answer]
+        # A file that is not loaded fails every attempt; a misquote is random,
+        # so one retry removes false aborts without weakening the check.
+        for attempt in range(1, PROBE_ATTEMPTS + 1):
+            if host == "codex":
+                # Codex exec cannot deny file reads; the prompt forbids them instead.
+                result = invoke_codex(prompt, cwd, model_entry["model"], "low")
+            else:
+                result = invoke_claude(prompt, cwd, model_entry["model"], "low", extra_disallowed=("Read", "Glob", "Grep"))
+            if result["status"] != "CAPTURED":
+                raise Error(f"instruction-loading check for {context} did not execute: {result['reason']}")
+            answer = _normalize_probe_text(result["response"] or "")
+            missing = [label for label, _, continuation in expected if continuation not in answer]
+            if not missing:
+                break
+            if attempt < PROBE_ATTEMPTS:
+                print(f"  instruction-loading check {context}: attempt {attempt} did not quote {', '.join(missing)}; retrying")
         if missing:
             expected_lines = "\n".join(f"    {i}. {prefix} {cont} ..." for i, (_, prefix, cont) in enumerate(expected, 1))
             raise Error(

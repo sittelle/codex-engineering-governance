@@ -271,9 +271,12 @@ def test_instruction_probe_blocks_campaign_when_not_loaded(failures: list[str]) 
         mod = load_runner_with_scratch_root(tmp)
         folders, entry = _probe_fixture(tmp, mod)
         scenario_calls = []
+        probe_calls = []
 
         def fake_invoke(prompt, cwd, model, effort, extra_disallowed=()):
-            if "Automated configuration check" not in prompt:
+            if "Automated configuration check" in prompt:
+                probe_calls.append(prompt)
+            else:
                 scenario_calls.append(prompt)
             return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": "1. ABSENT\n2. ABSENT\n"}
         mod.invoke_claude = fake_invoke
@@ -285,6 +288,7 @@ def test_instruction_probe_blocks_campaign_when_not_loaded(failures: list[str]) 
         with contextlib.redirect_stdout(captured):
             ok = mod.run_one_model(None, entry, rows, folders, {}, workspace, tmp / "unused-worktree")
         assert_true(ok is False, "run_one_model must report failure when the instructions are not loaded", failures)
+        assert_true(len(probe_calls) == mod.PROBE_ATTEMPTS, f"a consistently failing check should be attempted {mod.PROBE_ATTEMPTS} times, was {len(probe_calls)}", failures)
         assert_true(not scenario_calls, "no scenario may be invoked after a failed instruction-loading check", failures)
         assert_true(not (workspace / "campaign-runs").exists(), "no campaign evidence may be written after a failed check", failures)
         assert_true("instruction-loading check FAILED" in captured.getvalue(), "the failure must be reported to the operator", failures)
@@ -295,10 +299,13 @@ def test_instruction_probe_passes_when_instructions_are_quoted(failures: list[st
         tmp = Path(tmp)
         mod = load_runner_with_scratch_root(tmp)
         folders, entry = _probe_fixture(tmp, mod)
-        seen = {}
+        seen = {"calls": 0}
 
         def fake_invoke(prompt, cwd, model, effort, extra_disallowed=()):
             seen["extra_disallowed"] = extra_disallowed
+            seen["calls"] += 1
+            if seen["calls"] == 1:  # a one-off misquote must be retried, not abort the run
+                return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": "1. ABSENT\n2. ABSENT\n"}
             return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": (
                 '1. Vague answers such as “whatever” or **"normal"** are NOT resolution when material.\n'
                 "2. - Do not create a parallel technology registry or duplicate the complete dependency graph in governance.\n"
@@ -312,6 +319,7 @@ def test_instruction_probe_passes_when_instructions_are_quoted(failures: list[st
             f"a correct quote of both instruction files should PASS, got {results}",
             failures,
         )
+        assert_true(seen["calls"] == 2, f"a misquote followed by a correct quote should take exactly 2 attempts, took {seen['calls']}", failures)
         assert_true(
             {"Read", "Glob", "Grep"} <= set(seen.get("extra_disallowed", ())),
             "the Claude probe must deny file tools so it cannot pass by reading the files instead of having them loaded",
@@ -496,7 +504,7 @@ def main() -> int:
     print("- a multi-model session continues to the next model without restarting or re-verifying access")
     print("- interactive scenario selection retries on invalid input and --select skips the prompt")
     print("- a model without the governance instructions in context is stopped before any scenario runs or evidence is written")
-    print("- the instruction-loading check passes on a correct quote and denies the Claude probe its file tools")
+    print("- the instruction-loading check retries a one-off misquote, passes on a correct quote, and denies the Claude probe its file tools")
     print("- unreachable git remote access retries through browser authorization until reachable")
     print("- unreachable git remote access gives up with a clear error after the retry limit")
     print("- push-existing recovers when a full path is passed instead of a bare folder name")
