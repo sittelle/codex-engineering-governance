@@ -54,6 +54,8 @@ CONTEXT_PROBE_PREFIXES = {
     "GOVERNED_REPOSITORY": "Do not create a parallel technology registry",
     "GOVERNANCE_FRAMEWORK_REPOSITORY": "Preserve v2/v4 context-only",
 }
+ROUTING_PROBE_FILE = "workflows/emergency-fix/WORKFLOW.md"
+ROUTING_PROBE_PREFIX = "Do not act on an assumed root cause when"
 PROBE_MATCH_WORDS = 8
 PROBE_ATTEMPTS = 2
 # Official Debian/Ubuntu apt install for the GitHub CLI, verbatim from
@@ -313,11 +315,44 @@ def _expected_continuation(source: Path, prefix: str) -> str:
     raise Error(f"instruction-loading check: no line starting {prefix!r} in {source}; update the probe prefixes")
 
 
+def _probe(model_entry: dict, name: str, cwd: Path, prompt: str, expected: list[tuple[str, str, str]], allow_read: bool) -> None:
+    """Ask, and require every expected continuation in the answer. A real
+    loading/permission failure fails every attempt; a misquote is random, so
+    one retry removes false aborts without weakening the check."""
+    host = model_entry["host"]
+    for attempt in range(1, PROBE_ATTEMPTS + 1):
+        if host == "codex":
+            # Codex exec cannot deny file reads; the prompt forbids them where needed.
+            result = invoke_codex(prompt, cwd, model_entry["model"], "low")
+        else:
+            denied = ("Glob", "Grep") if allow_read else ("Read", "Glob", "Grep")
+            result = invoke_claude(prompt, cwd, model_entry["model"], "low", extra_disallowed=denied)
+        if result["status"] != "CAPTURED":
+            raise Error(f"instruction-loading check {name} did not execute: {result['reason']}")
+        answer = _normalize_probe_text(result["response"] or "")
+        missing = [label for label, _, continuation in expected if continuation not in answer]
+        if not missing:
+            print(f"  instruction-loading check {name}: PASS ({', '.join(label for label, _, _ in expected)})")
+            return
+        if attempt < PROBE_ATTEMPTS:
+            print(f"  instruction-loading check {name}: attempt {attempt} did not quote {', '.join(missing)}; retrying")
+    expected_lines = "\n".join(f"    {i}. {prefix} {cont} ..." for i, (_, prefix, cont) in enumerate(expected, 1))
+    raise Error(
+        f"instruction-loading check FAILED for {model_entry['label']} in {name}: "
+        f"{', '.join(missing)} not reachable by the model. No scenarios were run -- the "
+        f"responses would not measure the framework as designed.\n"
+        f"  working directory: {cwd}\n"
+        f"  expected (normalized):\n{expected_lines}\n"
+        f"  model's answer:\n" + "\n".join("    " + line for line in (result["response"] or "<empty>").strip().splitlines())
+    )
+
+
 def verify_instruction_loading(model_entry: dict, contexts: set[str], folders: dict[str, str]) -> list[dict]:
-    """Before any scenario runs, prove the governance instructions actually
-    reach the model in every context the selection uses. Raises Error on
-    the first context where they do not: a campaign run without them
-    measures the bare model, not the framework."""
+    """Before any scenario runs, prove the governance instructions reach the
+    model in every context the selection uses, and that it can follow the
+    kernel's GOVERNANCE_ROOT routing to a central workflow. Raises Error on
+    the first failure: a campaign run without them does not measure the
+    framework."""
     host = model_entry["host"]
     results = []
     for context in sorted(contexts):
@@ -334,34 +369,22 @@ def verify_instruction_loading(model_entry: dict, contexts: set[str], folders: d
             "line is in your context, write ABSENT for it.\n"
             + "\n".join(f"{i}. {prefix}" for i, (_, prefix, _) in enumerate(expected, 1))
         )
-        # A file that is not loaded fails every attempt; a misquote is random,
-        # so one retry removes false aborts without weakening the check.
-        for attempt in range(1, PROBE_ATTEMPTS + 1):
-            if host == "codex":
-                # Codex exec cannot deny file reads; the prompt forbids them instead.
-                result = invoke_codex(prompt, cwd, model_entry["model"], "low")
-            else:
-                result = invoke_claude(prompt, cwd, model_entry["model"], "low", extra_disallowed=("Read", "Glob", "Grep"))
-            if result["status"] != "CAPTURED":
-                raise Error(f"instruction-loading check for {context} did not execute: {result['reason']}")
-            answer = _normalize_probe_text(result["response"] or "")
-            missing = [label for label, _, continuation in expected if continuation not in answer]
-            if not missing:
-                break
-            if attempt < PROBE_ATTEMPTS:
-                print(f"  instruction-loading check {context}: attempt {attempt} did not quote {', '.join(missing)}; retrying")
-        if missing:
-            expected_lines = "\n".join(f"    {i}. {prefix} {cont} ..." for i, (_, prefix, cont) in enumerate(expected, 1))
-            raise Error(
-                f"instruction-loading check FAILED for {model_entry['label']} in {context}: "
-                f"{', '.join(missing)} not in the model's context. No scenarios were run -- the "
-                f"responses would measure the bare model, not the framework.\n"
-                f"  working directory: {cwd}\n"
-                f"  expected (normalized):\n{expected_lines}\n"
-                f"  model's answer:\n" + "\n".join("    " + line for line in (result["response"] or "<empty>").strip().splitlines())
-            )
+        _probe(model_entry, context, cwd, prompt, expected, allow_read=False)
         results.append({"context": context, "status": "PASS", "verified": [label for label, _, _ in expected]})
-        print(f"  instruction-loading check {context}: PASS ({', '.join(label for label, _, _ in expected)})")
+
+    locator = installed_kernel_path(host).parent / "GOVERNANCE_ROOT"
+    if not locator.is_file():
+        raise Error(f"instruction-loading check: {locator} does not exist; install the host adapter first")
+    routed = Path(locator.read_text(encoding="utf-8").strip()) / ROUTING_PROBE_FILE
+    expected = [("GOVERNANCE_ROOT routing", ROUTING_PROBE_PREFIX, _expected_continuation(routed, ROUTING_PROBE_PREFIX))]
+    prompt = (
+        "Automated configuration check, not a task. Using only your file-read tool, read the governance "
+        f"locator file {locator} to find the central governance repository, then read {ROUTING_PROBE_FILE} "
+        "in that repository and quote verbatim the line that begins with: "
+        f"{ROUTING_PROBE_PREFIX}\nIf any read fails, write BLOCKED and name the file that could not be read."
+    )
+    _probe(model_entry, "GOVERNANCE_ROOT routing", context_directory(sorted(contexts)[0], folders), prompt, expected, allow_read=True)
+    results.append({"context": "GOVERNANCE_ROOT_ROUTING", "status": "PASS", "verified": [f"locator -> {ROUTING_PROBE_FILE}"]})
     return results
 
 

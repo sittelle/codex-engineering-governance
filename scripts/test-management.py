@@ -176,6 +176,30 @@ def host_cycle(failures: list[str]) -> None:
             "Claude install did not add least-privilege governance Read allow rule",
             failures,
         )
+        locator_text = (claude / "GOVERNANCE_ROOT").resolve().as_posix()
+        if re.match(r"^[A-Za-z]:/", locator_text):
+            locator_text = "/" + locator_text[0].lower() + locator_text[2:]
+        expected_locator_rule = f"Read(/{locator_text})"
+        check(
+            expected_locator_rule in settings.get("permissions", {}).get("allow", []),
+            "Claude install did not add the exact-file GOVERNANCE_ROOT Read allow rule",
+            failures,
+        )
+
+        # An installation from before the locator rule existed gains it on update.
+        claude_state_path = claude / ".sittelle-engineering-governance.json"
+        old_style_state = json.loads(claude_state_path.read_text(encoding="utf-8"))
+        old_style_state.pop("claude_locator_read_ownership", None)
+        claude_state_path.write_text(json.dumps(old_style_state, indent=2) + "\n", encoding="utf-8", newline="\n")
+        stripped = json.loads((claude / "settings.json").read_text(encoding="utf-8"))
+        stripped["permissions"]["allow"].remove(expected_locator_rule)
+        (claude / "settings.json").write_text(json.dumps(stripped, indent=2) + "\n", encoding="utf-8", newline="\n")
+        stale_verify = run(["host", "verify", "--host", "claude"], env=env)
+        check(stale_verify.returncode != 0, "host verify passed without the GOVERNANCE_ROOT Read allow rule", failures)
+        upgraded = run(["host", "update", "--host", "claude", "-y"], env=env)
+        if require_ok(upgraded, "host update of a pre-locator-rule Claude install failed", failures):
+            upgraded_allow = json.loads((claude / "settings.json").read_text(encoding="utf-8"))["permissions"]["allow"]
+            check(expected_locator_rule in upgraded_allow, "host update did not add the GOVERNANCE_ROOT Read allow rule", failures)
 
         verified = run(
             [
@@ -248,6 +272,11 @@ def host_cycle(failures: list[str]) -> None:
         check(
             expected_rule not in settings.get("permissions", {}).get("allow", []),
             "Claude uninstall retained installer-added governance Read allow rule",
+            failures,
+        )
+        check(
+            expected_locator_rule not in settings.get("permissions", {}).get("allow", []),
+            "Claude uninstall retained installer-added GOVERNANCE_ROOT Read allow rule",
             failures,
         )
 

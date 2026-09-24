@@ -256,6 +256,14 @@ def _probe_fixture(tmp: Path, mod) -> tuple[dict, dict]:
         "Do not create a parallel technology registry or duplicate the complete dependency graph in governance.\n",
         encoding="utf-8",
     )
+    governance_root = tmp / "governance-root"
+    routed = governance_root / mod.ROUTING_PROBE_FILE
+    routed.parent.mkdir(parents=True)
+    routed.write_text(
+        "Do not act on an assumed root cause when a reversible containment step can reduce harm first.\n",
+        encoding="utf-8",
+    )
+    (kernel.parent / "GOVERNANCE_ROOT").write_text(str(governance_root), encoding="utf-8")
     mod.installed_kernel_path = lambda host: kernel
     folders = {"GOVERNED_REPOSITORY": str(governed)}
     entry = {"label": "Claude test", "host": "claude", "model": "m", "effort": "high", "key": "k"}
@@ -299,32 +307,62 @@ def test_instruction_probe_passes_when_instructions_are_quoted(failures: list[st
         tmp = Path(tmp)
         mod = load_runner_with_scratch_root(tmp)
         folders, entry = _probe_fixture(tmp, mod)
-        seen = {"calls": 0}
+        calls = []
 
         def fake_invoke(prompt, cwd, model, effort, extra_disallowed=()):
-            seen["extra_disallowed"] = extra_disallowed
-            seen["calls"] += 1
-            if seen["calls"] == 1:  # a one-off misquote must be retried, not abort the run
+            calls.append((prompt, extra_disallowed))
+            if len(calls) == 1:  # a one-off misquote must be retried, not abort the run
                 return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": "1. ABSENT\n2. ABSENT\n"}
             return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": (
                 '1. Vague answers such as “whatever” or **"normal"** are NOT resolution when material.\n'
                 "2. - Do not create a parallel technology registry or duplicate the complete dependency graph in governance.\n"
+                "Do not act on an assumed root cause when a reversible containment step can reduce harm first.\n"
             )}
         mod.invoke_claude = fake_invoke
 
         with contextlib.redirect_stdout(io.StringIO()):
             results = mod.verify_instruction_loading(entry, {"GOVERNED_REPOSITORY"}, folders)
         assert_true(
-            results == [{"context": "GOVERNED_REPOSITORY", "status": "PASS", "verified": ["installed kernel", "GOVERNED_REPOSITORY AGENTS.md"]}],
-            f"a correct quote of both instruction files should PASS, got {results}",
+            [r["context"] for r in results] == ["GOVERNED_REPOSITORY", "GOVERNANCE_ROOT_ROUTING"]
+            and all(r["status"] == "PASS" for r in results),
+            f"loading and routing checks should both PASS, got {results}",
             failures,
         )
-        assert_true(seen["calls"] == 2, f"a misquote followed by a correct quote should take exactly 2 attempts, took {seen['calls']}", failures)
+        assert_true(len(calls) == 3, f"expected a retried loading check plus one routing check (3 calls), got {len(calls)}", failures)
+        loading_denied, routing_denied = set(calls[1][1]), set(calls[2][1])
         assert_true(
-            {"Read", "Glob", "Grep"} <= set(seen.get("extra_disallowed", ())),
-            "the Claude probe must deny file tools so it cannot pass by reading the files instead of having them loaded",
+            {"Read", "Glob", "Grep"} <= loading_denied,
+            "the Claude loading check must deny file tools so it cannot pass by reading the files instead of having them loaded",
             failures,
         )
+        assert_true("Read" not in routing_denied, "the routing check must leave the Read tool available", failures)
+
+
+def test_routing_probe_blocks_campaign_when_locator_unreadable(failures: list[str]) -> None:
+    """The instructions can be loaded while the GOVERNANCE_ROOT locator read is
+    denied (the installer gap found in the first governed campaign); the run
+    must stop before any scenario in that case too."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        mod = load_runner_with_scratch_root(tmp)
+        folders, entry = _probe_fixture(tmp, mod)
+
+        def fake_invoke(prompt, cwd, model, effort, extra_disallowed=()):
+            if "file-read tool" in prompt:
+                return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": "BLOCKED: GOVERNANCE_ROOT read denied\n"}
+            return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": (
+                "1. Vague answers such as whatever or normal are NOT resolution when material.\n"
+                "2. Do not create a parallel technology registry or duplicate the complete dependency graph in governance.\n"
+            )}
+        mod.invoke_claude = fake_invoke
+
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                mod.verify_instruction_loading(entry, {"GOVERNED_REPOSITORY"}, folders)
+        except mod.Error as exc:
+            assert_true("GOVERNANCE_ROOT routing" in str(exc), f"the failure should name the routing check: {exc}", failures)
+        else:
+            failures.append("an unreadable GOVERNANCE_ROOT locator must fail the instruction-loading check")
 
 
 def test_git_remote_access_retries_through_browser_auth(failures: list[str]) -> None:
@@ -484,6 +522,7 @@ def main() -> int:
     test_interactive_selection_retries_on_invalid_input(failures)
     test_instruction_probe_blocks_campaign_when_not_loaded(failures)
     test_instruction_probe_passes_when_instructions_are_quoted(failures)
+    test_routing_probe_blocks_campaign_when_locator_unreadable(failures)
     test_git_remote_access_retries_through_browser_auth(failures)
     test_git_remote_access_gives_up_after_retry_limit(failures)
     test_push_existing_accepts_a_full_path_by_mistake(failures)
@@ -505,6 +544,7 @@ def main() -> int:
     print("- interactive scenario selection retries on invalid input and --select skips the prompt")
     print("- a model without the governance instructions in context is stopped before any scenario runs or evidence is written")
     print("- the instruction-loading check retries a one-off misquote, passes on a correct quote, and denies the Claude probe its file tools")
+    print("- an unreadable GOVERNANCE_ROOT locator stops the run even when the instructions themselves are loaded")
     print("- unreachable git remote access retries through browser authorization until reachable")
     print("- unreachable git remote access gives up with a clear error after the retry limit")
     print("- push-existing recovers when a full path is passed instead of a bare folder name")

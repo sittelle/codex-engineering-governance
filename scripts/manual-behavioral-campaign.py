@@ -641,11 +641,14 @@ def expected_claude_settings_state(home: Path) -> str:
     try:
         data = json.loads(settings.read_text(encoding="utf-8"))
         state_data = json.loads((home / ".sittelle-engineering-governance.json").read_text(encoding="utf-8"))
-        ownership = state_data.get("claude_settings_ownership") or {}
-        rule = ownership.get("rule")
+        rules = [
+            (state_data.get(key) or {}).get("rule")
+            for key in ("claude_settings_ownership", "claude_locator_read_ownership")
+        ]
+        rules = [rule for rule in rules if rule]
     except (OSError, json.JSONDecodeError, AttributeError):
         return "UNKNOWN"
-    if rule and data == {"permissions": {"allow": [rule]}}:
+    if rules and data == {"permissions": {"allow": rules}}:
         return "EXPECTED_MANAGED"
     return "DECLARED_INFLUENCE"
 

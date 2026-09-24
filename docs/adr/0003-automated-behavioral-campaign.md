@@ -652,6 +652,46 @@ acceptance expectation stated by the maintainer is consistency: the same
 framework should produce the correct behavior on every run, not on most
 of them.
 
+### Second finding: the installer did not permit the locator read
+
+The first governed campaign (`2026-09-24-claude-claude-sonnet-5-high-061332Z`,
+source commit `a449729`, instruction-loading check PASS in all three
+contexts) scored 60/72 under a strict, bullet-by-bullet scoring brief. In 18
+of 36 responses Claude reported that reading `~/.claude/GOVERNANCE_ROOT` was
+denied, so no routed central workflow, skill, or standard was ever loaded.
+It disclosed this as incomplete governance context rather than guessing,
+which is itself conformant, and 10 of the 11 scenarios below 2 miss details
+that live in exactly that routed material (for example post-migration
+validation, `workflows/data-migration/WORKFLOW.md` step 10; minimum
+pre-deploy verification, `workflows/emergency-fix/WORKFLOW.md` step 8).
+
+Cause: `governance.py host install` added one read rule for the central
+governance root but none for the locator file the kernel tells the model to
+read first. Interactively that is a permission prompt; non-interactively it
+is a denial. This is a framework defect that real users hit too, not a
+harness artifact. Reproduced on 2026-09-24 against the real CLI with a fresh
+Claude config: without a locator rule the model answers "BLOCKED — could not
+read the governance locator file (Read permission was denied)"; with it, the
+routed workflow line is quoted.
+
+Fix (maintainer-approved C2 installer change, 2026-09-24):
+
+- `host install` also adds one exact-file, read-only rule for the locator
+  (`claude_locator_rule`), recorded in its own ownership entry
+  (`claude_locator_read_ownership`) with the same discipline as the root rule:
+  a pre-existing identical rule is never claimed, uninstall removes only what
+  the installer added (locator rule first, so container cleanup still works),
+  and a modified rule is refused. `host verify` requires it; `host update`
+  adds it to older installations. Covered in `scripts/test-management.py`.
+- The runner's pre-flight check adds a routing test: with only the Read tool
+  available, the model must read the locator and quote a line that exists
+  only in `workflows/emergency-fix/WORKFLOW.md`. Verified in both directions
+  against the real CLI.
+
+The 60/72 campaign measured the framework exactly as installed, including
+this defect, and is therefore evidence about the framework; a campaign after
+the fix is needed to measure it with routing intact.
+
 ## References
 
 - `docs/evaluation-vm-bootstrap.md` — the existing checksum-locked/manual

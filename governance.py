@@ -315,20 +315,30 @@ def read_json_object(path: Path) -> dict:
     return data
 
 
-def claude_read_rule(root: Path) -> str:
-    """Return the least-privilege Claude Read allow rule for the central governance root."""
-    text = root.resolve().as_posix()
+def claude_permission_path(path: Path) -> str:
+    text = path.resolve().as_posix()
     if any(ch in text for ch in "*?[]"):
         fail(
-            "Claude Code read permission cannot safely represent a governance root "
-            "containing glob metacharacters (* ? [ ])"
+            "Claude Code read permission cannot safely represent a path "
+            f"containing glob metacharacters (* ? [ ]): {path}"
         )
     if re.match(r"^[A-Za-z]:/", text):
         # Claude Code normalizes Windows paths to POSIX form: C:/x -> /c/x.
         text = "/" + text[0].lower() + text[2:]
     if not text.startswith("/"):
-        fail(f"Cannot derive an absolute Claude Code permission path from {root}")
-    return f"Read(/{text.rstrip('/')}/**)"
+        fail(f"Cannot derive an absolute Claude Code permission path from {path}")
+    return text
+
+
+def claude_read_rule(root: Path) -> str:
+    """Return the least-privilege Claude Read allow rule for the central governance root."""
+    return f"Read(/{claude_permission_path(root).rstrip('/')}/**)"
+
+
+def claude_locator_rule(locator: Path) -> str:
+    """Return the exact-file Claude Read allow rule for the GOVERNANCE_ROOT locator."""
+    # Without it, the kernel's own first step (read the locator) is denied in non-interactive runs.
+    return f"Read(/{claude_permission_path(locator)})"
 
 
 def claude_allow_rules(data: dict) -> list[str]:
@@ -345,7 +355,7 @@ def claude_allow_rules(data: dict) -> list[str]:
     return values
 
 
-def add_claude_read_rule(settings_path: Path, root: Path) -> dict:
+def add_claude_read_rule(settings_path: Path, rule: str) -> dict:
     """Add one exact read-only allow rule and return ownership facts for uninstall."""
     existed = settings_path.exists()
     data = read_json_object(settings_path)
@@ -364,7 +374,6 @@ def add_claude_read_rule(settings_path: Path, root: Path) -> dict:
         values = []
         permissions["allow"] = values
 
-    rule = claude_read_rule(root)
     added = rule not in values
     if added:
         values.append(rule)
@@ -574,6 +583,7 @@ def host_install_or_update(
         "allow_created": False,
         "rule": None,
     }
+    locator_ownership = dict(claude_ownership)
     if host.key == "claude":
         expected_rule = claude_read_rule(root)
         if state:
@@ -581,7 +591,10 @@ def host_install_or_update(
             old_root = str(state.get("governance_root"))
             if old_root != str(root) and previous.get("entry_added"):
                 remove_claude_read_rule(paths["settings"], previous)
-                claude_ownership = add_claude_read_rule(paths["settings"], root)
+                claude_ownership = add_claude_read_rule(paths["settings"], expected_rule)
+                # Containers the old rule created survive its removal while the locator rule remains.
+                for flag in ("settings_created", "permissions_created", "allow_created"):
+                    claude_ownership[flag] = claude_ownership[flag] or bool(previous.get(flag))
             elif old_root == str(root):
                 settings = read_json_object(paths["settings"])
                 values = claude_allow_rules(settings)
@@ -595,11 +608,19 @@ def host_install_or_update(
                     previous["rule"] = previous_rule
                     claude_ownership = previous
                 else:
-                    claude_ownership = add_claude_read_rule(paths["settings"], root)
+                    claude_ownership = add_claude_read_rule(paths["settings"], expected_rule)
             else:
-                claude_ownership = add_claude_read_rule(paths["settings"], root)
+                claude_ownership = add_claude_read_rule(paths["settings"], expected_rule)
         else:
-            claude_ownership = add_claude_read_rule(paths["settings"], root)
+            claude_ownership = add_claude_read_rule(paths["settings"], expected_rule)
+
+        previous_locator = dict((state or {}).get("claude_locator_read_ownership") or {})
+        if previous_locator.get("entry_added"):
+            if previous_locator.get("rule") not in claude_allow_rules(read_json_object(paths["settings"])):
+                fail("Claude GOVERNANCE_ROOT Read allow rule was modified; refusing to overwrite settings")
+            locator_ownership = previous_locator
+        else:
+            locator_ownership = add_claude_read_rule(paths["settings"], claude_locator_rule(paths["locator"]))
 
     new_state = {
         "schema_version": 1,
@@ -611,6 +632,7 @@ def host_install_or_update(
         "instruction_created": instruction_created,
         "locator_created": locator_created,
         "claude_settings_ownership": claude_ownership,
+        "claude_locator_read_ownership": locator_ownership,
         "kernel_language": effective_kernel_language,
     }
     save_host_state(paths["state"], new_state)
@@ -641,6 +663,10 @@ def preflight_host_uninstall(root: Path, host: Host) -> tuple[dict, dict, str]:
                     "Claude governance Read allow rule was modified; "
                     "refusing partial uninstall"
                 )
+        locator_ownership = dict(state.get("claude_locator_read_ownership") or {})
+        if locator_ownership.get("entry_added"):
+            if locator_ownership.get("rule") not in claude_allow_rules(read_json_object(paths["settings"])):
+                fail("Claude GOVERNANCE_ROOT Read allow rule was modified; refusing partial uninstall")
 
     if not paths["instruction"].is_file():
         fail(f"{host.label}: managed instruction file is missing")
@@ -685,6 +711,8 @@ def host_uninstall(root: Path, host: Host) -> None:
         paths["locator"].unlink()
 
     if host.key == "claude":
+        # Locator rule first: the root rule's ownership records which containers to clean up.
+        remove_claude_read_rule(paths["settings"], dict(state.get("claude_locator_read_ownership") or {}))
         ownership = dict(state.get("claude_settings_ownership") or {})
         remove_claude_read_rule(paths["settings"], ownership)
 
@@ -723,6 +751,12 @@ def verify_host(root: Path, host: Host) -> None:
             fail(
                 "Claude Code: governance root is not covered by the expected "
                 "permissions.allow Read rule"
+            )
+        locator_rule = claude_locator_rule(paths["locator"])
+        if locator_rule not in values:
+            fail(
+                "Claude Code: GOVERNANCE_ROOT is not covered by the expected "
+                "permissions.allow Read rule; run `host update` to add it"
             )
 
 
@@ -799,8 +833,8 @@ def preview_host_action(root: Path, action: str, hosts: list[Host]) -> None:
             lines.append(f"  set {paths['locator']} to {root}")
             if host.key == "claude":
                 lines.append(
-                    f"  ensure {claude_read_rule(root)} is in "
-                    f"{paths['settings']} permissions.allow"
+                    f"  ensure {claude_read_rule(root)} and {claude_locator_rule(paths['locator'])} "
+                    f"are in {paths['settings']} permissions.allow"
                 )
             lines.append("  preserve unrelated user content")
         elif action == "uninstall":
@@ -811,9 +845,11 @@ def preview_host_action(root: Path, action: str, hosts: list[Host]) -> None:
             else:
                 lines.append(f"  preserve pre-existing {paths['locator']}")
             if host.key == "claude":
-                if dict(state.get("claude_settings_ownership") or {}).get("entry_added"):
+                if dict(state.get("claude_settings_ownership") or {}).get("entry_added") or dict(
+                    state.get("claude_locator_read_ownership") or {}
+                ).get("entry_added"):
                     lines.append(
-                        f"  remove only the recorded governance Read allow rule from {paths['settings']}"
+                        f"  remove only the recorded governance Read allow rules from {paths['settings']}"
                     )
             lines.append("  preserve unrelated user content")
     print_preview(f"Host {action} preview", lines)

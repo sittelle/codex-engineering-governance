@@ -75,7 +75,7 @@ protected pipeline run.
    in on behalf of an operator.
 6. **Misleading assurance evidence.** Commit/plan/baseline/runner binding; dirty/mismatched evidence rejection; explicit DID_NOT_EXECUTE; target-aware v3/v5 evidence; fail dominance; bootstrap-precondition evidence.
 7. **Governance self-weakening.** Material control weakening remains C2/C3 and requires explicit approval; no scanner suppression solely to obtain green status.
-8. **Claude adapter over-privilege.** Grant the central governance root through one exact `permissions.allow` `Read(...)` rule. Do not make the central root an additional broadly editable working directory; remove only a rule the framework itself added.
+8. **Claude adapter over-privilege.** Grant the central governance root through one exact `permissions.allow` `Read(...)` rule, and the `GOVERNANCE_ROOT` locator through one exact-file `Read(...)` rule. Do not make the central root an additional broadly editable working directory; remove only rules the framework itself added.
 9. **Governance-artifact tampering by the agent (non-professional developer_language).** An agent
    directed by a business employee who cannot judge security may edit or
    remove governance-owned files -- managed blocks in `AGENTS.md`/`CLAUDE.md`,
