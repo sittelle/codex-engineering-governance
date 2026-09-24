@@ -277,6 +277,8 @@ For a check requiring `ANY`, one PASS in an approved context is sufficient unles
 
 Aggregate evidence MUST make a dominant FAIL observable by naming the failed required check and the context(s) that produced the FAIL. A generic bundle failure or unrelated completeness issue MUST NOT conceal an attributable failing execution.
 
+A dominant FAIL keeps the aggregate non-green until one of these holds: the failure is resolved and the check re-verified with new attributable evidence; the failing execution is invalidated for a legitimate evidence-attribution reason (for example, it did not bind to the same commit, plan, baseline, or runner identity), recorded as such; or a newly verified source state supersedes it. A governance/policy exception never clears it: it may authorize proceeding where policy permits, but the FAIL stays recorded.
+
 Do not aggregate evidence from different commits, dirty source trees, materially different plans/baselines, or incompatible runner semantics.
 
 

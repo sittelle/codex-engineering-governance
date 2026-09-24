@@ -135,6 +135,15 @@ Technical dependency choices are recommendations by default.
 
 Product scope/support reductions and material risk acceptance require developer direction.
 
+For a C2/C3 change, the pre-implementation plan MUST contain every field below, each stated explicitly or marked `NOT APPLICABLE` with a reason. Steps 10 and 11 come after the change, but their obligations are committed here, before it:
+
+1. **Advisory state:** the affected versions and the finding's status in the §4 terms; an unproven belief that the vulnerable path is unused is at most `VULNERABLE BUT NOT DEMONSTRATED REACHABLE` or `UNVERIFIED`, never `NOT AFFECTED`, and a High/Critical finding keeps its release-blocking semantics until remediated or explicitly accepted.
+2. **Breaking-change delta:** the API, configuration, and default changes between current and target versions, and the code/tests they affect.
+3. **Support-range decision:** any runtime/platform support dropped or added, stated as a developer decision.
+4. **Lockfile/transitive plan:** how the resolved graph will be reviewed.
+5. **Verification plan:** affected functionality verified on every currently supported runtime/platform, including one proposed for removal until that removal is approved.
+6. **Remediation claim:** the finding is claimed remediated only after the final resolved graph is verified (step 11), never on the version bump alone.
+
 ## 8. Approval boundary
 
 Obtain approval before implementation when the dependency change materially:

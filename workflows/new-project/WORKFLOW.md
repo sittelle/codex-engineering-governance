@@ -47,7 +47,7 @@ Instantiate the new project's `project-governance.yml` by copying `templates/rep
 After Technology Baseline establishment and initial repository scaffold:
 - define canonical quick verification;
 - define canonical full verification;
-- derive applicable lint/type/test/build/SAST/SCA/platform and other assurance checks from the actual stack and project assurance facts;
+- derive the concrete lint/type/test/build/SAST/SCA/platform and other assurance checks from the actual stack and project assurance facts; which capabilities are required comes from `assurance/capability-baseline.json` for the project's level, and a baseline-REQUIRED capability is never re-derived as optional, deferred, or `NOT_APPLICABLE`;
 - configure coverage measurement with the test runner when the stack supports it, and record the `tests` capability's coverage floor (or an explicit reason it stays unset) rather than leaving it silently undecided;
 - ensure CI can later call the same underlying logic where practical.
 

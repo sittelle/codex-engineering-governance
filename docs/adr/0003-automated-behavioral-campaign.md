@@ -727,6 +727,46 @@ GOV-032; documentation as a bare "→ DOCUMENT": GOV-004); and model variance
 where the rule was explicit and reached (GOV-023, GOV-025). Proposed text
 changes are C2 and pending maintainer approval.
 
+### Framework changes from the root-cause analysis (2026-09-24)
+
+The maintainer delegated the choice ("whichever you recommend"); these C2
+normative changes were made, and no scenario rubric was changed, so the next
+run measures the framework against the same bar rather than a bar tuned to
+the last result:
+
+- Capability lookup instead of recall (GOV-013, GOV-019): the kernel's
+  assurance-completeness invariant and the project template no longer give
+  the single "SAST for an M1/SA1 application" example; they require
+  enumerating required capabilities from the project `verification-plan.json`
+  or `assurance/capability-baseline.json`, and say a baseline-required
+  capability is never deferred or marked `NOT_APPLICABLE` as too early. The
+  project template's loading matrix and `workflows/new-project/WORKFLOW.md`
+  route the baseline file.
+- Dependency pre-change checklist (GOV-015, both hosts):
+  `workflows/dependency-change/WORKFLOW.md` step 7 now requires a
+  pre-implementation plan with six fields, including verification on every
+  currently supported runtime and a remediation claim only after the final
+  resolved graph is verified, so obligations that live in the post-change
+  steps are committed before the change.
+- Aggregation (GOV-026): the kernel, the project template, and
+  `assurance/architecture.md` state that the aggregate names the failing
+  check and context and stays non-green until the failure is resolved and
+  re-verified, legitimately invalidated, or superseded by a newly verified
+  source state; `assurance/architecture.md` previously stated only the
+  naming rule.
+- Reporting embedded instructions (GOV-032): the kernel's untrusted-context
+  rule and `global/secure-development-standard.md` now say to report the
+  embedded text to the developer rather than act as if it were absent; the
+  standard adds that a planted rule/agent/hook/settings file is a finding to
+  resolve, not to follow, edit, or delete.
+- Documentation (GOV-004): `workflows/new-feature/WORKFLOW.md` expands the
+  DOCUMENT step into a required update of affected user/API/operator
+  documentation, or `NOT APPLICABLE` with a reason.
+
+GOV-023 and GOV-025 were classified as model variance and get no text change;
+repeat runs will show whether they recur. Verification: repeated runs of the
+eight affected scenarios on both hosts, then a full campaign for regressions.
+
 ## References
 
 - `docs/evaluation-vm-bootstrap.md` — the existing checksum-locked/manual
