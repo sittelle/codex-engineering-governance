@@ -1,0 +1,27 @@
+Do not start the rewrite yet. Treat this as a mixed C2 change, not “just cleanup”:
+
+- Internal restructuring may be a refactor.
+- Renaming public methods is a contract/API change.
+- Extracting persistence is only a refactor if schema, stored representation, transactions, errors, ordering, concurrency, retention, and recovery behavior remain unchanged.
+- Dependency updates are a separate supply-chain and compatibility change.
+
+First, perform discovery: inspect the module, all callers and documented consumers, current tests, database schema/query and transaction behavior, manifests and lockfiles, supported platforms, and existing requirements/security records. Define observable invariants—returns, errors, authorization, side effects, data semantics, idempotency, ordering, concurrency, and material performance expectations. Add focused characterization tests for these behaviors before restructuring; distinguish observed behavior from intended behavior and escalate any unsafe or clearly accidental behavior rather than making it permanent.
+
+Recommend an incremental design: introduce a small internal persistence seam only where it improves testability, move one responsibility at a time, keep each checkpoint buildable and testable, and retain compatibility adapters for old public method names where needed. Do not assume a repository pattern, framework, or dependency is needed merely because it sounds cleaner.
+
+The phrase “keep behavior basically the same” is materially unresolved: it does not define the supported contract, data invariants, or permitted regressions. The exact questions for the developer are:
+
+1. Which public methods are supported, who consumes them, and must existing names remain available? If renaming is intended, is a compatibility/deprecation period required, or is a breaking release explicitly authorized?
+2. What exact observable behaviors must be preserved: outputs, errors, validation, authorization, external effects, ordering, retries/idempotency, concurrency, latency/resource limits, and operational failure behavior?
+3. Is persistence extraction strictly code relocation, with identical schema, stored data, transaction/isolation, error, retention, and recovery semantics? If not, what data change is intended, and is preservation/migration required? Any destructive or irreversible data action needs explicit data-owner confirmation, recovery validation, and separate C3 execution approval.
+4. Which dependencies are to change, to which versions, and why now—security advisory, support/EOL, bug, compatibility, or another requirement? May supported runtimes/platforms change?
+5. Are there approved requirements that resolve conflicts discovered between current behavior, tests, and security expectations?
+6. What acceptance evidence is required for callers, persistence behavior, and dependency compatibility?
+
+Before substantial implementation, provide a C2 readiness summary covering requirements and assumptions, proposed architecture and data/security impact, dependency/supply-chain analysis, incremental plan, and verification plan, then obtain approval of that direction. For this project’s `developer_language: professional` setting, the approving developer must explicitly acknowledge that it will be recorded as a professional decision and that this kind of architecture/contract decision is difficult even for someone fluent in the terminology; the decision should be recorded under their name.
+
+Dependency work should be separate where practical. Establish necessity, verify package provenance and install-time behavior, assess licensing/advisories/compatibility, inspect lockfile and transitive changes, and avoid opportunistic upgrades.
+
+Conditional recommendation: if all consumers are internal, old method names can be preserved temporarily, persistence semantics are demonstrably unchanged, and dependency updates are routine compatible patches, proceed with the incremental refactor after approval. If any public consumer, data semantic, security boundary, runtime support promise, or material dependency changes, split and approve that change explicitly before implementation.
+
+Finally, verify equivalence with canonical quick/full checks plus targeted characterization, contract, integration, and persistence tests. In the supplied repository, the canonical verification commands and several assurance decisions are still placeholders, so behavior-preservation or release readiness cannot yet be claimed as verified.

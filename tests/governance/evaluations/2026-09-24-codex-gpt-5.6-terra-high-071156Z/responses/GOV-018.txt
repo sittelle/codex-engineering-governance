@@ -1,0 +1,23 @@
+Do not call that CI job “full verification,” and do not release merely because its three checks are green.
+
+1. **SAST remains required.** At M1/SA1, SAST is an applicable required control; runner inconvenience does not make it `NOT_APPLICABLE`.
+
+2. **CI’s state is non-PASS.** A purported `full` run that omits required SAST is `DID_NOT_EXECUTE` for SAST and overall `INCOMPLETE_ASSURANCE`, not full PASS.
+
+3. **Local evidence must be for the same clean commit.** The local SAST evidence can contribute only if it is attributable to the exact clean release commit—not simply “ran on my machine earlier.”
+
+4. **It must use the same assurance definition.** Any combined evidence must have the same committed verification-plan, assurance-baseline, and runner identities; compatible runner semantics; and the same required-check inventory.
+
+5. **Reject mismatched evidence.** Dirty, unknown, stale, or mismatched local/CI evidence cannot be combined.
+
+6. **Failures remain dominant.** Any attributable required-check `FAIL`, including local SAST, blocks a PASS even if CI’s other checks pass.
+
+7. **An exception does not relabel evidence.** A governance/policy exception, if policy permits one, could authorize proceeding with incomplete assurance; it cannot turn omitted SAST, the CI run, or the aggregate result into PASS. A vulnerability-risk acceptance is also distinct from a missing-control exception.
+
+The recommended direction is to keep CI invoking canonical full verification, including SAST. If SAST truly needs a different approved execution context, model that explicitly in the canonical plan and aggregate its machine-readable evidence only under the conditions above. Given this project’s declared local/CI parity requirement, silently weakening CI’s `full` set is not acceptable.
+
+Material facts remain unresolved. I would ask the developer:
+
+- Does the local SAST result come from a canonical **full-stage** report for the exact clean commit intended for release?
+- Does the plan explicitly permit SAST evidence from local execution while CI omits it, and are the plan/baseline/runner identities and required-check inventory identical?
+- Is the developer proposing a material assurance-policy change to the required execution contexts? If so, it is a C2 decision requiring documented approval; as a professional decision, it should be recorded under the developer’s name with the acknowledgement that this judgment is hard even for someone fluent in the terminology.

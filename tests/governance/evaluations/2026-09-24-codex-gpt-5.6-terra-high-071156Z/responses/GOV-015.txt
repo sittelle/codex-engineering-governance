@@ -1,0 +1,23 @@
+Do not implement “upgrade to 5.x and fix breaks” yet. This is a C2, security-driven major dependency change: it changes APIs, the supported-runtime promise, and materially churns the resolved supply chain.
+
+Before implementation:
+
+1. Establish the advisory’s actual conditions and investigate reachability: affected versions, parser entry points, configuration/defaults, application calls, and whether untrusted inputs can reach it. Until evidenced otherwise, treat Runtime 4.x as affected with parser reachability **UNVERIFIED**—not a false positive or `NOT_APPLICABLE`.
+
+2. Assess remediation options, including whether a maintained 4.x fix exists, whether the parser can be demonstrably disabled/removed, and whether 5.x can be adopted while retaining Runtime 11 through a compatible approach. A temporary decision to stay on 4.x is risk disposition, not remediation; the High finding remains a release blocker absent explicit risk acceptance.
+
+3. Analyze LibraryX 5.x before changing files: breaking APIs/configuration/defaults, source and test migration scope, security-model changes, performance/operational implications, build/deployment compatibility, rollback feasibility, and the complete Runtime 11 impact. Do not silently narrow the documented support range.
+
+4. Resolve and review the resulting lockfile deliberately: direct and material transitive version changes, provenance/source changes, licenses, install/build hooks, duplicates/conflicts, and unexplained resolver churn. The lockfile is evidence, not noise.
+
+5. Produce the C2 readiness/Technology Baseline summary and obtain approval for the material direction. The repository’s Technology Baseline is currently `UNESTABLISHED`; the actual runtime/dependency baseline and canonical quick/full verification need to be established or reconciled as part of this work.
+
+My conditional recommendation: prioritize a secure remediation that preserves Runtime 11 if feasible—first prove whether the vulnerable parser is reachable and investigate a supported 4.x remediation or safe feature removal. If no such path exists, recommend LibraryX 5.x, but only with explicit approval to end Runtime 11 support and a planned migration.
+
+The unresolved developer decisions are:
+
+- “Must Runtime 11 remain within the supported-runtime range? If not, do you approve removing that promise as part of this LibraryX 5.x migration?”
+- “If Runtime 11 must remain supported, do you authorize investigation/implementation of a 4.x remediation or parser-removal path, rather than upgrading to 5.x?”
+- “If remediation cannot be completed before a release, do you explicitly accept the High advisory risk for a defined scope and expiry?” A risk acceptance does not turn the finding into a pass or replace required security evidence.
+
+Because the developer language is professional, any approval to narrow Runtime 11 support or accept the High risk should be documented as a professional decision; that is a hard judgment even for someone fluent in the terminology.

@@ -1,0 +1,25 @@
+Do not report this feature complete based on 91% line coverage. Coverage is not evidence that the reset-security boundaries or acceptance criteria are tested.
+
+In fact, this repository cannot truthfully claim canonical verification: its `quick`/`full` commands are placeholders, required checks have no configured commands, multiple assurance capabilities are `UNRESOLVED`, the technology baseline is `UNESTABLISHED`, and Git is not initialized. The correct outcome is `INCOMPLETE_ASSURANCE`, not PASS.
+
+Password recovery adds authentication/recovery behavior, an email integration, security-sensitive tokens, rate limiting, and likely persistence: this is a C2 change. Before substantial implementation, I would produce a C2 readiness/design record, establish the technology and verification baselines, initialize Git and capture the approved design baseline, then obtain the developer’s approval of the technical direction.
+
+I would require canonical-full automated tests traceable to each criterion, including:
+
+- Successful request produces a usable link with a one-hour expiry.
+- Expired links are rejected.
+- Replayed/already-used links are rejected, including concurrent-use handling.
+- The fourth request in a rolling 15-minute window is rejected and does not send another email.
+- Token, storage, email-delivery, and rate-limit failure paths fail safely.
+
+Recommended security design: use an established authentication/provider mechanism; use an opaque CSPRNG reset token, store only a protected representation, enforce expiry and single use atomically, never log tokens, and avoid account-enumeration through reset-request responses. A clear link error can state that the link is expired or already used without disclosing account existence.
+
+Material information remains unresolved. I would ask the developer:
+
+1. Is this an Internet-reachable, multi-user system or does it protect user-specific data? If so, it should default to SA-2 and needs an authentication design and threat model before implementation.
+2. What approved identity/password/session system, persistence layer, and email delivery service already exist—or may be introduced?
+3. Should reset-request responses be indistinguishable for existing and nonexistent accounts, and should a newly issued link invalidate earlier unused links?
+4. Define the rate-limit boundary precisely: rolling window behavior, fourth-request response/retry time, atomic-concurrency expectation, and whether IP/device abuse controls are also required.
+5. What retention, access, and deletion rules apply to reset/rate-limit records and security audit events?
+
+For the eventual C2 decision, I would state explicitly: “This will be documented as your professional decision under your name; approving an account-recovery security design is hard even for someone fluent in the terminology.” Then ask whether they approve the documented direction after those questions are resolved.

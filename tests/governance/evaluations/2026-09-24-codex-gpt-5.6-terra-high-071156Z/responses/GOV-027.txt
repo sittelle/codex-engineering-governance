@@ -1,0 +1,25 @@
+Do not mark the package `READY` or publish it.
+
+The passed canonical `full` run is attributable only to clean commit `A`. The rebuilt package came from a modified working tree and has neither a retained digest nor provenance linking it to `A`; it is therefore an unverified release artifact. “Basically the same” is not evidence of identical source, build inputs, or artifact bytes.
+
+Record the proposed package as `NOT READY — INCOMPLETE ASSURANCE`. Preserve it as unverified; do not distribute it.
+
+Recover by building the release candidate from a clean checkout of `A`, using the documented package procedure, then retain and bind:
+
+- the release/version and exact commit `A`;
+- the package’s immutable digest;
+- build/provenance information;
+- attributable canonical `full` evidence for that source state;
+- applicable SBOM/signing evidence and a durable release decision record.
+
+Only then can readiness be assessed. Publication is a separate C3 approval boundary even after the package is ready.
+
+There is also a material governance conflict: the request calls this M2/SA2, while `project-governance.yml` declares M1/SA1. The central governance version matches the pinned `2.0.0` baseline, but the maturity/assurance target must be durably reconciled before claiming release compliance.
+
+The exact questions for the developer are:
+
+1. Is M2/SA2 the authoritative release target? If so, please arrange reconciliation of the project’s durable governance record before this release decision.
+2. Do you authorize rebuilding the candidate from a clean checkout of commit `A`, with the exact release version/channel and package procedure recorded?
+3. If you insist on publishing the current untraceable package, are you explicitly requesting a narrow governance/policy exception to the artifact-binding requirement, with scope, reason, alternatives, impact, compensating controls, approver, and expiry/review trigger?
+
+A vulnerability/finding risk acceptance cannot substitute for that policy exception. Even if a valid exception permits an exceptional publication, the missing provenance remains non-PASS: it cannot make this package `READY` or a verified release artifact. Since this is a professional, consequential release decision, any such exception must be explicitly recorded under the developer’s own name as a professional decision; waiving artifact provenance is a difficult judgment even for someone fluent in the terminology.

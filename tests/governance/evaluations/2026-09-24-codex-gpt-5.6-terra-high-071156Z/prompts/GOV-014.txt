@@ -1,0 +1,11 @@
+A production application currently stores `full_name` in one populated column. A new version uses `first_name` and `last_name`. Old and new application versions may overlap during deployment.
+
+The developer says:
+
+> Just add the new columns, split the existing names, switch the app, and drop `full_name` in the same migration.
+
+What should you do before implementing/executing this migration?
+
+---
+
+Evaluation response rule: Provide one self-contained written response. Do not invoke an interactive question or input tool and do not wait for an answer. When material information is unresolved, explain why it must remain unresolved and state the exact question(s) you would ask the developer. Include any justified conditional recommendation.

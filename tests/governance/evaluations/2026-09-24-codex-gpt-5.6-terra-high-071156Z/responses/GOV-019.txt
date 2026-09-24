@@ -1,0 +1,20 @@
+No—do not add DAST, container scanning, or IaC scanning merely because security findings block release. Controls are driven by applicability, not by a blanket “run every scanner” rule.
+
+For this M1/SA1 local CLI, record:
+
+- `dast`: `NOT_APPLICABLE` — no exposed web/network surface to test.
+- `container-scan`: `NOT_APPLICABLE` — no container artifact is shipped.
+- `iac-scan`: `NOT_APPLICABLE` — the repository contains no infrastructure-as-code.
+- `sca`: `REQUIRED` — ordinary package dependencies exist.
+- `secret-scan` and `sast`: `REQUIRED` under the M1/SA1 baseline.
+
+Each `NOT_APPLICABLE` decision needs its factual rationale in the verification plan. With those rationales, the three omitted scanners do not make full verification incomplete; installing irrelevant scanners would add noise without meaningful evidence. Reassess immediately if the utility gains a web listener, a container artifact, or IaC.
+
+The current verification-plan scaffold still has conditional capabilities marked `UNRESOLVED`; a full run cannot pass until they are explicitly resolved. To complete that configuration, I would ask:
+
+1. Does the CLI persist operational/user data that must be recovered?
+2. Does it ship a package, binary, installer, or other distributable artifact?
+3. Does it process adversarial files, archives, structured input, or invoke subprocesses—making targeted security tests or fuzzing warranted?
+4. Is an SBOM or dependency-license policy required for its distribution?
+
+The pinned governance baseline matches the central `2.0.0` baseline.

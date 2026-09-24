@@ -1,0 +1,13 @@
+Do not treat CRLF/LF checkout differences as different assurance semantics, and do not disable the identity check.
+
+Aggregate the Windows and Ubuntu reports using the authoritative identities:
+
+- exact clean checked-out Git commit;
+- committed Git-blob SHA-256 of the verification plan, assurance baseline, and runner;
+- matching full-stage required-check inventory and compatible runner semantics.
+
+The Windows working-tree SHA-256 may differ because `core.autocrlf=true`; it is diagnostic metadata only. Since tracked files are clean and the committed blobs are identical, the line-ending conversion does not invalidate aggregation.
+
+Keep the safeguard: dirty, untracked, out-of-repository, or commit-unresolvable assurance artifacts are ineligible for cross-environment completion aggregation. Any attributable required-check `FAIL` remains fail-dominant even if the other environment passes.
+
+If the reports lack the required committed-artifact identities or are not full-stage/clean-commit evidence, the result is `INCOMPLETE_ASSURANCE`, not a reason to weaken identity checks. The project baseline and central governance version both identify `2.0.0`; the governing assurance architecture explicitly requires this commit-bound, Git-content-based comparison.

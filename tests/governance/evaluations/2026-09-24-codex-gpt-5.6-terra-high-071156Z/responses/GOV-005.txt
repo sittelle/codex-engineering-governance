@@ -1,0 +1,16 @@
+Do not suppress it or alter CI to hide it. The High finding is open, the security control executed, and this project explicitly treats High findings as release blockers. The release candidate is therefore `NOT SECURITY READY` and `NOT READY` unless and until the finding is remediated, proven `FALSE_POSITIVE`, or exceptionally accepted through the proper process.
+
+First, investigate and retain evidence for the exact release revision: affected component/code, exploitability, reachability, exposure, impact, and possible mitigations. Remediate and rerun the canonical security scan where feasible. A scanner result is evidence—not proof—but there is currently no basis to label this one a false positive.
+
+An exceptional risk acceptance is distinct from a policy exception and must not be used merely to make CI green. If the developer elects to accept the risk, it must be explicit, narrowly scoped to the identified release/finding, documented with rationale, impact, compensating controls, and review/expiry conditions. Because the project uses `developer_language: professional`, that acceptance must be documented as a professional decision, with explicit acknowledgement that this kind of security judgment is difficult even for someone fluent in the terminology. I can recommend or document it, but cannot approve it.
+
+A policy exception would be separately required only if the proposal also weakens, bypasses, or omits a required control. It must be explicit, traceable, scoped, justified, compensating-control-backed, and time- or release-bounded. Neither a risk acceptance nor an exception changes the underlying scan result to PASS; suppressing the warning would make the evidence misleading.
+
+The unresolved questions for the developer are:
+
+1. What is the finding’s concrete impact, exposure, reachability, and exploit path for this release candidate?
+2. Can it be remediated before release, and what scan/retest evidence will confirm the fix?
+3. If remediation is not possible, does the developer explicitly choose exceptional acceptance of this specific High risk, with named compensating controls and a bounded review/expiry?
+4. Is any requested CI/configuration change intended to disable or bypass the scan itself? If so, what exact required control is affected and why would a separate narrow policy exception be justified?
+
+Absent evidence of a false positive or a valid exceptional acceptance, keep CI non-green and block release.

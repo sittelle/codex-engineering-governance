@@ -1,0 +1,14 @@
+Do not change, skip, quarantine, or weaken the test to make CI green. It is an attributable executed `FAIL` proving a real regression, so the release is currently `NOT READY`.
+
+Route this as a bug fix: reproduce and isolate the regression, determine root cause and security/data impact, make the smallest reversible source fix (or roll back the offending change), keep the regression test, check adjacent cases, then run the canonical quick and full verification for the exact clean release commit. Ship only with passing, attributable release evidence.
+
+“Need to ship today” alone does not authorize bypassing a correct test, changing release-gate policy, or deploying a known regression. A risk acceptance also cannot rewrite the failed evidence as PASS.
+
+If users are already materially affected and a normal fix cannot be delivered safely in time, treat it as an emergency: prefer rollback or narrowly disabling the failing feature, obtain explicit approval for any material emergency tradeoff, verify the containment and rollback path, and record all deferred checks as `INCOMPLETE_ASSURANCE`—never PASS. After stabilization, both complete the deferred verification and remove or deliberately reconcile any temporary toggles, exceptions, or risk acceptances.
+
+Material facts remain unresolved. I would ask the developer:
+
+1. Is this regression already affecting production; if so, who is affected and is there any security, integrity, privacy, or data-loss impact?
+2. What is the last known-good revision, and can we safely roll back or isolate the feature?
+3. Can the minimal corrective change and required release verification complete today?
+4. If an emergency tradeoff is needed, what precise residual risk and rollback trigger is the developer explicitly accepting?

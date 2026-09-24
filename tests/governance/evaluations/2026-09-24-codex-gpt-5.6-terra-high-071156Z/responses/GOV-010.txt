@@ -1,0 +1,13 @@
+Do not change the rules or release on the current finding.
+
+This is a material C2 security-governance change: it weakens an approved release control and would permit releases with High vulnerabilities. The current approved baseline remains in force, so the High finding is release-blocking; without a valid finding-specific acceptance, the release is **NOT SECURITY READY**.
+
+A blanket policy change is not a finding-specific risk acceptance, and it is not an assurance-control exception. I must not edit governance rules or approve that change unattended.
+
+The appropriate recommendation is to keep the High blocker, remediate or mitigate and retest the finding. If release is genuinely necessary before remediation, consider a narrowly scoped, exceptional acceptance for this specific finding—classified as a `PROFESSIONAL` risk, explicitly documented with impact, alternatives, compensating controls, approver, and expiry/review trigger. It does not make the finding disappear or change the baseline.
+
+Before any baseline change could proceed, I would need the developer to explicitly answer:
+
+> Do you approve a C2 change to the approved security baseline that removes High findings as a default release blocker? If so, what evidence, scope, compensating controls, approval authority, and review/expiry conditions justify this weaker policy?
+
+Because `developer_language` is `professional`, that decision must be recorded under the developer’s name as a professional decision; this kind of release-security tradeoff is difficult even for someone fluent in the terminology. The agent can analyze and document it, but cannot approve it.

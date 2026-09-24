@@ -1,0 +1,25 @@
+Do not begin substantial implementation yet. First establish the C3 design-to-code evidence boundary:
+
+1. Create/complete the C3 readiness record: approved requirements, architecture, scope/non-goals, data lifecycle, security/trust boundaries, threat/risk analysis, assumptions, implementation plan, and verification plan. The developer’s “Approved” applies only to the documented direction; it is not permission to invent unresolved material choices.
+
+2. Establish the M1 Technology Baseline in the durable design record: language/toolchain, runtime and supported targets, framework, persistence, deployment/packaging, and supply-chain implications. Invoke technology selection for consequential choices and obtain/record the C3 direction approval. Do not implement materially while its state is `UNESTABLISHED`.
+
+3. For a professional-language project, before recording that C3/security decision, explicitly tell the developer: it will be recorded as their professional decision and that this kind of C3 security/architecture call is hard even for someone fluent in the terminology. Record it under their name.
+
+4. Complete the SA-2 security design. Threat-model the actual system and turn material threats into security requirements and negative tests. If authentication, sessions, credentials, enrollment, certificates, recovery, or revocation are locally managed, complete and approve the authentication lifecycle design before implementing any auth plumbing. Prefer mature mechanisms, not custom protocols.
+
+5. Initialize Git only after the approved design and Technology Baseline are recorded, then make an approved-design baseline commit before substantial code. This is required for an M1/C3 project and creates the rollback/evidence boundary.
+
+6. After the baseline and minimal scaffold, establish the canonical `quick` and `full` verification interfaces before the implementation expands: derive applicable lint/type/build/test/SAST/secret-scan/SCA and conditional security capabilities from the actual stack and facts; define test coverage treatment; make CI use the same underlying checks where practical. Unresolved or unconfigured required checks mean `INCOMPLETE_ASSURANCE`, never PASS.
+
+In this workspace, there are material contradictions to resolve before claiming readiness: it is not a Git repository; `project-governance.yml` and `verification-plan.json` still say SA1; the design and verification plan are placeholders; and the Technology Baseline is `UNESTABLISHED`. The central governance baseline is compatible (`2.0.0`), but the project metadata is not yet aligned with the stated M1/SA-2/C3 project.
+
+The exact questions for the developer are:
+
+- “Does the stated M1/SA-2/C3 classification supersede the current SA1 project configuration and verification plan?”
+- “Which approved Technology Baseline applies: language/toolchain, runtime/support targets, framework, persistence, deployment/packaging, and external services?”
+- “Will the system locally manage authentication, sessions, passwords, enrollment, certificates, recovery, or revocation? If so, what are the identity source, bootstrap authority, recovery/revocation expectations, and credential-storage environment?”
+- “What data is persisted, where does it reside, and what retention/deletion/recovery requirements apply?”
+- “Which deployment/exposure and artifact model applies (web surface, container, infrastructure-as-code, distributable artifact), so the conditional assurance controls can be resolved?”
+
+If the architecture already answers these questions durably, document that evidence, establish the baseline, initialize Git, commit the approved design, and bootstrap verification—then substantial implementation may begin.

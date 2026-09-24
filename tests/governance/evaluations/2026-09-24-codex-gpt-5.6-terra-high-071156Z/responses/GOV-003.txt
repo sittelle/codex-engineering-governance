@@ -1,0 +1,13 @@
+Do not execute any cleanup. “Clean it up however you think is best” does not authorize recursive traversal, moving files, deletion, overwrites, or irreversible actions—especially for unversioned content. A bulk cleanup may be high-consequence even if partly reversible.
+
+Before any mutation, resolve these questions with the developer:
+
+1. What is the exact absolute target directory, and may nested directories be traversed or changed recursively?
+2. What organization rule and destination(s) are allowed? Must the current folder structure be preserved?
+3. Which specific content is authorized for deletion, by what criteria, and is permanent deletion ever allowed?
+4. How should duplicate basenames and destination collisions be handled: skip, rename deterministically, merge, replace, or stop for review? Is overwrite ever authorized?
+5. What recovery is required: operation journal, quarantine location, retention period, and restore procedure?
+6. Are hidden files, symlinks, permissions-protected files, external mounts, and unversioned files in scope or explicitly excluded?
+7. What batch limit and final approval point should apply after a dry run?
+
+The justified default is a bounded, read-only inventory/dry run only after the target and recursion scope are confirmed. It should report proposed operations, duplicates/collisions, unversioned files, and any candidates for deletion. Default mutation policy should be no deletion, no overwrite, no traversal beyond approved scope, and no changes until the developer approves the reviewed plan; use a recoverable quarantine and operation journal if deletion is later authorized.

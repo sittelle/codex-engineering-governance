@@ -1,0 +1,15 @@
+Recommend a managed PostgreSQL service as the default.
+
+It fits relational, multi-user service workloads; has mature concurrency, transactions, backups, access controls, migration tooling, and broad operational support without adding unjustified complexity. For modest volume, start with a small single-primary managed instance, automated point-in-time backups, TLS, private network access where available, and a least-privilege application role. Do not use SQLite as the production primary store for this deployed multi-user service.
+
+This is a material (C2) persistence/technology-baseline decision, so “whatever” resolves technical preference but not the product and operational requirements needed to approve implementation. Record the proposed baseline, rationale, managed-service/dependency implications, supported deployment assumptions, migration and verification approach, and reconsideration triggers.
+
+Before approving it, I would ask the developer:
+
+1. What data will be stored, and does it include personal, financial, health, credential, or otherwise regulated/sensitive data?
+2. What availability, recovery-point, and recovery-time expectations apply—how much data loss and downtime are acceptable?
+3. Are there data-residency, retention/deletion, audit, export, or compliance requirements?
+4. What deployment provider/region and budget constraints apply, including whether managed database hosting is permitted?
+5. Are there foreseeable needs for tenant isolation, reporting/analytics, full-text search, geospatial data, unusually high write volume, or PostgreSQL extensions?
+
+Conditional alternatives: a managed MySQL-compatible service is reasonable if the selected platform or team support makes it materially preferable; a managed distributed SQL database is warranted only for genuine multi-region/high-availability requirements; a local embedded database is appropriate only for a truly single-instance, non-critical service with explicitly accepted durability and operational limits. Reconsider PostgreSQL if the answers establish one of those conditions.

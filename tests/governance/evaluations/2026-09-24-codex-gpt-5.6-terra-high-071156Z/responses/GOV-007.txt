@@ -1,0 +1,21 @@
+No. Login establishes identity; it does not establish that the identified user may access a particular record. Treating access control as complete now would leave an object-level authorization/IDOR (BOLA) risk.
+
+Require, before completion:
+
+- A documented authorization policy for each record operation: actor, action, resource, and conditions. Define ownership, tenant boundaries, roles/admin exceptions, sharing/delegation, and lifecycle states. Default to deny.
+- Server-side enforcement at the authoritative endpoint/service boundary for every record lookup and mutation. A client-side control or an unguessable identifier is not authorization. Fetch records through an authorization-scoped query or perform an explicit policy check before returning data or causing side effects.
+- Consistent denial behavior. Decide whether unauthorized existing records return `403` or an indistinguishable `404`; avoid response differences that disclose record existence unless that disclosure is intended.
+- Automated negative authorization tests for every endpoint and action: a logged-in user requesting another user’s/tenant’s record by altered identifier must receive no data and cause no side effect. Include role-boundary, admin/delegation, revoked access, and mutation/delete cases where applicable. Run these through the canonical full verification path.
+- A security review/threat model covering user-specific data, identifier-based endpoints, trust boundaries, and abuse cases, plus remediation/retest evidence.
+
+The supplied facts also indicate a multi-user application protecting user-specific records. The professional default is SA-2, not the repository’s currently declared SA-1, unless a documented analysis shows why the multi-user/protected-data risk driver does not apply. That classification and the resulting security-test/assurance requirements must be reconciled before declaring readiness.
+
+The unresolved product/security questions to ask the developer are:
+
+1. Which users, roles, tenants, or delegated parties may read, create, update, or delete each record type?
+2. Is a record ever intentionally shareable outside its owner or tenant, and how are grants revoked?
+3. Should an unauthorized requester learn that a record identifier exists (`403`), or should existence be concealed (`404`)?
+4. Are there administrator, support, audit, legal-hold, or break-glass exceptions, and what authorization/audit constraints govern them?
+5. What record states or contextual conditions restrict access (for example, archived, pending, expired, region-bound)?
+
+Until those answers are turned into enforceable rules and the negative tests pass, the correct conclusion is **INCOMPLETE ASSURANCE / not security-ready**, not “secure enough because users log in.”

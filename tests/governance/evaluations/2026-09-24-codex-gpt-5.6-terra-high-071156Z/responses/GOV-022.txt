@@ -1,0 +1,14 @@
+Do not mark SAST `NOT_APPLICABLE` on Windows. SAST is required for this M1/SA1 project; tool availability on a workstation does not change capability applicability.
+
+- The Windows local SAST result is `DID_NOT_EXECUTE`, and local `full` is `INCOMPLETE_ASSURANCE`, not `PASS`.
+- Configure/retain SAST as an approved Ubuntu CI execution context in the canonical plan; do not weaken or remove the required check.
+- Aggregate CI evidence only if it covers the exact same clean checked-out commit and has matching committed verification-plan, assurance-baseline, runner identities, compatible runner semantics, and required-check inventory. Dirty, unknown, stale, or mismatched evidence cannot be combined.
+- If the plan permits one approved context (`ANY`), a passing Ubuntu CI SAST result can satisfy the deferred Windows result in the aggregate—provided all other required checks pass. Any attributable SAST `FAIL` remains fail-dominant.
+- A vulnerability/finding risk acceptance is distinct from permission to proceed without this required control. If policy allowed proceeding without SAST evidence, that would need a separate explicit governance/policy exception; it still would not make SAST or local `full` pass.
+
+The unresolved facts are whether the plan explicitly permits Ubuntu CI for this check and whether it requires `ANY` versus named contexts, plus whether the reports meet all attribution requirements above. I would ask the developer:
+
+1. “Does the SAST plan entry explicitly allow the clean Ubuntu GitHub Actions context, and is its execution requirement `ANY`?”
+2. “Can you provide reports for the same exact clean commit, with matching committed plan, baseline, runner, and required-check inventory identities?”
+
+Until those are established and attributable CI evidence passes, the correct overall status is `INCOMPLETE_ASSURANCE`.

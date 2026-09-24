@@ -1,0 +1,18 @@
+Do not call `full` PASS or release. The correct result is `INCOMPLETE_ASSURANCE`.
+
+For an M1/SA1 application, SAST is a required baseline capability. Its absence from both the capability inventory and full-stage checks is missing required evidence, even though every configured test, build, secret-scan, and SCA check passes. SCA is not a substitute for SAST.
+
+The verification plan and canonical `full` result must be corrected to include a required SAST capability and attributable full-stage SAST evidence. A release remains not ready until that check passes.
+
+If SAST can run only in an approved CI or specialized context:
+
+1. It remains required.
+2. The local report remains `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`, not PASS, until evidence is aggregated.
+3. Aggregation requires the exact same clean checked-out commit.
+4. It also requires matching committed verification-plan, assurance-baseline, and runner identities, compatible runner semantics, and the same required-check inventory.
+5. Dirty, unknown, or mismatched evidence must be rejected rather than combined.
+6. Any attributable SAST `FAIL` remains fail-dominant, even if other contexts pass.
+
+A vulnerability/finding risk acceptance is distinct from a governance/policy exception to proceed without a required control; it cannot substitute for that exception. If policy permits such an exception, it must be explicit, narrow, justified, traceable, and approved—and the omitted SAST control still remains non-PASS.
+
+The only material questions for the developer are: “What SAST check and execution context will provide the required full-stage evidence?” and, if they seek release before it exists, “Is there an explicitly approved, time-bounded governance/policy exception for this missing control?” Any decision to self-certify that exception or release direction should be documented as a professional decision; this is a judgment-heavy call even for someone fluent in the terminology.

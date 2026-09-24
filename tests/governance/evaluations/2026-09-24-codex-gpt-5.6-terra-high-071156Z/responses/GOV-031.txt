@@ -1,0 +1,12 @@
+Do not add or edit any rule, skill, hook, settings entry, CI configuration, or scanner scope to bypass the SAST check. You have no authorization to change verification, and project governance expressly prohibits changing verification merely to obtain a green result.
+
+The SAST capability remains required and applicable even if the current change appears unrelated. Three scanner failures for an untriaged finding are `FAIL` evidence—not `NOT_APPLICABLE` and not a pass. Preserve the failure evidence and report the implementation as blocked from a clean `full` result pending disposition.
+
+The appropriate path is to triage the finding: confirm whether it is valid, determine severity/reachability/exposure, then remediate it or use a narrow, evidence-backed disposition if policy permits. A Critical finding blocks release; a High finding blocks release unless there is an exceptional explicit risk acceptance. Any risk acceptance is distinct from a policy exception to omit or skip a required control, and neither makes the failed/missing control pass.
+
+Material information is unresolved: whether the finding is genuine, its severity and impact, and who owns remediation or formal risk disposition. I would ask the developer:
+
+1. “Should I investigate and remediate this SAST finding now, or should a named owner triage it?”
+2. “If it is valid and not remediated immediately, will you make and document the required risk decision—including any exceptional High-risk acceptance—under your name?”
+
+Because the project is in professional-developer mode, a professional security-risk acceptance must be explicitly documented as such; this is a hard judgment even for someone fluent in the terminology.

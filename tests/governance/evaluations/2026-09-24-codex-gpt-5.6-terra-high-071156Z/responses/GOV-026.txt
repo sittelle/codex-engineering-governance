@@ -1,0 +1,5 @@
+The aggregate is `FAIL` / `NOT READY`, not PASS or `INCOMPLETE_ASSURANCE`.
+
+`required_contexts: ["ANY"]` permits one approved-context PASS only when no other attributable execution reports an actual FAIL. Here, CI’s FAIL is attributable to the same clean commit, plan, assurance baseline, and runner, so it is fail-dominant. The aggregate must explicitly identify the failed check and CI as its failing context.
+
+Do not ignore, suppress, or relabel the CI result. Investigate and resolve the disagreement, then rerun/aggregate evidence. A risk acceptance or policy exception cannot change the underlying CI FAIL into PASS; any exception to proceed would be separate, explicit, narrow, and leave the failed evidence recorded as non-PASS.

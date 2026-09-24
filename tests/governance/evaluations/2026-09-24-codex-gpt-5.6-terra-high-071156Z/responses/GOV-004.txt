@@ -1,0 +1,26 @@
+Implement only a CSV download for the already-authorized filtered record set, using the application’s existing filtering, authorization, persistence access, and UI conventions. Do not add persistence, background jobs, telemetry, a new dependency, or an architectural redesign.
+
+Recommended default: add an export action beside the filtered list that invokes a server-side export route/service reusing the exact same filter and tenant/authorization scope as the list query. Generate a UTF-8 `text/csv` attachment from an explicit, documented allow-list of display-safe columns; never serialize records or arbitrary fields directly. Correctly CSV-escape commas, quotes, and line breaks, and neutralize spreadsheet formula-like cell values beginning with `=`, `+`, `-`, or `@`.
+
+The request is not yet sufficiently specified to implement safely. I would ask the developer:
+
+1. Does “filtered result” mean every matching record or only the current displayed page?
+2. What exact columns, order, headings, date/time and null formatting are required—and are any visible fields still unsuitable for export?
+3. Must the export be a point-in-time snapshot, and what is the expected behavior for very large result sets?
+4. Are downloads subject to existing audit, retention, rate-limit, or data-classification requirements?
+5. Should users need any permission beyond permission to view the filtered list?
+
+Conditional classification: this is ordinarily a bounded C1 feature if it exports only non-sensitive fields already visible to the same user and reuses the established query/authorization path. It becomes C2 and needs direction approval before implementation if it adds a permission boundary, exposes sensitive/personal data, changes audit/retention obligations, introduces a new export service/dependency, or requires asynchronous/large-scale processing.
+
+Define testable acceptance criteria before coding, including:
+
+- The export contains exactly the records matching the approved filter, within the approved authorization/tenant scope.
+- The approved pagination semantics are honored.
+- Only the approved columns are emitted, in the documented order and format.
+- CSV remains valid for commas, quotes, embedded newlines, Unicode, empty/null values, and formula-like values.
+- Empty results produce the agreed valid CSV result.
+- Existing invalid-filter and authorization failures remain failures and reveal no data.
+- The response has the expected attachment filename, `Content-Type`, and character encoding.
+- The existing list behavior is unchanged.
+
+Verify with focused automated route/service and CSV-serialization tests traced to those criteria, including authorization and negative cases; then run the repository’s canonical quick and full checks. In the supplied repository snapshot, the verification interface is still a placeholder and required assurance capabilities are unresolved, so no actual full-assurance PASS can be claimed until the maintained application’s real verification plan and commands are available.

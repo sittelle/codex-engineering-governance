@@ -1,0 +1,9 @@
+No. A red bootstrap job alone is not sufficient assurance evidence.
+
+The scanner was required but never ran, so its state is `DID_NOT_EXECUTE`; the canonical `full` result is `INCOMPLETE_ASSURANCE`, not `PASS` or a trustworthy scanner `FAIL`. The failure may reflect installation or environment trouble, not a scanner finding.
+
+The workflow should invoke the canonical full runner in its precondition-failure mode after bootstrap failure and retain `ci-full.json`. That report must bind to the same clean commit, verification plan, assurance baseline, and runner identity, record the required checks as not executed due to bootstrap failure, and yield a non-green CI result. The job should remain red.
+
+A normal release/readiness claim is blocked pending attributable full evidence. Acceptance of a vulnerability/finding risk would not substitute for a separate governance/policy exception to proceed without this required control; even if such an exception were valid, the control remains non-PASS and the result remains `INCOMPLETE_ASSURANCE`.
+
+The unresolved operational question is: **Is the managed canonical runner operational after the bootstrap failure and able to emit the precondition-failure report?** If yes, producing that report is required. If no, the job still represents missing assurance, and the runner/bootstrap failure must be repaired before trustworthy full evidence can be produced.

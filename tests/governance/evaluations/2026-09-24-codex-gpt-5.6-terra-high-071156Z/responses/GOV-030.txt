@@ -1,0 +1,23 @@
+Do not switch frameworks as an incidental feature change. Replacing Fastify, the primary server framework, changes an `ESTABLISHED` Technology Baseline and is C2 at minimum—even if intended external behavior is unchanged.
+
+Pause that architecture delta and continue the unrelated feature on Fastify if feasible. Route the proposed replacement through technology selection and dependency/supply-chain review. Do not update packages, architecture/governance records, or verification as a shortcut.
+
+Before substantial migration work, prepare and obtain approval for this Technology Baseline Transition Summary:
+
+- **Delta / classification:** Replace Fastify; C2 baseline transition.
+- **Technical recommendation:** Retain Fastify unless a concrete requirement or demonstrated limitation justifies a named alternative. “Easier” alone is not sufficient architecture rationale.
+- **Dependency / supply-chain and triggered impacts:** Evaluate the candidate’s authenticity, maintenance, licensing, install scripts, direct/transitive dependency graph, security advisories, Node.js 22 support, API/configuration/default changes, deployment/operational impact, and any new security or data implications.
+- **Approval state:** C2 direction approval is required before substantial implementation. Since `developer_language` is professional, the developer’s decision must be documented as their professional decision; this kind of architecture call is difficult even for someone fluent in the terminology.
+- **Transition state / durable record:** Record the intended target and set the baseline state to `RECONCILIATION_REQUIRED` for the approved transition.
+- **Verification / assurance reconciliation:** Reconcile—not bypass—the canonical quick/full checks for the new framework, including regression, integration, failure-path, security, package/install, and affected platform/runtime evidence.
+- **`ESTABLISHED` closure criteria:** Return to `ESTABLISHED` only when the durable baseline record, source/configuration and resolved dependency graph, supported-platform claims, and canonical verification all agree.
+
+Material information remains unresolved: no replacement framework, requirement, deployment constraint, compatibility target, or quantified problem with Fastify has been provided. The exact questions for the developer are:
+
+1. What concrete requirement or measurable Fastify limitation requires replacement rather than a bounded feature implementation?
+2. Which named replacement framework is proposed, and what Node.js 22, deployment, public API, latency/throughput, operational, and support constraints must it satisfy?
+3. Do you approve the C2 Technology Baseline transition and its required `RECONCILIATION_REQUIRED` state, durable decision record, migration scope, and verification reconciliation?
+
+Until those are resolved and the C2 direction is approved, the switch is `REMAINING WORK`, not authorized implementation. “Behavior stays the same” is a migration objective to verify, not evidence that architecture, supply-chain, security, or assurance impacts do not exist.
+
+One repository-context finding: the current `project-governance.yml` in this workspace says `technology_baseline.state: "UNESTABLISHED"`, which conflicts with the scenario’s `ESTABLISHED` premise. That mismatch must be reconciled before claiming this specific checkout is compliant with the stated maintained-project baseline.

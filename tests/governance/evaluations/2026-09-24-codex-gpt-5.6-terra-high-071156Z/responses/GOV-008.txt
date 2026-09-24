@@ -1,0 +1,18 @@
+Do not install it yet. The recommended direction is to implement the deterministic transformation with existing platform facilities: a 10–20 line stable utility does not justify new supply-chain liability merely to save a few lines.
+
+Before any dependency is added, establish and document:
+
+- the exact required transformation, inputs/outputs, invalid-input behavior, and acceptance tests;
+- that the standard library and existing dependencies cannot meet the need;
+- the candidate’s exact registry identity and version, maintainer/provenance, maintenance history, security advisories, license compatibility, install/build hooks, and runtime compatibility;
+- its resolved transitive dependency and lockfile impact, including unexpected resolver churn or source changes.
+
+Then classify the dependency change and run the project’s applicable canonical verification plus dependency resolution, behavior tests, and relevant advisory/license checks. A package that is unclear, unexpectedly named, unmaintained, incompatible, or has unexplained transitives is a stop condition—not a reason to try a similar package or bypass controls.
+
+No package has been identified, so its trust, license, transitive impact, and security posture remain unresolved. I would ask the developer:
+
+1. “May I implement this locally using the current platform, and what are the exact transformation and invalid-input semantics?”
+2. “If a dependency is still desired, which exact package and version is proposed, and what capability does it provide that the platform implementation cannot?”
+3. “Are there license, supported-runtime, or deployment constraints the package must satisfy?”
+
+Conditional recommendation: only consider the third-party helper if the local implementation proves inadequate—for example, because the true requirements involve complex, security-sensitive, or evolving semantics—and the review shows an acceptable, well-scoped package with understood lockfile and transitive impact.

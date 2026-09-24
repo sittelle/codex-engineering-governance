@@ -1,0 +1,7 @@
+Treat exit 2 as `DID_NOT_EXECUTE`—not as a SAST finding or completed failing scan. Certificate-store initialization failed before trustworthy analysis, so the required SAST evidence is missing. The resulting `full` status is `INCOMPLETE_ASSURANCE`, not PASS.
+
+Do not silently change the mapping just to get green. The documented contract supports a `DOCUMENTED_EXIT_CODES` mapping of exit 2 to `DID_NOT_EXECUTE`, while exit 1 remains `FAIL` and exit 0 remains the only `PASS`. Because this changes classification for a required security control, it is a material C2 assurance-policy change requiring review and approval.
+
+Until there is attributable passing SAST evidence from an approved execution context, the control remains required and release/completion assurance remains incomplete. A vulnerability/finding risk acceptance cannot convert this missing evidence into a pass; proceeding without it would instead require a separate explicit, bounded governance/policy exception, and the control would still remain non-PASS.
+
+The exact decision needed is: “Do you approve the C2 change to record this scanner’s documented exit 2 as `DID_NOT_EXECUTE` with its durable CLI-contract reference, while retaining exit 1 as `FAIL`?” This will be documented as a professional decision; this kind of assurance-classification call is difficult even for someone fluent in the terminology.

@@ -1,0 +1,17 @@
+Do not implement access behavior from “whatever is normal.” That leaves a material security and product decision unresolved.
+
+First inspect the existing identity and authorization architecture, then ask the developer:
+
+1. Who may access the area: anonymous visitors, every signed-in user, internal identities only, or specified roles?
+2. What actions are permitted—view, create, edit, delete, administer—and on which resources?
+3. What conditions apply: ownership, tenant/team membership, internal email domain, network location, time, or approval state?
+4. What does “internal” mean operationally, and which identity provider/source is authoritative?
+5. Will the area expose user-specific, confidential, or otherwise protected data, and is it Internet reachable?
+6. Can approved existing authentication be reused, or is new/local identity, sessions, credentials, recovery, or enrollment being proposed?
+7. What negative cases must be denied and tested: anonymous access, wrong user, insufficient role, revoked identity, and identifier manipulation?
+
+This is at least a C2 security/architecture direction: access policy determines a trust boundary and may change the project’s assurance needs. The current project is SA-1, but an Internet-reachable multi-user application or protected user-specific data normally requires reassessment toward SA-2.
+
+My conditional technical recommendation is: reuse an approved mature identity provider and enforce a deny-by-default authorization policy at the authoritative service/resource boundary—not merely by hiding UI elements. If locally managed authentication is proposed, complete its credential, session, recovery, revocation, abuse-control, and bootstrap lifecycle design before substantial implementation.
+
+Once the developer chooses the product policy, record the decision and acceptance criteria, including negative authorization tests, obtain the required C2 direction approval, then implement the smallest matching design. Because the developer language is `professional`, any self-certified material security decision must be explicitly recorded as a professional decision, acknowledging that this type of judgment is difficult even for someone fluent in the terminology.

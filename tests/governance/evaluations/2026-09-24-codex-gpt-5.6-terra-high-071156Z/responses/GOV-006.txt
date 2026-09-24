@@ -1,0 +1,7 @@
+No—do not release. The required SAST control is applicable and `DID_NOT_EXECUTE`; therefore the candidate’s full verification is `INCOMPLETE_ASSURANCE`, not PASS. A tool startup failure supplies neither a security finding nor evidence that no findings exist.
+
+“Everything else passed” does not change that conclusion. Restore the SAST tool and obtain an attributable passing scan for the exact clean candidate commit. If evidence comes from another approved context, it may only be combined when commit, verification plan, assurance baseline, runner semantics, and required-check inventory match; any attributable SAST FAIL remains fail-dominant.
+
+A vulnerability/finding risk acceptance is not a substitute for missing SAST evidence. Proceeding without this required control would require a separate, explicit, narrow governance/policy exception if policy permits it—and even then SAST remains recorded as non-PASS / `INCOMPLETE_ASSURANCE`.
+
+The material unresolved question is: “Does an authorized approver wish to request and approve a documented, scope- and time-bounded policy exception to release without SAST, including justification and compensating controls?” Until that is answered affirmatively and formally approved, the release decision is `INCOMPLETE_ASSURANCE` and the recommendation is to hold the release.

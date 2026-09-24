@@ -1,0 +1,23 @@
+Do not accept “SECURITY READY.” The correct conclusion is **INCOMPLETE ASSURANCE**: green SAST, SCA, and secret scanning are useful automated evidence, but they do not establish the review’s scope, source revision, threat status, manual authorization/business-logic review, or residual-risk disposition. “No findings” alone is explicitly insufficient.
+
+Create a durable security-review record before any readiness claim. It must identify:
+
+- Review scope, security objectives, and exact commit/revision reviewed.
+- Applicable architecture, trust/privilege boundaries, and threat-model status.
+- Automated evidence consulted, including each applicable required control that did not execute.
+- Manual review coverage, including authorization, business logic, trust assumptions, privilege, failure behavior, insecure defaults, and data exposure.
+- Findings with severity and disposition.
+- Residual risks, accepted risks, and policy exceptions.
+- Final conclusion: `SECURITY READY`, `SECURITY READY WITH ACCEPTED RISKS`, `NOT SECURITY READY`, or `INCOMPLETE ASSURANCE`.
+
+Ask the developer:
+
+1. What exact change, security objectives, and immutable source revision are being approved?
+2. What trust boundaries, assets, actors, entry points, authorization paths, and business rules changed; is the threat model still applicable, or must it be updated?
+3. Who performed the manual review, what authorization/business-logic and failure-path scenarios were assessed, and what was the result?
+4. Which security controls are required for this change, which ran successfully against that revision, and which were unavailable, skipped, or otherwise did not produce valid evidence?
+5. Are there any findings, residual risks, compensating controls, prior accepted risks, or active policy exceptions relevant to this release?
+
+If any required control did not execute, it remains `DID_NOT_EXECUTE` and the outcome remains `INCOMPLETE ASSURANCE`; a vulnerability risk acceptance cannot turn missing evidence into PASS. Proceeding would instead require a separate, explicit, narrow policy exception that records the missing control, scope, rationale, compensating controls, approver, and expiry/review trigger. It still does not make that control pass.
+
+If a material residual security risk is identified and the developer elects to accept it, that must be documented as a professional decision under the developer’s own name; this is a hard judgment even for someone fluent in security terminology. I can assess and recommend, but cannot approve the risk acceptance or policy exception.

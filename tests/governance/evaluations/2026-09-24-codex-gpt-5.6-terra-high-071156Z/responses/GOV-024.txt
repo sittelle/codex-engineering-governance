@@ -1,0 +1,20 @@
+Do not remove `--require-hashes`, install Semgrep outside the lock, or mark SAST/`pywin32` as ignored on Ubuntu. SAST remains required for M1/SA1, and its bootstrap failure is `DID_NOT_EXECUTE`; the overall result is `INCOMPLETE_ASSURANCE`, not a pass or “zero findings.” Normal release readiness remains blocked.
+
+Record and retain attributable CI evidence: the bootstrap/precondition failure, the SAST check as `DID_NOT_EXECUTE`, and the same commit/verification-plan/baseline/runner identities. A generic red CI job alone is insufficient.
+
+The repair is to create and verify a reproducible Ubuntu-specific assurance-tool lock, retaining immutable versions and hashes, then have CI deliberately select it. A Windows lock containing `pywin32` is not valid evidence for Ubuntu. The accepted designs are:
+
+- Separate Windows and Ubuntu lock files, selected by OS, architecture, and Python version; or
+- A demonstrably multi-platform lock with correct environment markers and hashes for every approved target.
+
+A Linux lock may legitimately omit `pywin32` if a resolver selected that graph using declared platform markers. That is not the same as manually skipping a failed dependency: it must remain fully pinned and hash-verified. Then rerun SAST on the same clean commit. Any actual SAST `FAIL` remains fail-dominant.
+
+A vulnerability/finding risk acceptance cannot excuse missing SAST evidence. If proceeding before repair is genuinely necessary, it requires a separate, explicit, narrow governance/policy exception naming the missing control, scope/release, reason, compensating controls, approver, and expiry. Even then SAST remains non-PASS and assurance remains incomplete.
+
+Before generating the lock, the unresolved facts must be established; I would ask the developer:
+
+1. What exact Ubuntu release, CPU architecture, and Python version does the approved CI runner use?
+2. Which Semgrep version and authoritative package source are intended, and may the Linux resolution update any direct or transitive assurance-tool versions?
+3. Is Ubuntu CI the only required SAST target, or must Windows also retain a supported assurance-tool environment?
+
+The professional default is separate target-specific, hash-locked environments unless the selected resolver can prove and test one multi-platform lock.
