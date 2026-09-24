@@ -1,0 +1,17 @@
+**Recommendation: PostgreSQL.**
+
+This is a technical choice, so per my operating guidelines I'll pick a professional default and explain it, rather than block on "I don't care" — but since introducing the persistence layer is an architecture-level (C2) decision for a deployed multi-user service, I still need your confirmation on the direction before implementation, and there are a couple of adjacent facts I can't invent for you.
+
+**Why PostgreSQL as the default:**
+- Full ACID relational semantics needed for correctness under concurrent multi-user writes — this rules out SQLite as the primary store for a networked service (it's a fine embedded/single-writer engine, not a good fit once you have a shared service with concurrent writers, network access, and eventual scale-out).
+- No licensing friction, mature and widely supported, available as a managed offering on every major cloud (RDS, Cloud SQL, Azure Database, Neon, Supabase, etc.) as well as self-hosted via container — keeps you flexible since there's no existing platform mandate.
+- Rich feature set (constraints, JSONB, extensions) gives headroom if "modest volume" grows, without needing a migration off the engine.
+- Excellent driver/ORM support in essentially any stack you'd choose.
+
+**Reasonable alternative:** MySQL/MariaDB is comparably solid and would be an acceptable substitute if you or your team already has more operational familiarity with it — the tradeoff is mostly ecosystem/feature nuance (e.g., Postgres's stricter typing and richer JSON/constraint support vs. MySQL's slightly simpler operational model), not a correctness or security difference.
+
+**What remains unresolved and why I won't guess it:**
+1. **Hosting model** — self-managed (container you operate, responsible for backups/patching/HA) vs. a managed DBaaS (provider handles backups/failover, costs more, less operational burden). This changes cost, operational responsibility, and your backup/DR story, so it's a material tradeoff you need to decide, not infer from "modest volume."
+2. **Data sensitivity/compliance** — whether the service will hold PII or anything regulated affects encryption-at-rest expectations, retention policy, and possibly data residency. I won't assume "none" for a multi-user service without you confirming it.
+
+Once you confirm PostgreSQL (or MySQL, if you prefer it) and answer those two points, I'll treat the engine choice as approved and proceed with schema/connection setup, and I'll establish the project's canonical verification interface (migrations, test DB strategy) before implementation grows beyond scaffolding.
