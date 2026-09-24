@@ -343,10 +343,14 @@ def verify_instruction_loading(model_entry: dict, contexts: set[str], folders: d
         answer = _normalize_probe_text(result["response"] or "")
         missing = [label for label, _, continuation in expected if continuation not in answer]
         if missing:
+            expected_lines = "\n".join(f"    {i}. {prefix} {cont} ..." for i, (_, prefix, cont) in enumerate(expected, 1))
             raise Error(
                 f"instruction-loading check FAILED for {model_entry['label']} in {context}: "
                 f"{', '.join(missing)} not in the model's context. No scenarios were run -- the "
-                f"responses would measure the bare model, not the framework."
+                f"responses would measure the bare model, not the framework.\n"
+                f"  working directory: {cwd}\n"
+                f"  expected (normalized):\n{expected_lines}\n"
+                f"  model's answer:\n" + "\n".join("    " + line for line in (result["response"] or "<empty>").strip().splitlines())
             )
         results.append({"context": context, "status": "PASS", "verified": [label for label, _, _ in expected]})
         print(f"  instruction-loading check {context}: PASS ({', '.join(label for label, _, _ in expected)})")
