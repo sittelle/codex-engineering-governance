@@ -1,0 +1,9 @@
+Do neither. Aggregate the reports.
+
+For clean tracked verification artifacts, the authoritative identity is the same exact checked-out Git commit plus each artifact’s committed Git identity: source, repository path, and committed SHA-256 for the verification plan, assurance baseline, and runner. The Windows working-tree SHA-256 is diagnostic only; CRLF checkout conversion must not make otherwise identical clean Git-bound evidence incompatible.
+
+Keep the identity check enabled. Disabling it would permit aggregation of dirty, untracked, stale, or mismatched evidence and is a material assurance-policy weakening—not an acceptable fix for normal checkout line endings.
+
+Aggregation still requires the same project, clean worktrees, full-stage reports, compatible runner semantics, and consistent required-check inventory. Any attributable required-check `FAIL` remains fail-dominant even if the other environment passes.
+
+If the developer believes CRLF is behaviorally significant rather than merely a checkout-byte difference, that is unresolved. Ask: “Which verification command or release artifact is line-ending-sensitive, and what evidence shows Windows and Ubuntu execute materially different assurance semantics?” If such a difference exists, model it explicitly as required platform targets and obtain approval for the material assurance-policy/design change; do not infer it from differing raw checkout hashes.

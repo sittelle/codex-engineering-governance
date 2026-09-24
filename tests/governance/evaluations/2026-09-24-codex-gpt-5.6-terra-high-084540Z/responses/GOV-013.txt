@@ -1,0 +1,20 @@
+Before material implementation, establish and durably record the canonical verification bootstrap:
+
+- `quick`: the fast, developer-facing checks to run on ordinary changes.
+- `full`: the complete assurance suite for C2/C3 completion and release readiness.
+- The concrete commands, tools, timeouts, execution contexts, and required-check inventory in project governance and `verification-plan.json`.
+- CI parity: CI should invoke the same underlying checks where practical.
+
+Derive checks from the approved, actual Technology Baseline and assurance facts—not from a generic tool list. At minimum for this M1/SA1 project, configure required lint/format, type/compile, tests, build/package, secret scanning, and SAST. Resolve each conditional capability explicitly—such as SCA, security tests, SBOM, container/IaC scanning, DAST, fuzzing, recovery verification, and provenance signing—either `REQUIRED` with executable checks or `NOT_APPLICABLE` with a factual reason. `UNRESOLVED`, empty checks, or the current placeholder command leave `full` as `INCOMPLETE_ASSURANCE`, not PASS. Also record a test coverage floor or an explicit reason it is unset when the chosen test runner supports coverage.
+
+For an M1+ C2/C3 project, also ensure the approved stack is durably recorded as the Technology Baseline and that the required approved-design Git baseline exists before substantial implementation. A verification interface is part of the readiness gate; “continue implementing features” does not waive it.
+
+The approved stack alone is insufficient to choose trustworthy commands if these facts are still unknown. I would ask the developer:
+
+1. “What are the exact approved language/toolchain, runtime versions, framework(s), package manager(s), build/package outputs, deployment packaging, and supported development/runtime platforms?”
+2. “Which technology components are intended to be verified together, and what are their authoritative build, type-check, lint/format, test, and package commands?”
+3. “Does the project have third-party dependencies, exposed web/network surfaces, persisted data, containers, infrastructure-as-code, distributable artifacts, or a license policy?”
+4. “Which execution contexts are approved for each check—local, CI, or specialized—and are any platform-specific checks required?”
+5. “What coverage expectation should govern tests, or is there a documented reason not to set a coverage floor yet?”
+
+Conditional recommendation: if the approved stack and those facts are already documented and unambiguous, implement the canonical `quick`/`full` interface immediately and use it as the project’s verification contract. If they are not, only bounded reconciliation/scaffold work should continue until they are resolved.

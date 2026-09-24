@@ -1,0 +1,9 @@
+No. A red job alone is not attributable assurance evidence.
+
+Because the scanner is required and its installation bootstrap prevented full verification, the result is `DID_NOT_EXECUTE` for the affected required control(s) and overall `INCOMPLETE_ASSURANCE`. The workflow should retain a canonical `ci-full.json`: on bounded bootstrap failure, invoke the managed full runner in precondition-failure mode, record `DID_NOT_EXECUTE / PRECONDITION_FAILURE`, upload the report, and keep the job non-green.
+
+Leaving the workflow as-is is therefore not an acceptable steady state if the managed runner can emit that report. A generic failed job cannot replace the machine-readable evidence bound to the same commit, verification plan, assurance baseline, and runner.
+
+A vulnerability/finding risk acceptance is distinct from a governance/policy exception to proceed with missing required-control evidence. Any permitted exception must be explicit and does not turn the missing check or overall result into `PASS`.
+
+The unresolved technical question is: can the managed canonical runner execute after this bootstrap failure? If yes, the workflow must be corrected to produce the precondition-failure report. If no, evidence production itself failed; the job remains non-green and no PASS/readiness claim is permitted until the runner path is repaired and verification is rerun.

@@ -1,0 +1,12 @@
+The aggregate is **FAIL**, not PASS or `INCOMPLETE_ASSURANCE`.
+
+`ANY` means a PASS from one approved context can satisfy the *presence* requirement only when there is no attributable failure. Here, CI produced an actual `FAIL` for the required check, and the evidence binds to the same clean commit, plan, assurance baseline, and runner. That CI failure is therefore fail-dominant; LOCAL’s PASS cannot mask it.
+
+The framework must:
+
+- Record the aggregate as `FAIL`, explicitly naming the failed check and `CI` context.
+- Treat release/completion readiness as non-green until the failure is resolved and re-verified, the CI evidence is legitimately invalidated for an attribution defect, or a newly verified source state supersedes it.
+- Preserve both the LOCAL PASS and CI FAIL as attributable evidence.
+- Not reclassify the CI result as incomplete or ignore it merely because `required_contexts: ["ANY"]` is configured.
+
+A risk acceptance or governance/policy exception may, where policy permits, authorize proceeding despite the failure, but it never clears, hides, or relabels the failed check or aggregate as PASS. Changing this fail-dominance rule would be a material C2 assurance-policy change requiring explicit direction approval; it cannot be applied retroactively to make this aggregate green.

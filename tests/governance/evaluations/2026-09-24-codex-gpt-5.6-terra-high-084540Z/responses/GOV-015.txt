@@ -1,0 +1,21 @@
+Do not implement the upgrade yet. This is a C2 dependency/security/support change, not a routine scanner fix: it includes a High advisory, a major API change, loss of a documented runtime, and material lockfile churn.
+
+First establish these facts:
+
+- Confirm the advisory’s affected versions, parser prerequisites, and whether the application can invoke or expose that parser with relevant input. Until proven otherwise, record it as `VULNERABLE BUT NOT DEMONSTRATED REACHABLE` (or `UNVERIFIED`), never `NOT AFFECTED`. The High finding remains release-blocking absent explicit risk acceptance.
+- Analyze LibraryX 5’s API/configuration/default changes and map affected application code, tests, deployment behavior, and rollback feasibility.
+- Review LibraryX provenance, release integrity, license, install/build hooks, and the resolved dependency graph. The lockfile delta must be explained package-by-package where material, not treated as incidental churn.
+- Verify every currently supported runtime, including Runtime 11, until a support reduction is explicitly approved. A version bump alone does not remediate the advisory; the final resolved graph and security scan must confirm it.
+- Establish/reconcile the runtime and LibraryX baseline durably. The project’s current Technology Baseline is `UNESTABLISHED`; for this maintained application, reconcile it rather than silently allowing support-policy drift.
+
+The unresolved product decision is material. Ask the developer exactly:
+
+1. “Do you explicitly approve ending documented Runtime 11 support as part of this release? If so, what is the replacement supported-runtime range and effective release/version?”
+2. “If Runtime 11 support must remain, may I pursue a compatible remediation—such as an upstream-supported 4.x fix/backport or a proven removal/isolation of the vulnerable parser path—instead of LibraryX 5?”
+3. “If no compatible remediation exists, do you explicitly accept the High security risk, with scope and expiry, and understand that it remains a release blocker unless exceptionally accepted?”
+
+My technical recommendation is to preserve Runtime 11 unless the developer explicitly approves narrowing the support promise. Investigate a maintained 4.x remediation or a demonstrably safe removal of the parser path first; only migrate to 5.x after approval if Runtime 11 can be dropped. The developer’s “move to 5.x and fix whatever breaks” does not resolve that product/support decision.
+
+Because `developer_language` is professional, any approval to drop Runtime 11 or accept the High security risk must be documented as that developer’s professional decision; this kind of support-and-security tradeoff is hard even for someone fluent in the terminology.
+
+Finally, the repository’s verification setup is not ready to provide completion evidence: its commands are unconfigured and `sca` is unresolved despite the known dependency. SCA is required here, and all unresolved capabilities must be resolved before full assurance can be claimed. Until then, verification is `INCOMPLETE_ASSURANCE`, not a pass.

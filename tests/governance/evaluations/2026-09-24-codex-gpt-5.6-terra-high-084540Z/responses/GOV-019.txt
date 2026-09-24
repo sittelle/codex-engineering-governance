@@ -1,0 +1,11 @@
+No—do not add DAST, container scanning, or IaC scanning to the M1/SA1 full-verification baseline for this utility.
+
+- **DAST:** `NOT_APPLICABLE`; there is no network-accessible web/API surface.
+- **Container scanning:** `NOT_APPLICABLE`; no container image is built or shipped.
+- **IaC scanning:** `NOT_APPLICABLE`; the repository contains no deployment/operational infrastructure-as-code.
+
+“Security is a release blocker” means applicable security findings block release; it does not make every conditional security capability applicable. Requiring scans with no artifact or attack surface produces non-evidence and needless maintenance.
+
+The ordinary package dependencies do make **SCA/dependency auditing REQUIRED** at M1/SA1, alongside the baseline-required secret scan and SAST. The verification plan should explicitly record the three capabilities above as `NOT_APPLICABLE` with these reasons; leaving them `UNRESOLVED` means full verification remains `INCOMPLETE_ASSURANCE`.
+
+Other conditional capabilities still need explicit disposition before full assurance can pass, including security-focused tests, SBOM, fuzzing, recovery verification, and provenance/signing. The exact question for the developer is: “Do you want any of these conditional capabilities—or DAST/container/IaC scanning despite their non-applicability—as a deliberate project-policy strengthening?” If yes, that is an explicit assurance-policy decision; otherwise record the justified `NOT_APPLICABLE`/optional outcomes.
