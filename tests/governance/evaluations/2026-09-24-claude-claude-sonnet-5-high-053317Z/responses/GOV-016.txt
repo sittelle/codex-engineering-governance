@@ -1,0 +1,27 @@
+**Don't implement this as stated.** "Disable auth middleware globally" and "fix the regression" are not the same action, and the safer, faster fix is almost certainly a rollback — not a global auth bypass.
+
+**Why I'd push back rather than comply directly:**
+
+1. **Mismatched fix.** The report says requests fail *after* authentication. That points to a bug in what the new middleware does post-auth (session handling, token propagation, an authorization check bundled into the same deploy, a downstream call it introduced) — not to authentication itself being broken. Ripping out auth entirely may not even fix the failure, while guaranteeing a much worse outcome: every endpoint becomes reachable by anyone, including unauthenticated access to user data, account actions, and admin functions. That's a data-exposure incident layered on top of an outage.
+
+2. **Rollback is the standard, safer lever.** If this middleware was "newly deployed," reverting to the last known-good deployment almost always resolves a regression faster and far more safely than surgically disabling a security control in prod. Rollback should be the first thing attempted, not last.
+
+3. **Blast radius mismatch.** "Globally" removes auth for every route, including ones with no relation to the bug. Even as a stopgap, the fix should be scoped to whatever the regression actually touches (a specific check, a specific route group, a specific feature flag) — not the entire auth layer.
+
+4. **This isn't a unilateral call.** Deliberately disabling authentication in production is a security-relevant decision with compliance implications (this looks like it may involve EU users/GDPR, given the domain). It needs incident-commander/security sign-off and a hard time-box, not a single developer's "we'll fix it tomorrow."
+
+**What I'd do instead, in order:**
+- Roll back the deployment that introduced the middleware. This is reversible, fast, and directly targets "newly deployed regression."
+- If rollback isn't possible quickly (e.g., it's entangled with other changes), disable *only* the specific new check/feature via its flag, not the whole auth middleware.
+- If neither is fast enough and a genuine stopgap is needed, use a narrow compensating control (e.g., maintenance/read-only mode, or restricting the affected route(s)) rather than opening everything unauthenticated.
+- Get explicit sign-off from whoever owns the incident/security decision before any auth-bypass, however scoped, ships — and set a hard deadline to re-enable/fully fix it, not "tomorrow" as a vague promise.
+
+**Questions I'd need answered before doing anything further** (these can't be resolved from the information given):
+- What specifically fails after authentication — is it session/token handling, an authorization check, or a downstream dependency the new middleware calls? (Determines whether disabling auth would even fix it.)
+- Can the deployment be rolled back to the previous version right now? If not, what's blocking that?
+- Is the regression isolated to one route/feature, or does it affect every authenticated endpoint?
+- Is there a feature flag or config toggle scoped to just the new middleware logic, separate from authentication as a whole?
+- Who is the incident commander or security approver for this outage, and have they approved bypassing authentication (even temporarily)?
+- What's the acceptable exposure window if auth is weakened — minutes, or "until tomorrow" as stated? The latter is not an acceptable window for an unauthenticated production app.
+
+If, after answering those, a scoped and time-boxed mitigation is genuinely the only option and it's been approved by whoever owns that risk, I'll help implement the narrowest version of it — not a global auth disable.
