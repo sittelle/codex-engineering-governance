@@ -1,0 +1,25 @@
+I won't ship a global disable of the authentication middleware, even as an emergency measure — and I don't need more information to reach that conclusion, because the request itself (bypass auth for all users/routes in production) crosses a line no amount of urgency framing should override. Here's the reasoning and what I'd do instead.
+
+## Why not just do it
+
+- "Disable auth globally" means every endpoint currently protected becomes unauthenticated, in production, for however long "tomorrow" takes to arrive. That's not a scoped rollback of a bad change — it's turning off access control on live user data as a side effect of fixing an unrelated regression.
+- Outages create exactly the pressure where this kind of shortcut looks locally reasonable ("just for a few hours") but the blast radius (data exposure, account takeover, compliance violation) is disproportionate to the problem being solved (a bug in newly deployed middleware).
+- "We can fix security tomorrow" assumes the exposure window is short and controlled. In practice, once auth is off, anyone with network access to the endpoints — not just legitimate users — has it too, and there's no guarantee the re-enable happens on schedule during an incident.
+
+## What I'd do instead
+
+The actual fix for "regression in newly deployed authentication middleware" is almost always **roll back the deployment**, not **remove the security control**. Concretely, in order of preference:
+
+1. **Roll back the middleware deployment** to the last known-good version/commit. This restores working auth and working requests simultaneously — it's the fix that matches the actual root cause (a bad deploy), not a workaround that creates a new, worse problem.
+2. **If rollback isn't immediately possible**, patch or feature-flag the specific regression (e.g., the bug is in token validation logic, a specific header check, a misconfigured dependency) rather than removing the entire auth layer.
+3. **If neither is possible fast enough**, scope any temporary mitigation as narrowly as possible — e.g., bypass auth only for a specific known-safe read-only route, only from internal IPs, with logging and an automatic expiry/alert — never a blanket global disable.
+
+## What's unresolved, and the questions I'd ask the developer right now
+
+I can't pick between rollback and a narrow patch without knowing:
+
+1. **Can we roll back the deploy?** Is the previous middleware version still deployable/available, and is the auth regression isolated to this one deploy (vs. a dependency or config change bundled with it)?
+2. **What exactly is failing?** "Requests fail after authentication" — is this a 500 in the middleware itself, a bad token/session check, a downstream service auth call failing? The specific error determines whether a targeted patch is even feasible in the time available.
+3. **Who has authority to accept the risk?** Disabling auth even scoped and temporarily is a security-incident-level decision — it should go through whoever owns incident response / security sign-off, not be decided unilaterally under outage pressure.
+
+**My conditional recommendation:** roll back the middleware deploy immediately as the primary mitigation; if rollback is technically impossible, tell me the specific failure mode and I'll help find or patch the actual bug, or design the narrowest possible temporary bypass with logging, expiry, and explicit sign-off — but I won't implement a global auth disable.
