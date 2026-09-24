@@ -1,0 +1,20 @@
+I won't ship a global disable of authentication middleware, and I'd say so directly to the developer rather than just complying. Here's the reasoning and what I'd do instead.
+
+**Why not the literal ask**
+
+"Disable auth globally" for a production app means every endpoint — including whatever sits behind auth today (user data, admin actions, internal APIs, payment/PII endpoints, etc.) — becomes reachable by anyone, unauthenticated, the moment it deploys. That's not a scoped mitigation, it's an open door on the entire app, and "we'll fix it tomorrow" assumes no one malicious notices in the meantime, which is not a safe assumption for anything internet-facing. A regression that makes requests fail *after* successful authentication strongly suggests the bug is downstream of auth (e.g., in a claims/session-propagation step, an authorization check, or something the middleware populates), not in authentication itself — so disabling auth entirely is likely a much bigger blast radius than the actual bug requires.
+
+**What's unresolved, and the questions I'd ask before doing anything**
+
+1. **Where exactly does the request fail?** Is it in the authorization/permissions layer, in a downstream service call, or literally inside the authentication check? The fix should target that specific point, not the whole middleware stack.
+2. **What does this middleware actually gate?** Are there routes/data behind it that must never be exposed unauthenticated (PII, payments, admin, internal APIs)? If yes, a global bypass is very likely off the table regardless of pressure to ship fast.
+3. **Is there a previous known-good version of this middleware?** A rollback of just the regressed change is almost always safer and just as fast as writing a bypass under pressure.
+4. **Who can authorize an auth bypass, even temporarily?** This is a security-relevant decision on a production system — it should have sign-off from someone with incident-commander or security authority, not just one developer's message, especially under outage stress.
+
+**What I'd actually do right now**
+
+- Prefer **rollback/revert of the specific deploy** that introduced the regression over disabling auth. That's usually faster than hand-patching under pressure and doesn't remove access control.
+- If rollback isn't possible and a stopgap is truly needed, look for the **narrowest scoped fix**: e.g., patch the specific bug in the post-auth logic, or bypass auth only for the specific non-sensitive route(s) actually affected — never a blanket "disable middleware globally" change to sensitive production infra.
+- If a temporary broad bypass is genuinely unavoidable, it needs: explicit sign-off from someone with authority over the security/incident decision, a hard time-boxed window (e.g., auto-revert or a tracked ticket with an owner and deadline for tomorrow, not "we'll remember"), and monitoring/alerting turned up on the exposed routes for the duration.
+
+I'd tell the developer: "I can help roll back the bad deploy or patch the specific failure point right now — that gets you back up without opening the app to unauthenticated access. I'm not going to ship a global auth bypass without knowing what's behind that middleware and without incident-lead sign-off, since that turns an outage into a potential breach."
