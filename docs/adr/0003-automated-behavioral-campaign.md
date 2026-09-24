@@ -99,16 +99,22 @@ codex exec --sandbox workspace-write \
   --model <model> -c model_reasoning_effort="high" \
   --skip-git-repo-check --output-last-message <file> "<prompt>"
 
-claude -p --restricted --model <model> --effort high "<prompt>"
+claude -p --permission-mode dontAsk --strict-mcp-config \
+  --disallowedTools Bash,PowerShell,WebFetch,WebSearch \
+  --model <model> --effort high --output-format text "<prompt>"
 ```
 
-The Claude Code invocation has not yet been exercised against a live run
-on the test VM the way the Codex one now has; treat it as unverified
-until it is.
+The Claude Code invocation originally used `--restricted`. That flag also
+stops Claude Code from loading any CLAUDE.md, so every Claude run before
+2026-09-24 was ungoverned; see "Correction (2026-09-24)" below. Every model
+run now starts with an instruction-loading check and stops before its
+first scenario if the check fails.
 
-`workspace-write` (Codex) and `--restricted` (Claude Code, keeps file tools
-scoped to the working directory, removes command execution and WebFetch;
-requires Claude Code >= v2.1.248) were chosen over a fully read-only
+`workspace-write` (Codex) and `dontAsk` (Claude Code: edits and anything
+else needing approval are denied without prompting; reads stay open,
+matching Codex, because the kernel routes the model to read central
+workflows/skills through `GOVERNANCE_ROOT`; shell and web tools are
+disallowed) were chosen over a fully read-only
 sandbox deliberately: several scenarios (GOV-031, GOV-032, and others)
 specifically test whether the agent *attempts* a forbidden file edit. A
 sandbox that made the action physically impossible would validate the
@@ -562,6 +568,89 @@ round is planned against these eight without a genuinely new mechanism to
 try, distinct from what the three rounds here have already covered
 (load the document; cite the defined term; address every bundled item;
 re-scan lists by position; restructure the source document itself).
+
+## Correction (2026-09-24): every automated Claude run was ungoverned
+
+The "behavioral limit" conclusion above is withdrawn. The actual cause was
+the harness, not the model.
+
+### Finding
+
+The runner started every Claude session with `claude -p --restricted`.
+Besides removing command execution, `--restricted` stops Claude Code from
+loading any CLAUDE.md: neither the installed kernel
+(`~/.claude/CLAUDE.md`) nor the scenario project's `CLAUDE.md` ->
+`AGENTS.md` reached the model. It also confined file reads to the working
+directory, so the model could not have opened a routed central workflow
+or skill through `GOVERNANCE_ROOT` either.
+
+Verified on 2026-09-24 against a governed project materialized exactly as
+the VM does it (`governance.py project new`, Claude Code 2.1.280; the VM
+ran 2.1.278), by asking for lines that exist in only one instruction file:
+
+| Invocation | Kernel in context | Project `AGENTS.md` in context |
+|---|---|---|
+| `claude -p` | yes | yes |
+| `claude -p --restricted` | no | no ("No CLAUDE.md or memory/instruction files were provided to me.") |
+
+The captured evidence agrees. Codex, which loads `AGENTS.md` natively,
+used framework terms absent from the scenario prompt in 30 of 36
+responses; Claude did so in 8 of 36 in the full run, and in 0 of the 12
+retest responses. The few Claude hits are consistent with the model
+opening project files on its own with its file tool. The earlier
+statements in this ADR and in the round-by-round diagnoses that the
+instructions were demonstrably loading relied on governance vocabulary
+that was in fact part of the scenario prompts themselves.
+
+### Consequences for the evidence and the conclusions above
+
+- Every automated Claude evaluation record produced by this runner
+  (the 2026-09-21 full campaign, its Attempt-2 and Attempt-3 retests, and
+  the 2026-09-22 Attempt-3 records) measured Claude Sonnet 5 without the
+  framework. Per `tests/governance/evaluations/README.md`, a run that did
+  not exercise the defined behavior is not a scored attempt. The records
+  are immutable and stay as they are; their "Project AGENTS present: yes /
+  Central governance locator verified: yes" lines describe files on disk,
+  not what the model saw. A valid campaign will supersede them through the
+  normal latest-attempt accounting. No record, and no new attempt number,
+  is created for the three GOV-016 runs of 2026-09-24
+  (`2026-09-24-claude-claude-sonnet-5-high-053240Z`, `-053317Z`,
+  `-053432Z`), which used the same broken invocation.
+- The Claude Code FAIL / 61-64 of 72 result is therefore not evidence
+  about the framework. The Codex PASS (72/72) is unaffected.
+- The three kernel-fix rounds responded to an ungoverned model and were
+  never tested. They are kept for now, pending a valid campaign; the one
+  real defect found along the way (duplicate item number in the local/CI
+  split checklist) stays fixed regardless.
+- The GOV-030 mandatory-2 downgrade rested partly on the model's apparent
+  inability to reach a 2 and is to be revisited after a valid campaign.
+  The GOV-029 rubric revision was decided on its own merits (test the
+  safety property, not the recitation) and stands.
+
+### Fix
+
+- The Claude invocation no longer uses `--restricted` (see "CLI
+  invocation" above). Verified locally: all instruction files load, no
+  shell tool is available, edits are denied without prompting, reads work
+  inside and outside the working directory.
+- Every model run now begins with an instruction-loading check
+  (`verify_instruction_loading`): once per execution context the selection
+  uses, the model is asked to quote lines that exist only in the installed
+  kernel and, where applicable, only in that context's `AGENTS.md`. The
+  Claude probe has its file tools removed, so it cannot pass by reading
+  the files. If any expected line is missing, the model's run stops before
+  its first scenario and nothing is written or pushed. Verified in both
+  directions against the real CLI: the fixed invocation passes in all
+  three contexts; re-injecting `--restricted` is caught. The results are
+  recorded in `EVALUATION-METADATA.json` as `instruction_loading_probe`.
+- The runner's subprocess helper now always decodes UTF-8. Under a
+  non-UTF-8 locale a decoding error previously produced a response
+  recorded as `CAPTURED` but empty.
+
+Next step: a full 36-scenario Claude campaign with the fixed runner. The
+acceptance expectation stated by the maintainer is consistency: the same
+framework should produce the correct behavior on every run, not on most
+of them.
 
 ## References
 

@@ -220,6 +220,7 @@ def test_multi_model_session_continues_without_restart(failures: list[str]) -> N
             return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": "fake response\n"}
         mod.invoke_codex = fake_invoke
         mod.invoke_claude = fake_invoke
+        mod.verify_instruction_loading = lambda model_entry, contexts, folders: []
 
         kit = mod.load_campaign_kit()
         workspace = tmp / "workspace"
@@ -243,6 +244,79 @@ def test_multi_model_session_continues_without_restart(failures: list[str]) -> N
         log = run(["git", "-C", str(work), "log", f"origin/{mod.EVIDENCE_BRANCH}", "--oneline"]).stdout
         assert_true("codex" in log, "codex model's evidence did not land on the evidence branch", failures)
         assert_true("claude" in log, "claude model's evidence did not land on the evidence branch", failures)
+
+
+def _probe_fixture(tmp: Path, mod) -> tuple[dict, dict]:
+    kernel = tmp / "kernel" / "CLAUDE.md"
+    kernel.parent.mkdir()
+    kernel.write_text('Vague answers such as "whatever" or "normal" are NOT resolution when material.\n', encoding="utf-8")
+    governed = tmp / "governed-project"
+    governed.mkdir()
+    (governed / "AGENTS.md").write_text(
+        "Do not create a parallel technology registry or duplicate the complete dependency graph in governance.\n",
+        encoding="utf-8",
+    )
+    mod.installed_kernel_path = lambda host: kernel
+    folders = {"GOVERNED_REPOSITORY": str(governed)}
+    entry = {"label": "Claude test", "host": "claude", "model": "m", "effort": "high", "key": "k"}
+    return folders, entry
+
+
+def test_instruction_probe_blocks_campaign_when_not_loaded(failures: list[str]) -> None:
+    """A model that does not have the governance instructions in context
+    (as with the former `--restricted` invocation) must stop the model's run
+    before any scenario executes or any evidence is written or pushed."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        mod = load_runner_with_scratch_root(tmp)
+        folders, entry = _probe_fixture(tmp, mod)
+        scenario_calls = []
+
+        def fake_invoke(prompt, cwd, model, effort, extra_disallowed=()):
+            if "Automated configuration check" not in prompt:
+                scenario_calls.append(prompt)
+            return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": "1. ABSENT\n2. ABSENT\n"}
+        mod.invoke_claude = fake_invoke
+
+        workspace = tmp / "workspace"
+        workspace.mkdir()
+        rows = [{"test_id": "GOV-001", "context": "GOVERNED_REPOSITORY", "prompt": "p"}]
+        captured = io.StringIO()
+        with contextlib.redirect_stdout(captured):
+            ok = mod.run_one_model(None, entry, rows, folders, {}, workspace, tmp / "unused-worktree")
+        assert_true(ok is False, "run_one_model must report failure when the instructions are not loaded", failures)
+        assert_true(not scenario_calls, "no scenario may be invoked after a failed instruction-loading check", failures)
+        assert_true(not (workspace / "campaign-runs").exists(), "no campaign evidence may be written after a failed check", failures)
+        assert_true("instruction-loading check FAILED" in captured.getvalue(), "the failure must be reported to the operator", failures)
+
+
+def test_instruction_probe_passes_when_instructions_are_quoted(failures: list[str]) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        mod = load_runner_with_scratch_root(tmp)
+        folders, entry = _probe_fixture(tmp, mod)
+        seen = {}
+
+        def fake_invoke(prompt, cwd, model, effort, extra_disallowed=()):
+            seen["extra_disallowed"] = extra_disallowed
+            return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": (
+                '1. Vague answers such as “whatever” or **"normal"** are NOT resolution when material.\n'
+                "2. - Do not create a parallel technology registry or duplicate the complete dependency graph in governance.\n"
+            )}
+        mod.invoke_claude = fake_invoke
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            results = mod.verify_instruction_loading(entry, {"GOVERNED_REPOSITORY"}, folders)
+        assert_true(
+            results == [{"context": "GOVERNED_REPOSITORY", "status": "PASS", "verified": ["installed kernel", "GOVERNED_REPOSITORY AGENTS.md"]}],
+            f"a correct quote of both instruction files should PASS, got {results}",
+            failures,
+        )
+        assert_true(
+            {"Read", "Glob", "Grep"} <= set(seen.get("extra_disallowed", ())),
+            "the Claude probe must deny file tools so it cannot pass by reading the files instead of having them loaded",
+            failures,
+        )
 
 
 def test_git_remote_access_retries_through_browser_auth(failures: list[str]) -> None:
@@ -400,6 +474,8 @@ def main() -> int:
     test_failed_push_preserves_evidence_and_retries_cleanly(failures)
     test_multi_model_session_continues_without_restart(failures)
     test_interactive_selection_retries_on_invalid_input(failures)
+    test_instruction_probe_blocks_campaign_when_not_loaded(failures)
+    test_instruction_probe_passes_when_instructions_are_quoted(failures)
     test_git_remote_access_retries_through_browser_auth(failures)
     test_git_remote_access_gives_up_after_retry_limit(failures)
     test_push_existing_accepts_a_full_path_by_mistake(failures)
@@ -419,6 +495,8 @@ def main() -> int:
     print("- a failed push preserves the captured campaign directory and retries cleanly, no duplicate commit")
     print("- a multi-model session continues to the next model without restarting or re-verifying access")
     print("- interactive scenario selection retries on invalid input and --select skips the prompt")
+    print("- a model without the governance instructions in context is stopped before any scenario runs or evidence is written")
+    print("- the instruction-loading check passes on a correct quote and denies the Claude probe its file tools")
     print("- unreachable git remote access retries through browser authorization until reachable")
     print("- unreachable git remote access gives up with a clear error after the retry limit")
     print("- push-existing recovers when a full path is passed instead of a bare folder name")

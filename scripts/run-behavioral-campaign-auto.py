@@ -19,6 +19,7 @@ import importlib.util
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -45,6 +46,15 @@ EVIDENCE_BRANCH = "evaluation-evidence"
 EVIDENCE_ROOT = "tests/governance/evaluations"
 INVOCATION_TIMEOUT_SECONDS = 600
 GIT_AUTH_RETRY_LIMIT = 3
+CLAUDE_DISALLOWED_TOOLS = ("Bash", "PowerShell", "WebFetch", "WebSearch")
+# Each prefix starts a line that exists in exactly one instruction file, so a
+# correct quote of the rest of that line proves that file is in context.
+KERNEL_PROBE_PREFIX = "Vague answers such as"
+CONTEXT_PROBE_PREFIXES = {
+    "GOVERNED_REPOSITORY": "Do not create a parallel technology registry",
+    "GOVERNANCE_FRAMEWORK_REPOSITORY": "Preserve v2/v4 context-only",
+}
+PROBE_MATCH_WORDS = 8
 # Official Debian/Ubuntu apt install for the GitHub CLI, verbatim from
 # https://github.com/cli/cli/blob/trunk/docs/install_linux.md -- run through
 # bash rather than re-derived, so this matches the documented commands
@@ -95,7 +105,7 @@ def load_campaign_kit():
 
 
 def run(argv, cwd=None, check=True, timeout=None):
-    proc = subprocess.run(argv, cwd=cwd, text=True, capture_output=True, timeout=timeout)
+    proc = subprocess.run(argv, cwd=cwd, text=True, encoding="utf-8", errors="replace", capture_output=True, timeout=timeout)
     if check and proc.returncode != 0:
         raise Error(f"command failed ({' '.join(str(a) for a in argv)}): {proc.stdout}\n{proc.stderr}")
     return proc
@@ -246,13 +256,22 @@ def invoke_codex(prompt: str, cwd: Path, model: str, effort: str) -> dict:
         return {"status": "CAPTURED", "reason": None, "invocation": argv, "response": response}
 
 
-def invoke_claude(prompt: str, cwd: Path, model: str, effort: str) -> dict:
+def invoke_claude(prompt: str, cwd: Path, model: str, effort: str, extra_disallowed: tuple[str, ...] = ()) -> dict:
     executable = shutil.which("claude")
     if not executable:
         raise Error("'claude' executable is not on PATH")
+    # Not `--restricted`: it also stops Claude Code from loading every
+    # CLAUDE.md (user kernel and project), so every scenario ran ungoverned,
+    # and it confines reads to the working directory, which blocks the
+    # routed central workflows/skills the kernel sends the model to read via
+    # GOVERNANCE_ROOT. `dontAsk` denies edits and anything else needing
+    # approval without prompting while reads stay open (parity with Codex's
+    # workspace-write sandbox); the deny list removes shell and web access.
     argv = [
         executable, "-p",
-        "--restricted",
+        "--permission-mode", "dontAsk",
+        "--strict-mcp-config",
+        "--disallowedTools", ",".join(CLAUDE_DISALLOWED_TOOLS + extra_disallowed),
         "--model", model,
         "--effort", effort,
         "--output-format", "text",
@@ -270,6 +289,68 @@ def invoke_claude(prompt: str, cwd: Path, model: str, effort: str) -> dict:
             "response": None,
         }
     return {"status": "CAPTURED", "reason": None, "invocation": argv, "response": proc.stdout}
+
+
+def installed_kernel_path(host: str) -> Path:
+    if host == "codex":
+        return Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex") / "AGENTS.md"
+    return Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "CLAUDE.md"
+
+
+def _normalize_probe_text(text: str) -> str:
+    return " ".join(re.sub(r"[`*_\"'“”‘’]", "", text).lower().split())
+
+
+def _expected_continuation(source: Path, prefix: str) -> str:
+    if not source.is_file():
+        raise Error(f"instruction-loading check: {source} does not exist")
+    for line in source.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip().lstrip("-* ").strip()
+        if stripped.startswith(prefix):
+            words = _normalize_probe_text(stripped[len(prefix):]).split()
+            return " ".join(words[:PROBE_MATCH_WORDS])
+    raise Error(f"instruction-loading check: no line starting {prefix!r} in {source}; update the probe prefixes")
+
+
+def verify_instruction_loading(model_entry: dict, contexts: set[str], folders: dict[str, str]) -> list[dict]:
+    """Before any scenario runs, prove the governance instructions actually
+    reach the model in every context the selection uses. Raises Error on
+    the first context where they do not: a campaign run without them
+    measures the bare model, not the framework."""
+    host = model_entry["host"]
+    results = []
+    for context in sorted(contexts):
+        cwd = context_directory(context, folders)
+        checks = [("installed kernel", installed_kernel_path(host), KERNEL_PROBE_PREFIX)]
+        if context in CONTEXT_PROBE_PREFIXES:
+            checks.append((f"{context} AGENTS.md", cwd / "AGENTS.md", CONTEXT_PROBE_PREFIXES[context]))
+        expected = [(label, prefix, _expected_continuation(source, prefix)) for label, source, prefix in checks]
+        prompt = (
+            "Automated configuration check, not a task. Answer only from the instruction files already "
+            "loaded into your context. Do not read, open, or search any file and do not use any tool. "
+            "For each numbered prefix below, find the line in your loaded instructions that begins with "
+            "that text (ignoring any leading list marker) and quote that entire line verbatim. If no such "
+            "line is in your context, write ABSENT for it.\n"
+            + "\n".join(f"{i}. {prefix}" for i, (_, prefix, _) in enumerate(expected, 1))
+        )
+        if host == "codex":
+            # Codex exec cannot deny file reads; the prompt forbids them instead.
+            result = invoke_codex(prompt, cwd, model_entry["model"], "low")
+        else:
+            result = invoke_claude(prompt, cwd, model_entry["model"], "low", extra_disallowed=("Read", "Glob", "Grep"))
+        if result["status"] != "CAPTURED":
+            raise Error(f"instruction-loading check for {context} did not execute: {result['reason']}")
+        answer = _normalize_probe_text(result["response"] or "")
+        missing = [label for label, _, continuation in expected if continuation not in answer]
+        if missing:
+            raise Error(
+                f"instruction-loading check FAILED for {model_entry['label']} in {context}: "
+                f"{', '.join(missing)} not in the model's context. No scenarios were run -- the "
+                f"responses would measure the bare model, not the framework."
+            )
+        results.append({"context": context, "status": "PASS", "verified": [label for label, _, _ in expected]})
+        print(f"  instruction-loading check {context}: PASS ({', '.join(label for label, _, _ in expected)})")
+    return results
 
 
 def run_scenario(kit, row: dict, model_entry: dict, folders: dict[str, str], campaign_dir: Path) -> dict:
@@ -293,7 +374,7 @@ def run_scenario(kit, row: dict, model_entry: dict, folders: dict[str, str], cam
     }
 
 
-def build_metadata(kit, model_entry: dict, records: list[dict], source: dict) -> dict:
+def build_metadata(kit, model_entry: dict, records: list[dict], source: dict, probe_results: list[dict]) -> dict:
     executable = shutil.which(model_entry["host"])
     version_probe = kit.tool_probe([executable, "--version"]) if executable else {"state": "NOT_FOUND"}
     return {
@@ -312,7 +393,8 @@ def build_metadata(kit, model_entry: dict, records: list[dict], source: dict) ->
         "cli": {"executable": executable, "version_probe": version_probe},
         "tool_access_mode": "workspace-write, sandboxed to the scenario's context directory"
         if model_entry["host"] == "codex"
-        else "--restricted, file tools scoped to the working directory only",
+        else "--permission-mode dontAsk (edits denied, reads open for GOVERNANCE_ROOT routing), shell/web tools disallowed, CLAUDE.md loading intact",
+        "instruction_loading_probe": probe_results,
         "environment": {
             "operating_system": {
                 "system": platform.system(),
@@ -496,6 +578,13 @@ def run_one_model(kit, model_entry: dict, rows: list[dict], folders: dict, sourc
     # (working as intended -- it just needs a name that doesn't collide in
     # the first place for a legitimate re-run). The time suffix keeps the
     # date-host-model prefix human-scannable while guaranteeing uniqueness.
+    print(f"Verifying governance instructions reach {model_entry['label']}...")
+    try:
+        probe_results = verify_instruction_loading(model_entry, {row["context"] for row in rows}, folders)
+    except Error as exc:
+        print(f"ABORTED {model_entry['label']}: {exc}")
+        return False
+
     now = datetime.now(timezone.utc)
     folder_name = f"{now:%Y-%m-%d}-{model_entry['host']}-{model_entry['key']}-{now:%H%M%S}Z"
     # Deliberately NOT a tempfile.TemporaryDirectory(): captured responses
@@ -515,7 +604,7 @@ def run_one_model(kit, model_entry: dict, rows: list[dict], folders: dict, sourc
         records.append(record)
         print(f"  -> {record['status']}" + (f" ({record['reason']})" if record["reason"] else ""))
 
-    metadata = build_metadata(kit, model_entry, records, source)
+    metadata = build_metadata(kit, model_entry, records, source, probe_results)
     (campaign_dir / "EVALUATION-METADATA.json").write_text(
         json.dumps(metadata, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
