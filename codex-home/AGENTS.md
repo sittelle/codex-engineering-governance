@@ -110,7 +110,7 @@ For force-pushing, rewriting published history, pushing to a protected branch, o
 
 ## Assurance execution invariant
 
-For governed M1+ work after verification bootstrap, use the project's canonical quick/full interface. Local and CI evidence must come from the same underlying required checks. A required applicable control that is missing or does not execute is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`, never PASS. A genuinely irrelevant capability is `NOT_APPLICABLE` with reason; do not add irrelevant scanners ceremonially. Declared platform/runtime support is distinct from environments actually verified.
+For governed M1+ work after verification bootstrap, use the project's canonical quick/full interface. Local and CI evidence must come from the same underlying required checks. A required applicable control that is missing or does not execute is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`, never PASS. An attributable executed `FAIL` dominates a PASS from any other context: name the failing check and context, and keep the result non-green until it is resolved and re-verified, legitimately invalidated, or superseded. A genuinely irrelevant capability is `NOT_APPLICABLE` with reason; do not add irrelevant scanners ceremonially. Declared platform/runtime support is distinct from environments actually verified.
 
 ## Assurance completeness invariant
 
@@ -125,7 +125,7 @@ When a required control is missing, omitted, or `DID_NOT_EXECUTE` and the questi
 3. accepting risk from a known vulnerability/finding is distinct from a governance/policy exception to proceed without the required control, and finding-risk acceptance cannot substitute for that missing-control exception;
 4. if policy permits proceeding without the control, it requires a separate explicit governance/policy exception;
 5. that exception, even if granted, never makes the missing control itself PASS — it stays recorded as non-PASS regardless;
-6. when multiple approved execution contexts are involved, completion evidence must bind to the same clean checked-out commit, committed identities of the verification plan, managed assurance baseline, and runner, compatible runner semantics, and the required-check inventory. Do not combine evidence from a dirty/unknown tree or any mismatched identity. Any attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS. The aggregate names the failing check and context and stays non-green until it is resolved and re-verified, legitimately invalidated, or superseded.
+6. when multiple approved execution contexts are involved, completion evidence must bind to the same clean checked-out commit, committed identities of the verification plan, managed assurance baseline, and runner, compatible runner semantics, and the required-check inventory. Do not combine evidence from a dirty/unknown tree or any mismatched identity. Any attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS.
 
 Do not omit these distinctions merely because the immediate recommendation is already "do not release" or because another context can execute the control.
 
@@ -134,7 +134,7 @@ Do not omit these distinctions merely because the immediate recommendation is al
 For a concrete assurance scenario, state the governing conclusion rather than offering a weaker alternative or asking the developer to choose it. In particular:
 
 - If a required control can run only in an approved CI or specialized context, keep it required. A local report without that attributable evidence is `INCOMPLETE_ASSURANCE`, and a combined result requires the same clean checked-out commit plus the committed verification-plan, assurance-baseline, and runner identities, compatible runner semantics, and required-check inventory. Reject dirty, unknown, or mismatched evidence; an attributable executed `FAIL` is still fail-dominant.
-- For clean tracked artifacts whose checkout bytes differ only because of platform line endings, use the committed Git content and the actual checked-out commit for attribution. Treat checkout byte hashes only as diagnostics. Do not offer working-tree normalization, `.gitattributes`, `core.autocrlf`, or disabling identity checks as an alternative attribution mechanism. Dirty, untracked, or mismatched artifacts remain ineligible for aggregation.
+- Dirty, untracked, or mismatched artifacts stay ineligible for aggregation. For clean tracked artifacts whose checkout bytes differ only because of platform line endings, use the committed Git content and the actual checked-out commit for attribution. Treat checkout byte hashes only as diagnostics. Do not offer working-tree normalization, `.gitattributes`, `core.autocrlf`, or disabling identity checks as an alternative attribution mechanism.
 - If CI bootstrap prevents a required check from starting, that is always incomplete evidence, whether or not the managed runner happens to be available right now: when the managed runner can run, it MUST invoke the canonical precondition-failure/report path and emit the attributable machine-readable incomplete-assurance report regardless of release intent; a generic red job is never the report on its own, and the job remains non-green either way.
 
 ### Required local/CI split response checklist

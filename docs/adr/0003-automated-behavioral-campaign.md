@@ -767,6 +767,17 @@ GOV-023 and GOV-025 were classified as model variance and get no text change;
 repeat runs will show whether they recur. Verification: repeated runs of the
 eight affected scenarios on both hosts, then a full campaign for regressions.
 
+Targeted re-run (2026-09-24/25, same strict brief): Claude Code 9 -> 14 of 16,
+Codex 13 -> 15 of 16 on the eight scenarios. Claude missed GOV-023 the same
+way twice, so it is a pattern, not variance; GOV-026 missed although the rule
+had been added. Both rules sat as the last sentence of a long bullet, and the
+kernel's copy of the GOV-026 rule sat in a checklist whose trigger (missing
+or non-executed control) excludes an executed FAIL. Fix, without growing the
+always-loaded text: the kernel moves the failing-check rule into the
+assurance execution invariant and puts the dirty/untracked rejection first in
+its line-ending bullet; the project template gives each rule its own short
+bullet with the rejection first.
+
 ## References
 
 - `docs/evaluation-vm-bootstrap.md` — the existing checksum-locked/manual
