@@ -81,16 +81,15 @@ For C3 destructive migrations, unverified recovery is a stop condition unless th
 
 ## 6. Approval before implementation
 
-For C2/C3 migrations, present:
-- affected data and environment;
-- material invariants;
-- transition strategy;
-- preservation/obsolescence decision;
-- backup/recovery plan;
-- rollback/recovery limits;
-- validation plan;
-- downtime/performance/compatibility impact;
-- destructive steps, if any.
+For a C2/C3 migration, the pre-implementation plan MUST contain every field below, each stated explicitly or marked `NOT APPLICABLE` with a reason. Steps 8 and 10 come after implementation, but their obligations are committed here, before it:
+
+1. **Affected data and environment.**
+2. **Preservation/obsolescence decision:** confirmed by the data owner, never inferred (destructive-data invariant), including what happens to rows that do not map cleanly.
+3. **Post-migration validation:** the invariant checks and count/relationship reconciliation that run after execution (step 10), and before any contract/drop step.
+4. **Backup/recovery:** a verified, restorable recovery source and the rollback/recovery limits.
+5. **Transition strategy and material invariants,** including mixed-version compatibility.
+6. **Destructive steps,** each gated by separate C3 execution approval (step 9).
+7. **Downtime/performance/compatibility impact.**
 
 Obtain material-direction approval before substantial migration implementation.
 

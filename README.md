@@ -286,7 +286,7 @@ python governance.py host update --host all -y
 
 For Codex, the default user adapter location is `~/.codex`. For Claude Code, it is `~/.claude` unless `CLAUDE_CONFIG_DIR` is set.
 
-The Claude adapter uses a user `CLAUDE.md` and two exact `permissions.allow` `Read(...)` rules: one for the central governance root, and one for the `GOVERNANCE_ROOT` locator file itself, which the kernel reads first to find that root (without it, that read needs approval and is denied in non-interactive sessions). It does not add the governance root as a broadly editable additional working directory.
+The host adapter installs no instructions into user scope. The governance text lives in each governed repository's `AGENTS.md`, as a managed block at the top of the file, so it loads only inside governed projects and not in unrelated sessions (ADR 0005). The adapter writes only the `GOVERNANCE_ROOT` locator and, for Claude Code, two exact `permissions.allow` `Read(...)` rules: one for the central governance root, and one for the locator file itself, which the governance text reads first to find that root (without it, that read needs approval and is denied in non-interactive sessions). It does not add the governance root as a broadly editable additional working directory. `host update` removes a host-level kernel block left in `~/.codex/AGENTS.md` or the Claude `CLAUDE.md` by an earlier installation, and `project update` moves each project's managed block to the top of its `AGENTS.md`.
 
 After installing or updating a host adapter, start a fresh coding-agent session.
 

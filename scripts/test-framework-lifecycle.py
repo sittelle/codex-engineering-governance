@@ -21,27 +21,27 @@ TEMPLATE_MANAGED_MATCH = MANAGED_RE.search(TEMPLATE_AGENTS)
 TEMPLATE_MANAGED = TEMPLATE_MANAGED_MATCH.group(0) if TEMPLATE_MANAGED_MATCH else ""
 
 PROPAGATION_MARKERS = (
-    "Known vulnerability/finding risk acceptance is distinct from missing required-control evidence",
+    "accepting risk from a known vulnerability/finding is distinct from a governance/policy exception",
     "separate explicit governance/policy exception",
     "Reassess a `NOT_APPLICABLE` decision when its factual trigger changes",
-    "Changing result classification for a required security control is a material C2 assurance-policy change",
+    "Changing result classification or required execution contexts for a required security control is a material C2 assurance-policy decision",
     "When the stated facts already establish a baseline-required capability",
     "committed identities of the verification plan, managed assurance baseline, and runner",
     "byte hashes are diagnostics, not aggregation identity",
     "canonical precondition-failure/report path",
-    "An attributable executed `FAIL` remains fail-dominant",
+    "An attributable executed `FAIL` dominates a PASS from any other context",
     "Service restoration is not governance completion",
     "after stabilization, run deferred verification",
     "Required-control response completeness",
-    "finding risk acceptance is not the governance/policy exception required to proceed without the control",
-    "any attributable executed `FAIL` remains fail-dominant even when another approved context passes",
-    "A complete emergency answer explicitly states both post-stabilization duties",
+    "finding-risk acceptance cannot substitute for that missing-control exception",
+    "Any attributable executed `FAIL` remains fail-dominant even if another approved context reports PASS",
+    "a complete response MUST explicitly state both post-stabilization obligations",
     "Mentioning only the bypass cleanup and not the deferred verification is incomplete",
     "When the stated facts already establish a baseline-required capability",
     "committed identities of the verification plan, managed assurance baseline, and runner",
     "byte hashes are diagnostics, not aggregation identity",
     "canonical precondition-failure/report path",
-    "answer concrete assurance facts with the governing conclusion",
+    "For a concrete assurance scenario, state the governing conclusion",
     "regardless of release intent",
 )
 
@@ -217,13 +217,21 @@ def test_common(failures):
     assert_true(bool(TEMPLATE_MANAGED), "authoritative template managed block missing", failures)
     assert_managed_template(TEMPLATE_AGENTS, "template", failures)
 
-    kernel = (ROOT / "codex-home/AGENTS.md").read_text(encoding="utf-8")
+    # ADR 0005: the template managed block is the only governance text; the
+    # framework's own AGENTS.md carries an exact copy and no host-level kernel exists.
     for marker in GLOBAL_KERNEL_MARKERS:
         assert_true(
-            marker in kernel,
-            f"global kernel response-completeness guidance missing {marker}",
+            marker in (TEMPLATE_MANAGED or ""),
+            f"managed governance block response-completeness guidance missing {marker}",
             failures,
         )
+    assert_true(
+        managed_block((ROOT / "AGENTS.md").read_text(encoding="utf-8")) == TEMPLATE_MANAGED,
+        "framework AGENTS.md managed block is not an exact copy of the template's",
+        failures,
+    )
+    for retired in ("host-adapters/operating-kernel.md", "host-adapters/operating-kernel.non-professional.md", "codex-home/AGENTS.md"):
+        assert_true(not (ROOT / retired).exists(), f"retired host-level kernel file still exists: {retired}", failures)
 
     for rel, markers in WORKFLOW_COMPLETENESS_MARKERS.items():
         workflow = (ROOT / rel).read_text(encoding="utf-8")

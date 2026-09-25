@@ -40,8 +40,8 @@ The collector records only the following response-relevant facts.
 - a pre-capture environment-preflight evidence file, hash-bound from the final
   metadata, with source/context, adapter, editor, integration, profile, and
   influence-audit readiness results;
-- one logical context per challenge: `GLOBAL_KERNEL`,
-  `GOVERNED_REPOSITORY`, or `GOVERNANCE_FRAMEWORK_REPOSITORY`;
+- one logical context per challenge:
+  `GOVERNED_REPOSITORY` or `GOVERNANCE_FRAMEWORK_REPOSITORY`;
 - a deterministic fingerprint of the content supplied by that logical context.
 
 Logical context and fingerprint deliberately replace an absolute project path.

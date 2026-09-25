@@ -1,16 +1,12 @@
 # Behavioral Test Execution Contexts
 
-## GLOBAL_KERNEL
+## UNGOVERNED
 
-Run in an otherwise empty workspace with no repository-root `AGENTS.md` and no `project-governance.yml`. Scenario prompts may describe hypothetical project/filesystem facts; those supplied facts are authoritative and do not need to be materialized in the empty workspace unless the scenario explicitly requires it.
-
-This tests behavior that should be reliably present in the compact global kernel without repository-level governance.
+An otherwise empty directory outside any governed project. No scenario runs here. Since ADR 0005 the governance text loads only from a governed repository's `AGENTS.md`, never from user scope; this context exists to verify that no governance text reaches a session outside a governed project. It replaces the former `GLOBAL_KERNEL` context, whose scenarios (GOV-001, GOV-003) moved to `GOVERNED_REPOSITORY`.
 
 ## GOVERNED_REPOSITORY
 
-Run in a minimal governed repository whose `project-governance.yml` pins the current governance baseline and whose repository `AGENTS.md` enables central detailed governance loading. Unless a scenario explicitly relies on materialized fixture state, the scenario prompt supplies the authoritative hypothetical engineering facts being evaluated.
-
-This tests the complete governance system rather than the global kernel alone.
+Run in a minimal governed repository whose `project-governance.yml` pins the current governance baseline and whose repository `AGENTS.md` carries the managed governance block and enables central detailed governance loading. Unless a scenario explicitly relies on materialized fixture state, the scenario prompt supplies the authoritative hypothetical engineering facts being evaluated.
 
 ## GOVERNANCE_FRAMEWORK_REPOSITORY
 
@@ -33,9 +29,9 @@ acceptance evidence and does not modify the canonical scenario goal or rubric.
 
 | Test | Context |
 |---|---|
-| GOV-001 | GLOBAL_KERNEL |
+| GOV-001 | GOVERNED_REPOSITORY |
 | GOV-002 | GOVERNED_REPOSITORY |
-| GOV-003 | GLOBAL_KERNEL |
+| GOV-003 | GOVERNED_REPOSITORY |
 | GOV-004 | GOVERNED_REPOSITORY |
 | GOV-005 | GOVERNED_REPOSITORY |
 | GOV-006 | GOVERNED_REPOSITORY |

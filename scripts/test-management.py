@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANAGER = ROOT / "governance.py"
 VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 HOST_BEGIN = "<!-- BEGIN SITTELLE-ENGINEERING-GOVERNANCE -->"
+HOST_END = "<!-- END SITTELLE-ENGINEERING-GOVERNANCE -->"
 PROJECT_BEGIN = "<!-- BEGIN ENGINEERING-GOVERNANCE-MANAGED -->"
 CLAUDE_BEGIN = "<!-- BEGIN SITTELLE-ENGINEERING-GOVERNANCE-CLAUDE -->"
 
@@ -142,16 +143,15 @@ def host_cycle(failures: list[str]) -> None:
         if not require_ok(installed, "host install all failed", failures):
             return
 
+        # ADR 0005: governance loads from governed projects, never from user scope.
         check(
-            "KEEP_CODEX" in (codex / "AGENTS.md").read_text(encoding="utf-8")
-            and HOST_BEGIN in (codex / "AGENTS.md").read_text(encoding="utf-8"),
-            "Codex install did not preserve personal instructions / add managed block",
+            (codex / "AGENTS.md").read_text(encoding="utf-8") == "# Personal Codex instructions\n\nKEEP_CODEX\n",
+            "Codex install changed personal instructions or wrote governance text into user scope",
             failures,
         )
         check(
-            "KEEP_CLAUDE" in (claude / "CLAUDE.md").read_text(encoding="utf-8")
-            and HOST_BEGIN in (claude / "CLAUDE.md").read_text(encoding="utf-8"),
-            "Claude install did not preserve personal instructions / add managed block",
+            (claude / "CLAUDE.md").read_text(encoding="utf-8") == "# Personal Claude instructions\n\nKEEP_CLAUDE\n",
+            "Claude install changed personal instructions or wrote governance text into user scope",
             failures,
         )
 
@@ -280,39 +280,76 @@ def host_cycle(failures: list[str]) -> None:
             failures,
         )
 
-        # Modified framework-owned content must fail closed on uninstall.
-        installed_again = run(
-            [
-                "host", "install", "--host", "codex", "-y",
-            ],
-            env=env,
-        )
+        # A pre-ADR-0005 install carried a host-level kernel block. `host update`
+        # removes exactly that recorded block and keeps the user's own text.
+        installed_again = run(["host", "install", "--host", "codex", "-y"], env=env)
         if not require_ok(installed_again, "Codex reinstall failed", failures):
             return
         agents = codex / "AGENTS.md"
-        modified = agents.read_text(encoding="utf-8").replace(
-            HOST_BEGIN,
-            HOST_BEGIN + "\nUSER_EDIT_INSIDE_MANAGED_BLOCK",
-            1,
-        )
-        agents.write_text(modified, encoding="utf-8", newline="\n")
-        refused = run(
-            [
-                "host", "uninstall", "--host", "codex", "-y",
-            ],
-            env=env,
-        )
-        check(refused.returncode != 0, "modified managed block was deleted", failures)
+        state_path = codex / ".sittelle-engineering-governance.json"
+        old_block = f"{HOST_BEGIN}\n# Legacy host kernel\n{HOST_END}"
+
+        def plant_old_install(block_text: str) -> str:
+            text = agents.read_text(encoding="utf-8").rstrip("\n") + "\n\n" + block_text + "\n"
+            agents.write_text(text, encoding="utf-8", newline="\n")
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["managed_sha256"] = __import__("hashlib").sha256(old_block.encode("utf-8")).hexdigest()
+            state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8", newline="\n")
+            return text
+
+        plant_old_install(old_block)
+        stale = run(["host", "verify", "--host", "codex"], env=env)
+        check(stale.returncode != 0, "host verify passed with a host-level kernel block still installed", failures)
+        migrated = run(["host", "update", "--host", "codex", "-y"], env=env)
+        if require_ok(migrated, "host update of a pre-ADR-0005 install failed", failures):
+            migrated_text = agents.read_text(encoding="utf-8")
+            check(HOST_BEGIN not in migrated_text, "host update did not remove the host-level kernel block", failures)
+            check("KEEP_CODEX" in migrated_text and "AFTER_CODEX_INSTALL" in migrated_text,
+                  "host update removed user text along with the kernel block", failures)
+            check(json.loads(state_path.read_text(encoding="utf-8")).get("managed_sha256") is None,
+                  "host update still records a host-level kernel block", failures)
+
+        # An edited host-level block must fail closed rather than be removed.
+        modified = plant_old_install(old_block.replace("# Legacy host kernel", "# Legacy host kernel\nUSER_EDIT_INSIDE_MANAGED_BLOCK"))
+        refused = run(["host", "update", "--host", "codex", "-y"], env=env)
+        check(refused.returncode != 0, "modified host-level kernel block was removed", failures)
         check(
-            "refusing to delete user-modified content" in refused.stderr,
-            "modified managed block refusal was not explicit",
+            "refusing to remove user-modified content" in refused.stderr,
+            "modified host-level block refusal was not explicit",
             failures,
         )
-        check(
-            agents.read_text(encoding="utf-8") == modified,
-            "refused uninstall still mutated AGENTS.md",
-            failures,
-        )
+        check(agents.read_text(encoding="utf-8") == modified, "refused update still mutated AGENTS.md", failures)
+
+
+def project_agents_layout(failures: list[str]) -> None:
+    """ADR 0005 migration: the managed block moves to the top (Codex truncates
+    from the end); unedited framework-authored project text is refreshed, edited
+    text is preserved."""
+    import hashlib
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("governance_under_test", MANAGER)
+    gov = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = gov  # dataclasses resolve their module during class creation
+    spec.loader.exec_module(gov)
+    template = (ROOT / "templates" / "repository" / "AGENTS.md").read_text(encoding="utf-8")
+    block = gov.PROJECT_RE.search(template).group(0)
+    old_remainder = "# Repository Engineering Instructions\n\nOld framework-authored project text."
+    old_layout = f"{old_remainder}\n\n{PROJECT_BEGIN}\nold block\n<!-- END ENGINEERING-GOVERNANCE-MANAGED -->\n"
+    gov.FRAMEWORK_AUTHORED_AGENTS_REMAINDERS = frozenset(
+        {hashlib.sha256(gov.agents_remainder(old_layout).encode("utf-8")).hexdigest()}
+    )
+
+    refreshed = gov.compose_project_agents(old_layout, block, template)
+    check(refreshed.startswith(block), "project update did not move the managed block to the top", failures)
+    check("Old framework-authored project text" not in refreshed, "unedited framework-authored project text was not refreshed", failures)
+    check(gov.agents_remainder(refreshed) == gov.agents_remainder(template), "refreshed project text is not the current template's", failures)
+
+    edited = old_layout.replace("Old framework-authored project text.", "Team-specific rule we wrote ourselves.")
+    kept = gov.compose_project_agents(edited, block, template)
+    check(kept.startswith(block), "managed block not at top for an edited project file", failures)
+    check("Team-specific rule we wrote ourselves." in kept, "project update discarded project-owned text", failures)
+    check(gov.compose_project_agents(kept, block, template) == kept, "project update is not idempotent", failures)
 
 
 def host_binary_independence(failures: list[str]) -> None:
@@ -423,8 +460,7 @@ def ownership_and_legacy_cycle(failures: list[str]) -> None:
             "host", "update", "--host", "codex", "-y",
         ], env=legacy_env)
         if require_ok(migrated, "legacy Codex migration failed", failures):
-            text = (legacy_home / "AGENTS.md").read_text(encoding="utf-8")
-            check(HOST_BEGIN in text, "legacy Codex migration did not install managed block", failures)
+            check(not (legacy_home / "AGENTS.md").exists(), "legacy Codex migration left the provably framework-owned kernel in user scope", failures)
             check((legacy_home / ".sittelle-engineering-governance.json").exists(), "legacy Codex migration did not create ownership state", failures)
 
         # An unprovable legacy-looking pair must fail closed.
@@ -599,6 +635,7 @@ def main() -> int:
     host_cycle(failures)
     host_binary_independence(failures)
     ownership_and_legacy_cycle(failures)
+    project_agents_layout(failures)
     project_cycle(failures)
 
     if failures:
@@ -613,6 +650,7 @@ def main() -> int:
     print("- custom user instruction/settings preservation: PASS")
     print("- managed-content ownership refusal: PASS")
     print("- pre-existing locator + legacy Codex ownership migration: PASS")
+    print("- project AGENTS.md layout migration (block first, unedited text refreshed, edits kept): PASS")
     print("- project New/Adopt/Update/Verify lifecycle: PASS")
     print("- -y confirms only; safety checks remain active: PASS")
     return 0

@@ -119,8 +119,6 @@ def framework_root() -> Path:
     root = Path(__file__).resolve().parent
     required = (
         "VERSION",
-        "host-adapters/operating-kernel.md",
-        "host-adapters/operating-kernel.non-professional.md",
         "templates/repository/AGENTS.md",
         "templates/repository/AGENTS.non-professional.md",
         "templates/repository/CLAUDE.md",
@@ -232,31 +230,6 @@ def host_paths(host: Host) -> dict[str, Path]:
         "state": home / STATE_NAME,
         "settings": home / "settings.json",
     }
-
-
-def kernel_template_path(root: Path, kernel_language: str) -> Path:
-    if kernel_language not in DEVELOPER_LANGUAGES:
-        fail(f"Unknown developer language: {kernel_language}")
-    name = "operating-kernel.non-professional.md" if kernel_language == "non-professional" else "operating-kernel.md"
-    return root / "host-adapters" / name
-
-
-def render_host_block(root: Path, host: Host, kernel_language: str = "professional") -> str:
-    template = read_text(kernel_template_path(root, kernel_language))
-    locator = (
-        "$CODEX_HOME/GOVERNANCE_ROOT (default: $HOME/.codex/GOVERNANCE_ROOT)"
-        if host.key == "codex"
-        else "$CLAUDE_CONFIG_DIR/GOVERNANCE_ROOT (default: $HOME/.claude/GOVERNANCE_ROOT)"
-    )
-    body = template.replace("{{HOST_NAME}}", host.label).replace(
-        "{{LOCATOR_DISPLAY}}", locator
-    )
-    if "{{" in body or "}}" in body:
-        fail("Unresolved placeholder in host operating kernel")
-    metadata = (
-        f"<!-- framework={FRAMEWORK_ID}; host={host.key}; version={version(root)}; kernel_language={kernel_language} -->"
-    )
-    return f"{HOST_BEGIN}\n{metadata}\n{body.rstrip()}\n{HOST_END}"
 
 
 def load_host_state(path: Path, host: Host) -> dict | None:
@@ -426,10 +399,14 @@ def host_status(root: Path, host: Host) -> str:
 
     if state:
         block = current_host_block(paths["instruction"])
-        if block is None:
-            return "BROKEN (managed instruction block missing)"
-        if sha256_text(block) != state.get("managed_sha256"):
-            return "MODIFIED (managed instruction block changed)"
+        # Installs before ADR 0005 recorded a host-level kernel block; newer ones own none.
+        if state.get("managed_sha256"):
+            if block is None:
+                return "BROKEN (managed instruction block missing)"
+            if sha256_text(block) != state.get("managed_sha256"):
+                return "MODIFIED (managed instruction block changed)"
+        elif block is not None:
+            return "UNTRACKED MANAGED BLOCK (manual review required)"
         if not paths["locator"].is_file():
             return "BROKEN (GOVERNANCE_ROOT missing)"
         locator = read_text(paths["locator"]).strip()
@@ -437,6 +414,8 @@ def host_status(root: Path, host: Host) -> str:
             return "MODIFIED (GOVERNANCE_ROOT changed)"
         installed = str(state.get("version", "unknown"))
         current = version(root)
+        if state.get("managed_sha256"):
+            return f"INSTALLED {installed} (update available: removes the host-level kernel; governance now loads from projects)"
         if installed == current and Path(locator).resolve() == root:
             return f"INSTALLED {installed}"
         return f"INSTALLED {installed} (update available to {current})"
@@ -483,12 +462,18 @@ def preflight_host_install(root: Path, host: Host) -> tuple[dict, bool]:
 
     if state:
         block = current_host_block(paths["instruction"])
-        if block is None:
-            fail(f"{host.label}: managed instruction block is missing")
-        if sha256_text(block) != state.get("managed_sha256"):
+        if state.get("managed_sha256"):
+            if block is None:
+                fail(f"{host.label}: managed instruction block is missing")
+            if sha256_text(block) != state.get("managed_sha256"):
+                fail(
+                    f"{host.label}: managed instruction block was modified; "
+                    "refusing to remove user-modified content"
+                )
+        elif block is not None:
             fail(
-                f"{host.label}: managed instruction block was modified; "
-                "refusing to overwrite user-modified content"
+                f"{host.label}: managed markers exist without trusted state; "
+                "manual review is required"
             )
         if not paths["locator"].is_file():
             fail(f"{host.label}: GOVERNANCE_ROOT is missing")
@@ -517,12 +502,30 @@ def preflight_host_install(root: Path, host: Host) -> tuple[dict, bool]:
     return paths, legacy
 
 
+def remove_owned_host_instructions(paths: dict[str, Path], state: dict | None, legacy: bool) -> None:
+    """Remove host-level kernel text this installer provably wrote (ADR 0005:
+    governance loads from governed projects, never from user scope)."""
+    if legacy:
+        # Proven byte-for-byte legacy framework kernel: no distinguishable custom text.
+        paths["instruction"].unlink()
+        return
+    if not (state and state.get("managed_sha256")):
+        return
+    block = current_host_block(paths["instruction"])
+    remaining = re.sub(r"\n{3,}", "\n\n", read_text(paths["instruction"]).replace(block, "", 1)).strip("\n")
+    if remaining.strip():
+        write_text(paths["instruction"], remaining + "\n")
+    elif state.get("instruction_created"):
+        paths["instruction"].unlink()
+    else:
+        write_text(paths["instruction"], "")
+
+
 def host_install_or_update(
     root: Path,
     host: Host,
     *,
     require_existing: bool,
-    kernel_language: str | None = None,
 ) -> None:
     paths, legacy = preflight_host_install(root, host)
     state = load_host_state(paths["state"], host)
@@ -530,36 +533,9 @@ def host_install_or_update(
     if require_existing and not state and not legacy:
         fail(f"{host.label}: no managed installation exists to update")
 
-    # An explicit --kernel-mode always wins. Otherwise preserve whatever
-    # mode this host was already installed with; only a fresh install
-    # defaults to professional.
-    effective_kernel_language = kernel_language or (state.get("kernel_language") if state else None) or "professional"
-    if effective_kernel_language not in DEVELOPER_LANGUAGES:
-        fail(f"Unknown developer language: {effective_kernel_language}")
-
-    block = render_host_block(root, host, effective_kernel_language)
-
-    if legacy:
-        # Proven byte-for-byte legacy framework kernel: no distinguishable custom text.
-        new_instruction = block + "\n"
-        instruction_created = True
-        locator_created = True
-    else:
-        old_instruction = read_text(paths["instruction"]) if paths["instruction"].exists() else ""
-        old_block = current_host_block(paths["instruction"])
-        if old_block:
-            new_instruction = old_instruction.replace(old_block, block, 1)
-        elif old_instruction:
-            separator = "\n" if old_instruction.endswith("\n") else "\n\n"
-            new_instruction = old_instruction + separator + block + "\n"
-        else:
-            new_instruction = block + "\n"
-        instruction_created = (
-            bool(state.get("instruction_created")) if state else not paths["instruction"].exists()
-        )
-        locator_created = (
-            bool(state.get("locator_created")) if state else not paths["locator"].exists()
-        )
+    locator_created = legacy or (
+        bool(state.get("locator_created")) if state else not paths["locator"].exists()
+    )
 
     # Existing installer-owned locator can move with the framework. A pre-existing locator cannot.
     if state and not state.get("locator_created"):
@@ -571,7 +547,7 @@ def host_install_or_update(
             )
 
     paths["home"].mkdir(parents=True, exist_ok=True)
-    write_text(paths["instruction"], new_instruction)
+    remove_owned_host_instructions(paths, state, legacy)
 
     if legacy or locator_created or (state and state.get("locator_created")):
         write_text(paths["locator"], str(root))
@@ -628,18 +604,17 @@ def host_install_or_update(
         "host": host.key,
         "version": version(root),
         "governance_root": str(root),
-        "managed_sha256": sha256_text(block),
-        "instruction_created": instruction_created,
+        "managed_sha256": None,
+        "instruction_created": False,
         "locator_created": locator_created,
         "claude_settings_ownership": claude_ownership,
         "claude_locator_read_ownership": locator_ownership,
-        "kernel_language": effective_kernel_language,
     }
     save_host_state(paths["state"], new_state)
     verify_host(root, host)
 
 
-def preflight_host_uninstall(root: Path, host: Host) -> tuple[dict, dict, str]:
+def preflight_host_uninstall(root: Path, host: Host) -> tuple[dict, dict, str | None]:
     paths = host_paths(host)
     for key in ("instruction", "locator", "state"):
         assert_plain_file_or_missing(paths[key])
@@ -668,16 +643,18 @@ def preflight_host_uninstall(root: Path, host: Host) -> tuple[dict, dict, str]:
             if locator_ownership.get("rule") not in claude_allow_rules(read_json_object(paths["settings"])):
                 fail("Claude GOVERNANCE_ROOT Read allow rule was modified; refusing partial uninstall")
 
-    if not paths["instruction"].is_file():
-        fail(f"{host.label}: managed instruction file is missing")
-    block = current_host_block(paths["instruction"])
-    if block is None:
-        fail(f"{host.label}: managed instruction block is missing")
-    if sha256_text(block) != state.get("managed_sha256"):
-        fail(
-            f"{host.label}: managed instruction block was modified; "
-            "refusing to delete user-modified content"
-        )
+    block = None
+    if state.get("managed_sha256"):
+        if not paths["instruction"].is_file():
+            fail(f"{host.label}: managed instruction file is missing")
+        block = current_host_block(paths["instruction"])
+        if block is None:
+            fail(f"{host.label}: managed instruction block is missing")
+        if sha256_text(block) != state.get("managed_sha256"):
+            fail(
+                f"{host.label}: managed instruction block was modified; "
+                "refusing to delete user-modified content"
+            )
 
     if state.get("locator_created"):
         if not paths["locator"].is_file():
@@ -692,20 +669,9 @@ def preflight_host_uninstall(root: Path, host: Host) -> tuple[dict, dict, str]:
 
 
 def host_uninstall(root: Path, host: Host) -> None:
-    paths, state, block = preflight_host_uninstall(root, host)
+    paths, state, _ = preflight_host_uninstall(root, host)
 
-    text = read_text(paths["instruction"])
-    remaining = text.replace(block, "", 1)
-    remaining = re.sub(r"\n{3,}", "\n\n", remaining).strip("\n")
-
-    if remaining.strip():
-        write_text(paths["instruction"], remaining + "\n")
-    elif state.get("instruction_created"):
-        paths["instruction"].unlink()
-    else:
-        # Defensive: if a pre-existing file has become empty, leave an empty file rather than
-        # claiming ownership of the whole file.
-        write_text(paths["instruction"], "")
+    remove_owned_host_instructions(paths, state, legacy=False)
 
     if state.get("locator_created") and paths["locator"].exists():
         paths["locator"].unlink()
@@ -730,11 +696,11 @@ def verify_host(root: Path, host: Host) -> None:
     if not state:
         fail(f"{host.label}: installer state is missing")
 
-    block = current_host_block(paths["instruction"])
-    if block is None:
-        fail(f"{host.label}: managed instruction block is missing")
-    if sha256_text(block) != state.get("managed_sha256"):
-        fail(f"{host.label}: managed instruction block hash mismatch")
+    if state.get("managed_sha256") or current_host_block(paths["instruction"]):
+        fail(
+            f"{host.label}: a host-level kernel block is still installed; governance now "
+            "loads from governed projects (ADR 0005), run `host update` to remove it"
+        )
     if state.get("version") != version(root):
         fail(f"{host.label}: installed version does not match framework VERSION")
     if not paths["locator"].is_file():
@@ -829,7 +795,8 @@ def preview_host_action(root: Path, action: str, hosts: list[Host]) -> None:
             state = load_host_state(paths["state"], host)
             if action == "update" and not state and not legacy:
                 fail(f"{host.label}: no managed installation exists to update")
-            lines.append(f"  write managed block in {paths['instruction']}")
+            if legacy or (state and state.get("managed_sha256")):
+                lines.append(f"  remove the host-level kernel block from {paths['instruction']} (governance loads from projects)")
             lines.append(f"  set {paths['locator']} to {root}")
             if host.key == "claude":
                 lines.append(
@@ -839,7 +806,8 @@ def preview_host_action(root: Path, action: str, hosts: list[Host]) -> None:
             lines.append("  preserve unrelated user content")
         elif action == "uninstall":
             paths, state, _ = preflight_host_uninstall(root, host)
-            lines.append(f"  remove only the recorded managed block from {paths['instruction']}")
+            if state.get("managed_sha256"):
+                lines.append(f"  remove only the recorded managed block from {paths['instruction']}")
             if state.get("locator_created"):
                 lines.append(f"  remove installer-owned {paths['locator']}")
             else:
@@ -916,6 +884,37 @@ def managed_claude_project_block(root: Path) -> str:
     if not match:
         fail("Project CLAUDE template has no managed Claude adapter block")
     return match.group(0)
+
+
+# SHA-256 of the project-owned text (everything outside the managed block,
+# normalized) of every historical AGENTS.md / AGENTS.non-professional.md
+# template. A project whose remainder still matches one was never edited, so
+# `project update` may replace it with the current template's remainder.
+FRAMEWORK_AUTHORED_AGENTS_REMAINDERS = frozenset({
+    "f6f6d357fd6eb4cbb4f7f43eb33e20c9841e6565952587ceef2661eb90b1efe5",
+    "bb16b4725e9cccd49331522913491b6c43c8324f0621e99a2ab141726c311035",
+    "8a7c5d88594bc41d3f25fba24bc561753dcda30237f0e1ea29d36fbf14333e57",
+    "eeb7c40f8ca86a76acee7397e4b36b55aa63dbe93a61512b98218cfde8e47973",
+    "068405acd300cc358643e319da07bdea3873c8e410ff3c284a87a1ac5d301c3a",
+    "5ab12bfe9868b90579f653719f598ed202e6b1f259d75211558618ab7a55b2f9",
+    "b78d65c2d6ab8fa997c21f1ccb78249ae4ef71359765eb93ba7512aa3c70d927",
+    "3a622221e62c7624547f93f52a3ef237f4f5b89b8c3ffbe18f450cc6efaafe49",
+})
+CODEX_PROJECT_DOC_MAX_BYTES = 32768
+
+
+def agents_remainder(text: str) -> str:
+    text = OLD_PROJECT_RE.sub("", PROJECT_RE.sub("", text.replace("\r\n", "\n")))
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def compose_project_agents(original: str, new_block: str, template_text: str) -> str:
+    """Managed block first (Codex truncates project instructions from the end),
+    then the project-owned text; unedited framework-authored text is refreshed."""
+    remainder = agents_remainder(original)
+    if sha256_text(remainder) in FRAMEWORK_AUTHORED_AGENTS_REMAINDERS:
+        remainder = agents_remainder(template_text)
+    return new_block.rstrip() + "\n" + (f"\n{remainder}\n" if remainder else "")
 
 
 def replace_or_append_managed(
@@ -1543,6 +1542,16 @@ def verify_project(root: Path, project: Path) -> None:
     agents_block = PROJECT_RE.search(agents_text)
     if agents_block is None:
         fail("Project AGENTS.md has no current managed governance block")
+    if agents_text.replace("\r\n", "\n").lstrip().find(PROJECT_BEGIN) != 0:
+        fail(
+            "Project AGENTS.md managed governance block is not at the top of the file; "
+            f"run `governance.py project update --project {project}` to move it"
+        )
+    if len(agents_text.encode("utf-8")) > CODEX_PROJECT_DOC_MAX_BYTES:
+        fail(
+            f"Project AGENTS.md exceeds {CODEX_PROJECT_DOC_MAX_BYTES} bytes, beyond which Codex "
+            "silently truncates project instructions; shorten the project-specific section"
+        )
     if agents_block.group(0) != managed_project_block(root, mode):
         other_mode = "non-professional" if mode == "professional" else "professional"
         if agents_block.group(0) == managed_project_block(root, other_mode):
@@ -1730,11 +1739,8 @@ def apply_project_adopt(root: Path, project: Path, mode: str = "professional", r
 
     if agents.exists():
         shutil.copy2(agents, project / f"AGENTS.md.governance-backup-{stamp}")
-        new_agents = replace_or_append_managed(
-            read_text(agents),
-            project_block,
-            current_pattern=PROJECT_RE,
-            legacy_pattern=OLD_PROJECT_RE,
+        new_agents = compose_project_agents(
+            read_text(agents), project_block, read_text(templates[agents_template_key(mode)])
         )
     else:
         new_agents = read_text(templates[agents_template_key(mode)])
@@ -1795,11 +1801,10 @@ def build_project_update(root: Path, project: Path) -> dict:
     manifest_new, technology_added = ensure_technology_baseline(manifest_new)
 
     agents_old = read_text(agents_path)
-    agents_new = replace_or_append_managed(
+    agents_new = compose_project_agents(
         agents_old,
         managed_project_block(root, mode),
-        current_pattern=PROJECT_RE,
-        legacy_pattern=OLD_PROJECT_RE,
+        read_text(template_paths(root)[agents_template_key(mode)]),
     )
 
     if claude_path.exists():
@@ -2168,8 +2173,6 @@ def build_parser() -> argparse.ArgumentParser:
     for action in ("status", "verify", "install", "update", "uninstall"):
         command = host_sub.add_parser(action)
         command.add_argument("--host", choices=("codex", "claude", "all"), default="all")
-        if action in {"install", "update"}:
-            command.add_argument("--kernel-language", choices=DEVELOPER_LANGUAGES, default=None)
         if action in {"install", "update", "uninstall"}:
             command.add_argument("-y", "--yes", action="store_true")
 
@@ -2245,8 +2248,6 @@ def main(argv: list[str] | None = None) -> int:
             if args.action == "status":
                 for host in selected_hosts(args.host):
                     print(f"{host.label}: {display_host_status(host_status(root, host))}")
-                    state = load_host_state(host_paths(host)["state"], host)
-                    print(f"  kernel language: {(state or {}).get('kernel_language', 'professional')}")
                     policy = managed_policy_status(host)
                     print(f"  managed policy: {policy['source']} (mode={policy['mode']})")
                 return 0
@@ -2260,8 +2261,6 @@ def main(argv: list[str] | None = None) -> int:
                 for host in hosts:
                     verify_host(root, host)
                     print(f"{host.label}: verification PASS")
-                    state = load_host_state(host_paths(host)["state"], host)
-                    print(f"  kernel language: {(state or {}).get('kernel_language', 'professional')}")
                     policy = managed_policy_status(host)
                     print(f"  managed policy: {policy['source']} (mode={policy['mode']})")
                 return 0
@@ -2270,13 +2269,9 @@ def main(argv: list[str] | None = None) -> int:
             confirm(args.yes)
             for host in hosts:
                 if args.action == "install":
-                    host_install_or_update(
-                        root, host, require_existing=False, kernel_language=args.kernel_language
-                    )
+                    host_install_or_update(root, host, require_existing=False)
                 elif args.action == "update":
-                    host_install_or_update(
-                        root, host, require_existing=True, kernel_language=args.kernel_language
-                    )
+                    host_install_or_update(root, host, require_existing=True)
                 else:
                     host_uninstall(root, host)
                 print(f"{host.label}: {args.action} PASS")

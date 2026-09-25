@@ -5,14 +5,14 @@
     "claude"
   ],
   "contexts": {
-    "GLOBAL_KERNEL": "Run in an otherwise empty workspace without repository AGENTS.md/project-governance.yml; scenario-supplied hypothetical facts are authoritative unless materialization is explicitly required.",
+    "UNGOVERNED": "An otherwise empty directory outside any governed project. No scenario runs here; it is used only to verify that no governance text loads outside governed projects (ADR 0005).",
     "GOVERNED_REPOSITORY": "Run in a minimal governed repository pinned to the current baseline; scenario-supplied hypothetical facts are authoritative unless the scenario explicitly relies on fixture state.",
     "GOVERNANCE_FRAMEWORK_REPOSITORY": "Run in the Governance Framework repository with root AGENTS.md and framework-governance.yml."
   },
   "tests": {
-    "GOV-001": "GLOBAL_KERNEL",
+    "GOV-001": "GOVERNED_REPOSITORY",
     "GOV-002": "GOVERNED_REPOSITORY",
-    "GOV-003": "GLOBAL_KERNEL",
+    "GOV-003": "GOVERNED_REPOSITORY",
     "GOV-004": "GOVERNED_REPOSITORY",
     "GOV-005": "GOVERNED_REPOSITORY",
     "GOV-006": "GOVERNED_REPOSITORY",

@@ -4,7 +4,8 @@
 
 Accepted, 2026-09-25, by Gregor Kleiber, framework maintainer, including the
 recommended answer to each open question (see "Resolved questions").
-Implementation follows the current regression campaign. Requirement: the
+Implemented 2026-09-25 (see "Implementation"); a campaign on the new layout
+is pending. Requirement: the
 framework should be present only in governed projects, not in every Claude
 Code or Codex session on the machine, and should impose the lowest token cost
 that still achieves its goals. This is a C2 change (installer behavior,
@@ -161,6 +162,48 @@ Negative and risks:
 6. Docs: README host-adapter section, framework threat model (smaller
    user-scope footprint), evaluation VM docs.
 7. Full campaign on both hosts.
+
+## Implementation (2026-09-25)
+
+Implemented as decided, with these specifics:
+
+- **Single source.** The managed block of `templates/repository/AGENTS.md` is
+  the only governance text (24,610 bytes for the whole template; previously
+  ~37,500 characters per governed session across the host kernel and project
+  file). `AGENTS.non-professional.md` carries the plain-language working
+  agreement the same way (6,511 bytes). `host-adapters/operating-kernel.md`,
+  `operating-kernel.non-professional.md`, and `codex-home/AGENTS.md` were
+  removed, and the validator refuses their return.
+- **Block first.** The managed block sits at the top of every governed
+  `AGENTS.md`, so Codex's end-of-file truncation can never cut governance.
+  `project update` moves an existing block to the top; when the remaining
+  project-owned text still matches any historical template version
+  (fingerprints computed from the template history), it is replaced by the
+  current short stub, while edited text is kept. `project verify` fails if the
+  block is not first or the file exceeds 32 KiB.
+- **The framework repository is governed the same way.** Its root `AGENTS.md`
+  starts with an exact copy of the block (validator-enforced), so work on the
+  framework itself, and GOV-029, keep the governance text without any
+  host-level kernel.
+- **Host adapter.** `host install` writes only the locator and, for Claude,
+  the two read rules. `host update` removes a recorded host-level block (hash
+  match required; an edited block is refused) or a provable legacy kernel
+  file; `host verify` fails while one remains. The `--kernel-language` option
+  is gone: the language follows each project's `developer_language`.
+- **Data-migration pre-change checklist** (the pattern that stabilized
+  GOV-015), for the recurring GOV-009 miss.
+- **Campaign harness.** The `GLOBAL_KERNEL` context became `UNGOVERNED`; the
+  pre-flight check reads the managed block and an end-of-file line from each
+  context's `AGENTS.md` and adds a negative check that an ungoverned session
+  cannot quote the governance text.
+
+Verified against the real Claude Code CLI with a fresh configuration: the
+text loads in the governed project and the framework repository, does not
+load in an ungoverned directory, and a planted host-level kernel is caught.
+That check also found a live leak on the maintainer's machine: Claude Code
+loads instruction files from every ancestor directory, so any folder under
+the home directory picks up `~/.claude/CLAUDE.md`, which still carried the
+kernel from the previous installer. `governance.py host update` removes it.
 
 ## Resolved questions
 

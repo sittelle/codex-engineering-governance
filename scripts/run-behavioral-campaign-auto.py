@@ -47,12 +47,17 @@ EVIDENCE_ROOT = "tests/governance/evaluations"
 INVOCATION_TIMEOUT_SECONDS = 600
 GIT_AUTH_RETRY_LIMIT = 3
 CLAUDE_DISALLOWED_TOOLS = ("Bash", "PowerShell", "WebFetch", "WebSearch")
-# Each prefix starts a line that exists in exactly one instruction file, so a
-# correct quote of the rest of that line proves that file is in context.
+# Each prefix starts a line that exists in one place only, so a correct quote
+# of the rest of that line proves that text is in context. The managed
+# governance block (ADR 0005) sits at the top of each governed AGENTS.md; the
+# end-of-file lines catch Codex's truncation of project docs beyond 32 KiB.
 KERNEL_PROBE_PREFIX = "Vague answers such as"
 CONTEXT_PROBE_PREFIXES = {
-    "GOVERNED_REPOSITORY": "Do not create a parallel technology registry",
-    "GOVERNANCE_FRAMEWORK_REPOSITORY": "Preserve v2/v4 context-only",
+    "GOVERNED_REPOSITORY": (("end of AGENTS.md", "Add instructions specific to this repository here."),),
+    "GOVERNANCE_FRAMEWORK_REPOSITORY": (
+        ("framework-authoring section", "Preserve v2/v4 context-only"),
+        ("end of AGENTS.md", "A release decision must bind"),
+    ),
 }
 ROUTING_PROBE_FILE = "workflows/emergency-fix/WORKFLOW.md"
 ROUTING_PROBE_PREFIX = "Do not act on an assumed root cause when"
@@ -294,10 +299,19 @@ def invoke_claude(prompt: str, cwd: Path, model: str, effort: str, extra_disallo
     return {"status": "CAPTURED", "reason": None, "invocation": argv, "response": proc.stdout}
 
 
-def installed_kernel_path(host: str) -> Path:
+def locator_path(host: str) -> Path:
     if host == "codex":
-        return Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex") / "AGENTS.md"
-    return Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "CLAUDE.md"
+        return Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex") / "GOVERNANCE_ROOT"
+    return Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "GOVERNANCE_ROOT"
+
+
+def _loading_prompt(prefix: str) -> str:
+    return (
+        "Automated configuration check, not a task. Do not read, open, or search any file and do not "
+        "use any tool. (1) List the path of every CLAUDE.md or instruction file whose contents you "
+        f"were given. (2) Quote the line in your loaded instructions that begins '{prefix}', or write "
+        "ABSENT if no such line is in your context."
+    )
 
 
 def _normalize_probe_text(text: str) -> str:
@@ -347,33 +361,50 @@ def _probe(model_entry: dict, name: str, cwd: Path, prompt: str, expected: list[
     )
 
 
+def verify_ungoverned(model_entry: dict, folders: dict[str, str]) -> dict:
+    """ADR 0005: governance text must not reach a session outside a governed
+    project. A leak is a real configuration fault, so one attempt decides."""
+    cwd = context_directory("UNGOVERNED", folders)
+    template = ROOT / "templates" / "repository" / "AGENTS.md"
+    continuation = _expected_continuation(template, KERNEL_PROBE_PREFIX)
+    if model_entry["host"] == "codex":
+        result = invoke_codex(_loading_prompt(KERNEL_PROBE_PREFIX), cwd, model_entry["model"], "low")
+    else:
+        result = invoke_claude(_loading_prompt(KERNEL_PROBE_PREFIX), cwd, model_entry["model"], "low",
+                               extra_disallowed=("Read", "Glob", "Grep"))
+    if result["status"] != "CAPTURED":
+        raise Error(f"instruction-loading check UNGOVERNED did not execute: {result['reason']}")
+    if continuation in _normalize_probe_text(result["response"] or ""):
+        raise Error(
+            f"instruction-loading check FAILED for {model_entry['label']} in UNGOVERNED: governance text "
+            f"reached a session outside any governed project (working directory {cwd}); a host-level kernel "
+            "is probably still installed -- run `governance.py host update`."
+        )
+    print("  instruction-loading check UNGOVERNED: PASS (no governance text outside governed projects)")
+    return {"context": "UNGOVERNED", "status": "PASS", "verified": ["no governance text outside governed projects"]}
+
+
 def verify_instruction_loading(model_entry: dict, contexts: set[str], folders: dict[str, str]) -> list[dict]:
-    """Before any scenario runs, prove the governance instructions reach the
-    model in every context the selection uses, and that it can follow the
-    kernel's GOVERNANCE_ROOT routing to a central workflow. Raises Error on
+    """Before any scenario runs, prove the governance text reaches the model
+    in every context the selection uses and nowhere else, and that the model
+    can follow GOVERNANCE_ROOT routing to a central workflow. Raises Error on
     the first failure: a campaign run without them does not measure the
     framework."""
     host = model_entry["host"]
     results = []
     for context in sorted(contexts):
         cwd = context_directory(context, folders)
-        checks = [("installed kernel", installed_kernel_path(host), KERNEL_PROBE_PREFIX)]
-        if context in CONTEXT_PROBE_PREFIXES:
-            checks.append((f"{context} AGENTS.md", cwd / "AGENTS.md", CONTEXT_PROBE_PREFIXES[context]))
+        checks = [("managed governance block", KERNEL_PROBE_PREFIX)] + list(CONTEXT_PROBE_PREFIXES.get(context, ()))
         # One line per call: asked for several at once, Claude on the test VM
         # consistently answered only the first while having all files loaded.
-        for label, source, prefix in checks:
-            prompt = (
-                "Automated configuration check, not a task. Do not read, open, or search any file and do not "
-                "use any tool. (1) List the path of every CLAUDE.md or instruction file whose contents you "
-                f"were given. (2) Quote the line in your loaded instructions that begins '{prefix}', or write "
-                "ABSENT if no such line is in your context."
-            )
-            _probe(model_entry, f"{context} / {label}", cwd, prompt,
-                   [(label, prefix, _expected_continuation(source, prefix))], allow_read=False)
-        results.append({"context": context, "status": "PASS", "verified": [label for label, _, _ in checks]})
+        for label, prefix in checks:
+            _probe(model_entry, f"{context} / {label}", cwd, _loading_prompt(prefix),
+                   [(label, prefix, _expected_continuation(cwd / "AGENTS.md", prefix))], allow_read=False)
+        results.append({"context": context, "status": "PASS", "verified": [label for label, _ in checks]})
 
-    locator = installed_kernel_path(host).parent / "GOVERNANCE_ROOT"
+    results.append(verify_ungoverned(model_entry, folders))
+
+    locator = locator_path(host)
     if not locator.is_file():
         raise Error(f"instruction-loading check: {locator} does not exist; install the host adapter first")
     routed = Path(locator.read_text(encoding="utf-8").strip()) / ROUTING_PROBE_FILE

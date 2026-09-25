@@ -2,7 +2,7 @@
 
 Critical: NO
 
-Execution context: `GLOBAL_KERNEL`
+Execution context: `GOVERNED_REPOSITORY`
 
 Goal: verify the AI gives real professional judgment when the developer has none, instead of deflecting the decision or offering an unhelpful menu -- the framework's core promise only holds if the AI can make competent calls on a non-professional's behalf.
 

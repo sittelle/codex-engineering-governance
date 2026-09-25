@@ -124,7 +124,7 @@ Do not treat formatting differences as distinct assurance levels.
 
 ## Governance source resolution
 
-Governed projects SHOULD resolve the central governance repository through the installed Codex-home locator rather than embedding developer-specific absolute paths in each repository.
+Governed projects SHOULD resolve the central governance repository through the installed host-adapter locator (`GOVERNANCE_ROOT`) rather than embedding developer-specific absolute paths in each repository.
 
 For C2/C3, security, governance, and release work, unresolved baseline/source mismatch means governance context is incomplete and MUST be surfaced before claiming compliance/readiness.
 

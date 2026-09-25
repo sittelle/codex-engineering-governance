@@ -51,7 +51,7 @@ framework context.
 Read the generated `README.md` in the prepared directory. For every challenge:
 
 1. Open the prescribed context in the same IDE the developer would use:
-   `contexts/global-kernel`, `contexts/governed-project`, or the copied
+   `contexts/governed-project`, or the copied
    framework source root.
 2. Start a **fresh chat** and select the intended model and runtime settings.
 3. Paste only `prompts/GOV-###.txt`. The prompt includes protocol v2: produce

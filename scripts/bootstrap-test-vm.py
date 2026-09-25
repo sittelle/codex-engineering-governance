@@ -115,7 +115,7 @@ def backup_existing_config(home: Path, host: str) -> list[str]:
     never touches at all.
 
     Only the selected host(s) are reset: the reset removes that host's
-    installed governance kernel, and only the selected host(s) get it
+    adapter (locator and read rules), and only the selected host(s) get it
     reinstalled."""
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     codex_home = Path(os.environ["CODEX_HOME"]) if os.environ.get("CODEX_HOME") else home / ".codex"
@@ -192,10 +192,11 @@ def install_native_clis(host: str) -> None:
 
 
 def install_host_adapter(host: str) -> None:
-    """Installs the framework's own kernel/governance instructions at the
-    host level (the same step scripts/bootstrap-evaluation-vm.py bundles
-    with VS Code setup for manual mode) so a scenario invocation actually
-    loads the framework's instructions, not just the bare model."""
+    """Installs the host adapter (the same step scripts/bootstrap-evaluation-vm.py
+    bundles with VS Code setup for manual mode): the GOVERNANCE_ROOT locator
+    and, for Claude, its read rules, so a governed scenario project can route
+    to central workflows/skills. The governance text itself comes from each
+    context's AGENTS.md (ADR 0005), never from user scope."""
     proc = run([sys.executable, str(GOVERNANCE_PY), "host", "install", "--host", host, "-y"], check=False)
     print(proc.stdout)
     if proc.returncode != 0:
@@ -355,12 +356,12 @@ def create_project_folders(kit, workspace: Path) -> dict[str, str]:
     workspace.mkdir(parents=True, exist_ok=True)
     contexts = workspace / "contexts"
     contexts.mkdir(exist_ok=True)
-    global_kernel = contexts / "global-kernel"
-    global_kernel.mkdir(exist_ok=True)
+    ungoverned_dir = contexts / "ungoverned"
+    ungoverned_dir.mkdir(exist_ok=True)
     if not (contexts / "governed-project").exists():
         kit.create_governed_context(contexts)
     return {
-        "GLOBAL_KERNEL": str(global_kernel),
+        "UNGOVERNED": str(ungoverned_dir),
         "GOVERNED_REPOSITORY": str(contexts / "governed-project"),
         "GOVERNANCE_FRAMEWORK_REPOSITORY": str(ROOT),
     }

@@ -225,7 +225,7 @@ def test_multi_model_session_continues_without_restart(failures: list[str]) -> N
         kit = mod.load_campaign_kit()
         workspace = tmp / "workspace"
         workspace.mkdir()
-        (workspace / "folders.json").write_text(json.dumps({"GLOBAL_KERNEL": str(tmp)}), encoding="utf-8")
+        (workspace / "folders.json").write_text(json.dumps({"GOVERNED_REPOSITORY": str(tmp), "UNGOVERNED": str(tmp)}), encoding="utf-8")
 
         answers = iter(["1", "y"])
         mod.input = lambda prompt="": next(answers)
@@ -246,28 +246,38 @@ def test_multi_model_session_continues_without_restart(failures: list[str]) -> N
         assert_true("claude" in log, "claude model's evidence did not land on the evidence branch", failures)
 
 
+KERNEL_LINE = 'Vague answers such as "whatever" or "normal" are NOT resolution when material.'
+END_LINE = "Add instructions specific to this repository here. They remain authoritative subject to the normal governance hierarchy."
+ROUTED_LINE = "Do not act on an assumed root cause when a reversible containment step can reduce harm first."
+LOADED_ANSWER = f"1. {KERNEL_LINE}\n2. {END_LINE}\n{ROUTED_LINE}\n"
+
+
 def _probe_fixture(tmp: Path, mod) -> tuple[dict, dict]:
-    kernel = tmp / "kernel" / "CLAUDE.md"
-    kernel.parent.mkdir()
-    kernel.write_text('Vague answers such as "whatever" or "normal" are NOT resolution when material.\n', encoding="utf-8")
+    """A governed project with the managed block first and the project section
+    last (ADR 0005), an ungoverned directory, and a GOVERNANCE_ROOT locator."""
     governed = tmp / "governed-project"
     governed.mkdir()
-    (governed / "AGENTS.md").write_text(
-        "Do not create a parallel technology registry or duplicate the complete dependency graph in governance.\n",
-        encoding="utf-8",
-    )
+    (governed / "AGENTS.md").write_text(f"{KERNEL_LINE}\n\n{END_LINE}\n", encoding="utf-8")
+    template = tmp / "templates" / "repository" / "AGENTS.md"
+    template.parent.mkdir(parents=True)
+    template.write_text(f"{KERNEL_LINE}\n", encoding="utf-8")
+    ungoverned = tmp / "ungoverned"
+    ungoverned.mkdir()
     governance_root = tmp / "governance-root"
     routed = governance_root / mod.ROUTING_PROBE_FILE
     routed.parent.mkdir(parents=True)
-    routed.write_text(
-        "Do not act on an assumed root cause when a reversible containment step can reduce harm first.\n",
-        encoding="utf-8",
-    )
-    (kernel.parent / "GOVERNANCE_ROOT").write_text(str(governance_root), encoding="utf-8")
-    mod.installed_kernel_path = lambda host: kernel
-    folders = {"GOVERNED_REPOSITORY": str(governed)}
+    routed.write_text(ROUTED_LINE + "\n", encoding="utf-8")
+    locator = tmp / "claude-config" / "GOVERNANCE_ROOT"
+    locator.parent.mkdir()
+    locator.write_text(str(governance_root), encoding="utf-8")
+    mod.locator_path = lambda host: locator
+    folders = {"GOVERNED_REPOSITORY": str(governed), "UNGOVERNED": str(ungoverned)}
     entry = {"label": "Claude test", "host": "claude", "model": "m", "effort": "high", "key": "k"}
     return folders, entry
+
+
+def _answer(response: str) -> dict:
+    return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": response}
 
 
 def test_instruction_probe_blocks_campaign_when_not_loaded(failures: list[str]) -> None:
@@ -286,7 +296,7 @@ def test_instruction_probe_blocks_campaign_when_not_loaded(failures: list[str]) 
                 probe_calls.append(prompt)
             else:
                 scenario_calls.append(prompt)
-            return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": "1. ABSENT\n2. ABSENT\n"}
+            return _answer("1. ABSENT\n2. ABSENT\n")
         mod.invoke_claude = fake_invoke
 
         workspace = tmp / "workspace"
@@ -310,36 +320,51 @@ def test_instruction_probe_passes_when_instructions_are_quoted(failures: list[st
         calls = []
 
         def fake_invoke(prompt, cwd, model, effort, extra_disallowed=()):
-            calls.append((prompt, extra_disallowed))
+            calls.append((prompt, cwd, extra_disallowed))
+            if Path(cwd) == Path(folders["UNGOVERNED"]):
+                return _answer("1. none\n2. ABSENT\n")
             if len(calls) == 1:  # a one-off misquote must be retried, not abort the run
-                return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": "1. ABSENT\n2. ABSENT\n"}
-            return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": (
-                '1. Vague answers such as “whatever” or **"normal"** are NOT resolution when material.\n'
-                "2. - Do not create a parallel technology registry or duplicate the complete dependency graph in governance.\n"
-                "Do not act on an assumed root cause when a reversible containment step can reduce harm first.\n"
-            )}
+                return _answer("1. ABSENT\n2. ABSENT\n")
+            return _answer(LOADED_ANSWER.replace('"normal"', '**"normal"**'))
         mod.invoke_claude = fake_invoke
 
         with contextlib.redirect_stdout(io.StringIO()):
             results = mod.verify_instruction_loading(entry, {"GOVERNED_REPOSITORY"}, folders)
         assert_true(
-            [r["context"] for r in results] == ["GOVERNED_REPOSITORY", "GOVERNANCE_ROOT_ROUTING"]
+            [r["context"] for r in results] == ["GOVERNED_REPOSITORY", "UNGOVERNED", "GOVERNANCE_ROOT_ROUTING"]
             and all(r["status"] == "PASS" for r in results),
-            f"loading and routing checks should both PASS, got {results}",
+            f"loading, ungoverned and routing checks should all PASS, got {results}",
             failures,
         )
         assert_true(
-            len(calls) == 4,
-            f"expected kernel check (retried once), project AGENTS.md check, and routing check (4 calls), got {len(calls)}",
+            len(calls) == 5,
+            f"expected managed-block check (retried once), end-of-file check, ungoverned check and routing check (5 calls), got {len(calls)}",
             failures,
         )
-        loading_denied, routing_denied = set(calls[1][1]) | set(calls[2][1]), set(calls[3][1])
+        loading_denied = set(calls[1][2]) | set(calls[2][2]) | set(calls[3][2])
         assert_true(
             {"Read", "Glob", "Grep"} <= loading_denied,
-            "the Claude loading check must deny file tools so it cannot pass by reading the files instead of having them loaded",
+            "the Claude loading checks must deny file tools so they cannot pass by reading the files instead of having them loaded",
             failures,
         )
-        assert_true("Read" not in routing_denied, "the routing check must leave the Read tool available", failures)
+        assert_true("Read" not in set(calls[4][2]), "the routing check must leave the Read tool available", failures)
+
+
+def test_ungoverned_probe_blocks_campaign_on_governance_leak(failures: list[str]) -> None:
+    """ADR 0005: governance text reaching a session outside any governed
+    project (e.g. a host-level kernel still installed) must stop the run."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        mod = load_runner_with_scratch_root(tmp)
+        folders, entry = _probe_fixture(tmp, mod)
+        mod.invoke_claude = lambda prompt, cwd, model, effort, extra_disallowed=(): _answer(LOADED_ANSWER)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                mod.verify_instruction_loading(entry, {"GOVERNED_REPOSITORY"}, folders)
+        except mod.Error as exc:
+            assert_true("UNGOVERNED" in str(exc), f"the failure should name the ungoverned check: {exc}", failures)
+        else:
+            failures.append("governance text in an ungoverned session must fail the instruction-loading check")
 
 
 def test_routing_probe_blocks_campaign_when_locator_unreadable(failures: list[str]) -> None:
@@ -353,11 +378,10 @@ def test_routing_probe_blocks_campaign_when_locator_unreadable(failures: list[st
 
         def fake_invoke(prompt, cwd, model, effort, extra_disallowed=()):
             if "file-read tool" in prompt:
-                return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": "BLOCKED: GOVERNANCE_ROOT read denied\n"}
-            return {"status": "CAPTURED", "reason": None, "invocation": ["fake"], "response": (
-                "1. Vague answers such as whatever or normal are NOT resolution when material.\n"
-                "2. Do not create a parallel technology registry or duplicate the complete dependency graph in governance.\n"
-            )}
+                return _answer("BLOCKED: GOVERNANCE_ROOT read denied\n")
+            if Path(cwd) == Path(folders["UNGOVERNED"]):
+                return _answer("1. none\n2. ABSENT\n")
+            return _answer(LOADED_ANSWER)
         mod.invoke_claude = fake_invoke
 
         try:
@@ -526,6 +550,7 @@ def main() -> int:
     test_interactive_selection_retries_on_invalid_input(failures)
     test_instruction_probe_blocks_campaign_when_not_loaded(failures)
     test_instruction_probe_passes_when_instructions_are_quoted(failures)
+    test_ungoverned_probe_blocks_campaign_on_governance_leak(failures)
     test_routing_probe_blocks_campaign_when_locator_unreadable(failures)
     test_git_remote_access_retries_through_browser_auth(failures)
     test_git_remote_access_gives_up_after_retry_limit(failures)
@@ -548,6 +573,7 @@ def main() -> int:
     print("- interactive scenario selection retries on invalid input and --select skips the prompt")
     print("- a model without the governance instructions in context is stopped before any scenario runs or evidence is written")
     print("- the instruction-loading check retries a one-off misquote, passes on a correct quote, and denies the Claude probe its file tools")
+    print("- governance text reaching an ungoverned session stops the run (ADR 0005)")
     print("- an unreadable GOVERNANCE_ROOT locator stops the run even when the instructions themselves are loaded")
     print("- unreachable git remote access retries through browser authorization until reachable")
     print("- unreachable git remote access gives up with a clear error after the retry limit")

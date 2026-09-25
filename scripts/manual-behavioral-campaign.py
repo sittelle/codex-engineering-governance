@@ -121,10 +121,10 @@ def directory_fingerprint(directory: Path) -> str:
 
 
 def context_identities(contexts: Path, source: dict) -> dict[str, dict[str, str | None]]:
-    global_context = contexts / "global-kernel"
+    ungoverned_context = contexts / "ungoverned"
     governed_context = contexts / "governed-project"
     return {
-        "GLOBAL_KERNEL": {"kind": "EMPTY_CONTEXT", "content_sha256": directory_fingerprint(global_context)},
+        "UNGOVERNED": {"kind": "EMPTY_CONTEXT", "content_sha256": directory_fingerprint(ungoverned_context)},
         "GOVERNED_REPOSITORY": {"kind": "GENERATED_GOVERNED_CONTEXT", "content_sha256": directory_fingerprint(governed_context)},
         "GOVERNANCE_FRAMEWORK_REPOSITORY": {
             "kind": "FRAMEWORK_SOURCE",
@@ -324,7 +324,7 @@ This directory contains no model responses and makes no network calls itself.
 
 ## Contexts
 
-- `GLOBAL_KERNEL`: open `contexts/global-kernel`, an otherwise empty directory.
+- `UNGOVERNED`: open `contexts/ungoverned`, an otherwise empty directory.
 - `GOVERNED_REPOSITORY`: open `contexts/governed-project`, created through the
   normal framework project lifecycle without Git initialization.
 - `GOVERNANCE_FRAMEWORK_REPOSITORY`: open the copied framework source root from
@@ -428,7 +428,7 @@ def prepare(destination: Path, rows: list[dict]) -> None:
     responses.mkdir()
     contexts.mkdir()
     (destination / "evidence").mkdir()
-    (contexts / "global-kernel").mkdir()
+    (contexts / "ungoverned").mkdir()
     create_governed_context(contexts)
     source = source_state()
     identities = context_identities(contexts, source)
@@ -656,12 +656,12 @@ def expected_claude_settings_state(home: Path) -> str:
 def context_influence_audit(campaign: Path, host: str) -> dict[str, str]:
     """Inspect known context influence locations without retaining their names or text."""
     contexts = campaign / "contexts"
-    global_context = contexts / "global-kernel"
+    ungoverned_context = contexts / "ungoverned"
     governed_context = contexts / "governed-project"
     framework_context = ROOT
     if host == "codex":
-        return codex_context_influence_audit(campaign, global_context, governed_context, framework_context)
-    return claude_context_influence_audit(global_context, governed_context, framework_context)
+        return codex_context_influence_audit(campaign, ungoverned_context, governed_context, framework_context)
+    return claude_context_influence_audit(ungoverned_context, governed_context, framework_context)
 
 
 def aggregate_influence_state(paths: tuple[Path, ...]) -> str:
@@ -672,7 +672,7 @@ def aggregate_influence_state(paths: tuple[Path, ...]) -> str:
 
 
 def claude_context_influence_audit(
-    global_context: Path,
+    ungoverned_context: Path,
     governed_context: Path,
     framework_context: Path,
 ) -> dict[str, str]:
@@ -680,12 +680,12 @@ def claude_context_influence_audit(
     instruction_names = ("CLAUDE.md", "CLAUDE.local.md")
     project_surface = (".claude", ".mcp.json")
     contexts = (
-        (global_context, False),
+        (ungoverned_context, False),
         (governed_context, True),
         (framework_context, True),
     )
 
-    global_state = aggregate_influence_state(tuple(global_context / name for name in instruction_names + project_surface))
+    global_state = aggregate_influence_state(tuple(ungoverned_context / name for name in instruction_names + project_surface))
     governed_state = (
         "EXPECTED_MANAGED"
         if (governed_context / "CLAUDE.md").is_file()
@@ -717,7 +717,7 @@ def claude_context_influence_audit(
         context / relative for context, _ in contexts for relative in project_surface
     ))
     return {
-        "global_context_instruction": global_state,
+        "ungoverned_context_instruction": global_state,
         "governed_context_managed_files": governed_state,
         "framework_context_managed_files": framework_state,
         "known_ancestor_instruction": (
@@ -731,13 +731,13 @@ def claude_context_influence_audit(
 
 def codex_context_influence_audit(
     campaign: Path,
-    global_context: Path,
+    ungoverned_context: Path,
     governed_context: Path,
     framework_context: Path,
 ) -> dict[str, str]:
     """Audit every documented local Codex context source used by this campaign."""
     contexts = (
-        (global_context, False),
+        (ungoverned_context, False),
         (governed_context, True),
         (framework_context, True),
     )
@@ -746,7 +746,7 @@ def codex_context_influence_audit(
         ".agents/rules", ".agents/skills", ".mcp.json", ".vscode/mcp.json",
         ".vscode/settings.json", "SKILL.md",
     )
-    global_state = "DECLARED_INFLUENCE" if (global_context / "AGENTS.md").exists() else "ABSENT"
+    global_state = "DECLARED_INFLUENCE" if (ungoverned_context / "AGENTS.md").exists() else "ABSENT"
     governed_state = "EXPECTED_MANAGED" if (governed_context / "AGENTS.md").is_file() else "UNKNOWN"
     framework_state = "EXPECTED_MANAGED" if (framework_context / "AGENTS.md").is_file() else "UNKNOWN"
 
@@ -774,7 +774,7 @@ def codex_context_influence_audit(
         for relative in project_surface
     )
     return {
-        "global_context_instruction": global_state,
+        "ungoverned_context_instruction": global_state,
         "governed_context_managed_files": governed_state,
         "framework_context_managed_files": framework_state,
         "known_ancestor_instruction": "DECLARED_INFLUENCE" if ancestor_influence else "ABSENT",
@@ -1213,8 +1213,8 @@ def pending_records(directory: Path, manifest: dict) -> list[dict]:
 
 def context_path(directory: Path, item: dict) -> Path:
     context = item["context"]
-    if context == "GLOBAL_KERNEL":
-        target = directory / "contexts" / "global-kernel"
+    if context == "UNGOVERNED":
+        target = directory / "contexts" / "ungoverned"
     elif context == "GOVERNED_REPOSITORY":
         target = directory / "contexts" / "governed-project"
     elif context == "GOVERNANCE_FRAMEWORK_REPOSITORY":
@@ -1532,10 +1532,10 @@ def self_test() -> int:
             if claude_user_mcp_state(mcp_home) != "DECLARED_INFLUENCE":
                 raise Error("Claude user MCP configuration influence was not detected")
             audit_campaign = Path(temp) / "audit-campaign"
-            audit_global = audit_campaign / "contexts" / "global-kernel"
+            audit_ungoverned = audit_campaign / "contexts" / "ungoverned"
             audit_governed = audit_campaign / "contexts" / "governed-project"
             audit_framework = Path(temp) / "audit-framework"
-            audit_global.mkdir(parents=True)
+            audit_ungoverned.mkdir(parents=True)
             audit_governed.mkdir(parents=True)
             audit_framework.mkdir()
             (audit_governed / "AGENTS.md").write_text("managed\n", encoding="utf-8")
@@ -1543,26 +1543,26 @@ def self_test() -> int:
             (audit_framework / "AGENTS.md").write_text("managed\n", encoding="utf-8")
             (audit_framework / "CLAUDE.md").write_text("managed\n", encoding="utf-8")
             clean_audit = codex_context_influence_audit(
-                audit_campaign, audit_global, audit_governed, audit_framework,
+                audit_campaign, audit_ungoverned, audit_governed, audit_framework,
             )
             if any(value not in {"ABSENT", "EXPECTED_MANAGED"} for value in clean_audit.values()):
                 raise Error("clean Codex context audit was not inspectable")
             (audit_governed / ".codex").mkdir()
             (audit_governed / ".codex" / "config.toml").write_text("model = 'test'\n", encoding="utf-8")
             changed_audit = codex_context_influence_audit(
-                audit_campaign, audit_global, audit_governed, audit_framework,
+                audit_campaign, audit_ungoverned, audit_governed, audit_framework,
             )
             if changed_audit["project_rules_workflows_skills_hooks_commands_mcp"] != "DECLARED_INFLUENCE":
                 raise Error("Codex project configuration influence was not detected")
             clean_claude_audit = claude_context_influence_audit(
-                audit_global, audit_governed, audit_framework,
+                audit_ungoverned, audit_governed, audit_framework,
             )
             if any(value not in {"ABSENT", "EXPECTED_MANAGED"} for value in clean_claude_audit.values()):
                 raise Error("clean Claude context audit was not inspectable")
             (audit_governed / ".claude").mkdir()
             (audit_governed / ".claude" / "settings.json").write_text("{}\n", encoding="utf-8")
             changed_claude_audit = claude_context_influence_audit(
-                audit_global, audit_governed, audit_framework,
+                audit_ungoverned, audit_governed, audit_framework,
             )
             if changed_claude_audit["project_rules_workflows_skills_hooks_commands_mcp"] != "DECLARED_INFLUENCE":
                 raise Error("Claude project configuration influence was not detected")

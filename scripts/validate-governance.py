@@ -51,7 +51,7 @@ required = [
     "tests/capabilities/python/positive.py", "tests/capabilities/python/negative.py", "tests/capabilities/typescript/positive.ts", "tests/capabilities/typescript/negative.ts",
     "workflows/refactor/WORKFLOW.md",
     "workflows/emergency-fix/WORKFLOW.md", "workflows/dependency-change/WORKFLOW.md", "workflows/data-migration/WORKFLOW.md",
-    "codex-home/AGENTS.md", "host-adapters/operating-kernel.md", "host-adapters/operating-kernel.non-professional.md", "host-adapters/claude/README.md", "host-adapters/claude/managed-settings.inform.json", "host-adapters/claude/managed-settings.block.json", "host-adapters/codex/README.md", "host-adapters/codex/requirements.inform.toml", "host-adapters/codex/requirements.block.toml", "CLAUDE.md", "templates/repository/AGENTS.md", "templates/repository/AGENTS.non-professional.md",
+    "host-adapters/claude/README.md", "host-adapters/claude/managed-settings.inform.json", "host-adapters/claude/managed-settings.block.json", "host-adapters/codex/README.md", "host-adapters/codex/requirements.inform.toml", "host-adapters/codex/requirements.block.toml", "CLAUDE.md", "templates/repository/AGENTS.md", "templates/repository/AGENTS.non-professional.md",
     "templates/repository/CLAUDE.md", "templates/repository/project-governance.yml",
     "tests/governance/TEST-CONTEXTS.json", "tests/governance/TEST-CONTEXTS.md",
     "tests/governance/evaluations/README.md", "global/operating-contract.md", "global/engineering-constitution.md",
@@ -316,7 +316,7 @@ if not tech_record or tech_record.group(1) != "docs/design.md#technology-baselin
     errors.append("project template Technology Baseline record pointer missing or unexpected")
 
 project_agents = (root / "templates/repository/AGENTS.md").read_text(encoding="utf-8")
-for marker in ("## Technology Baseline", "Material Technology Baseline transition completeness", "Technology Baseline Transition Summary", "Delta / classification", "Technical recommendation", "Dependency / supply-chain and triggered impacts", "Approval state", "Transition state / durable record", "Verification / assurance reconciliation", "`ESTABLISHED` closure criteria", "NOT APPLICABLE", "RECONCILIATION_REQUIRED", "technology-selection", "dependency/supply-chain", "newly applicable assurance capabilities", "return to `ESTABLISHED` only", "Do not silently drift", "canonical quick/full verification"):
+for marker in ("## Technology Baseline", "Technology Baseline Transition Summary", "Delta/classification", "Technical recommendation", "Dependency/supply-chain and triggered impacts", "Approval state", "Transition state/durable record", "Verification/assurance reconciliation", "`ESTABLISHED` closure criteria", "NOT APPLICABLE", "RECONCILIATION_REQUIRED", "technology-selection", "dependency/supply-chain", "newly applicable capabilities", "return to `ESTABLISHED` only", "Do not silently drift", "canonical quick/full verification"):
     if marker not in project_agents:
         errors.append(f"project AGENTS Technology Baseline guidance missing: {marker}")
 
@@ -350,15 +350,19 @@ for label, claude_text in (("project", project_claude), ("framework", root_claud
 if 'source: "host-adapter-locator"' not in project_template or 'locator: "GOVERNANCE_ROOT"' not in project_template:
     errors.append("project governance template does not use the host-neutral locator contract")
 
-host_kernel_template = (root / "host-adapters/operating-kernel.md").read_text(encoding="utf-8")
-rendered_codex_kernel = host_kernel_template.replace("{{HOST_NAME}}", "Codex").replace(
-    "{{LOCATOR_DISPLAY}}",
-    "$CODEX_HOME/GOVERNANCE_ROOT (default: $HOME/.codex/GOVERNANCE_ROOT)",
-)
-if "{{" in rendered_codex_kernel or "}}" in rendered_codex_kernel:
-    errors.append("shared host operating kernel contains unresolved placeholders")
-if (root / "codex-home/AGENTS.md").read_text(encoding="utf-8") != rendered_codex_kernel:
-    errors.append("codex-home/AGENTS.md is not the exact Codex rendering of the shared host operating kernel")
+# ADR 0005: the template's managed block is the single governance text; the
+# framework's own AGENTS.md carries an exact copy at its top, and no
+# host-level kernel exists.
+framework_agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+framework_block = managed_pattern.search(framework_agents)
+if not framework_block or framework_block.group(0) != managed_project_agents:
+    errors.append("framework AGENTS.md managed block is not an exact copy of templates/repository/AGENTS.md's")
+for label, text in (("framework AGENTS.md", framework_agents), ("templates/repository/AGENTS.md", project_agents)):
+    if not text.lstrip().startswith("<!-- BEGIN ENGINEERING-GOVERNANCE-MANAGED -->"):
+        errors.append(f"{label} does not start with the managed governance block (Codex truncates from the end)")
+for retired in ("host-adapters/operating-kernel.md", "host-adapters/operating-kernel.non-professional.md", "codex-home/AGENTS.md"):
+    if (root / retired).exists():
+        errors.append(f"retired host-level kernel file still exists: {retired}")
 
 claude_managed_settings = {}
 for variant, flag in (("inform", "--inform"), ("block", "--enforce")):
@@ -454,35 +458,33 @@ else:
         if inform_copy != block_copy:
             errors.append("requirements.inform.toml and requirements.block.toml differ by more than the hook enforcement parameter")
 
-non_professional_kernel = (root / "host-adapters/operating-kernel.non-professional.md").read_text(encoding="utf-8")
 non_professional_agents = (root / "templates/repository/AGENTS.non-professional.md").read_text(encoding="utf-8")
 JARGON_TERMS = ("C0", "C1", "C2", "C3", "SA0", "SA1", "SA2", "SA3", "M0", "M1", "M2", "M3", "INCOMPLETE_ASSURANCE", "DID_NOT_EXECUTE", "NOT_APPLICABLE")
-for label, text in (("host-adapters/operating-kernel.non-professional.md", non_professional_kernel), ("templates/repository/AGENTS.non-professional.md", non_professional_agents)):
-    for term in JARGON_TERMS:
-        if re.search(rf"\b{re.escape(term)}\b", text):
-            errors.append(f"{label} leaks assurance-internals jargon: {term}")
-if "{{HOST_NAME}}" not in non_professional_kernel or "{{LOCATOR_DISPLAY}}" not in non_professional_kernel:
-    errors.append("host-adapters/operating-kernel.non-professional.md is missing a required placeholder")
+for term in JARGON_TERMS:
+    if re.search(rf"\b{re.escape(term)}\b", non_professional_agents):
+        errors.append(f"templates/repository/AGENTS.non-professional.md leaks assurance-internals jargon: {term}")
+if not non_professional_agents.lstrip().startswith("<!-- BEGIN ENGINEERING-GOVERNANCE-MANAGED -->"):
+    errors.append("templates/repository/AGENTS.non-professional.md does not start with the managed governance block")
 if "<!-- BEGIN ENGINEERING-GOVERNANCE-MANAGED -->" not in non_professional_agents or "<!-- END ENGINEERING-GOVERNANCE-MANAGED -->" not in non_professional_agents:
     errors.append("templates/repository/AGENTS.non-professional.md has no managed governance block markers")
 
 non_professional_managed_match = managed_pattern.search(non_professional_agents)
 managed_non_professional_agents = non_professional_managed_match.group(0) if non_professional_managed_match else ""
 
-# WS6 proportionality: every governed session loads the kernel plus, for a
-# governed project, its managed AGENTS block. These budgets are a character-count
-# proxy for token cost (this tooling is dependency-free and does not vendor a
-# tokenizer); they exist to catch runaway growth, not to micro-optimize wording.
-# Raise a budget only with a deliberate reason, not merely to silence this check.
+# WS6 proportionality / ADR 0005: a governed session loads exactly its
+# repository's AGENTS.md, so these byte budgets bound the governance token cost
+# per session. They also keep each file under Codex's 32 KiB project-doc limit,
+# past which Codex silently truncates. Raise a budget only with a deliberate
+# reason, not merely to silence this check.
 TOKEN_BUDGETS = (
-    ("host-adapters/operating-kernel.md (professional kernel)", host_kernel_template, 20000),
-    ("host-adapters/operating-kernel.non-professional.md (non-professional kernel)", non_professional_kernel, 6000),
-    ("templates/repository/AGENTS.md managed block (professional)", managed_project_agents, 10000),
-    ("templates/repository/AGENTS.non-professional.md managed block (non-professional)", managed_non_professional_agents, 2500),
+    ("templates/repository/AGENTS.md", project_agents, 28672),
+    ("templates/repository/AGENTS.non-professional.md", non_professional_agents, 8192),
+    ("AGENTS.md (framework repository)", framework_agents, 30720),
 )
 for label, text, budget in TOKEN_BUDGETS:
-    if len(text) > budget:
-        errors.append(f"{label} exceeds its token budget: {len(text)} chars > {budget} chars")
+    size = len(text.encode("utf-8"))
+    if size > budget:
+        errors.append(f"{label} exceeds its token budget: {size} bytes > {budget} bytes")
 
 registration_schema = json.loads((root / "assurance/registration.schema.json").read_text(encoding="utf-8"))
 registration_template = (root / "templates/repository/registration.yml").read_text(encoding="utf-8")
@@ -504,33 +506,28 @@ for marker in ("permissions.allow", "Read(/", "Apply these changes? [y/N]:"):
 
 managed_transition_markers = ("feature implementation proposes", "workflows/new-feature/WORKFLOW.md", "Technology Baseline Transition Summary", "Delta/classification", "Technical recommendation", "Dependency/supply-chain", "Approval state", "Transition state/durable record", "RECONCILIATION_REQUIRED", "Verification/assurance reconciliation", "newly applicable capabilities", "`ESTABLISHED` closure criteria", "NOT APPLICABLE")
 managed_propagation_markers = (
-    "Known vulnerability/finding risk acceptance is distinct from missing required-control evidence",
     "separate explicit governance/policy exception",
     "Reassess a `NOT_APPLICABLE` decision when its factual trigger changes",
-    "Changing result classification for a required security control is a material C2 assurance-policy change",
+    "Changing result classification or required execution contexts for a required security control is a material C2 assurance-policy decision",
     "When the stated facts already establish a baseline-required capability",
     "committed identities of the verification plan, managed assurance baseline, and runner",
     "byte hashes are diagnostics, not aggregation identity",
     "canonical precondition-failure/report path",
-    "answer concrete assurance facts with the governing conclusion",
     "regardless of release intent",
     "Required local/CI split response checklist",
-    "Do not reduce this to “CI will run it later”",
-    "cannot relabel the missing control, local `full`, or combined result as PASS",
-    "An attributable executed `FAIL` remains fail-dominant",
+    "An attributable executed `FAIL` dominates a PASS from any other context",
+    "`ANY` never authorizes masking a real failure",
+    "name the failing check and context",
     "Service restoration is not governance completion",
     "after stabilization, run deferred verification",
     "Required-control response completeness",
-    "finding risk acceptance is not the governance/policy exception required to proceed without the control",
-    "any attributable executed `FAIL` remains fail-dominant even when another approved context passes",
-    "A complete emergency answer explicitly states both post-stabilization duties",
     "Mentioning only the bypass cleanup and not the deferred verification is incomplete",
+    "Dirty, untracked, or mismatched artifacts stay ineligible for aggregation",
 )
 for expected in managed_transition_markers + managed_propagation_markers:
     if expected not in managed_project_agents:
         errors.append(f"authoritative managed AGENTS block missing propagation marker: {expected}")
 
-kernel_agents = (root / "codex-home/AGENTS.md").read_text(encoding="utf-8")
 for expected in (
     "## Required-control response completeness",
     "finding-risk acceptance cannot substitute for that missing-control exception",
@@ -547,8 +544,8 @@ for expected in (
     "Do not compress this checklist into a generic statement",
     "it cannot relabel the missing control, local `full`, or the combined result as PASS",
 ):
-    if expected not in kernel_agents:
-        errors.append(f"global kernel response-completeness guidance missing: {expected}")
+    if expected not in managed_project_agents:
+        errors.append(f"managed governance block response-completeness guidance missing: {expected}")
 
 for rel, markers in (
     ("workflows/release/WORKFLOW.md", ("## Required-control response completeness", "known vulnerability/finding is a different decision from granting a governance/policy exception", "an attributable executed `FAIL` remains fail-dominant")),
@@ -703,15 +700,15 @@ for marker in ("recursively", "move/delete", "collision/overwrite", "rollback/re
     if marker not in automation_skill:
         errors.append(f"automation-safety skill missing GOV-003 safeguard marker: {marker}")
 
-kernel = (root / "codex-home/AGENTS.md").read_text(encoding="utf-8")
 for marker in ("skills/automation-safety/SKILL.md", "recursion scope", "collision/overwrite policy", "rollback/recovery", "read-only inventory/dry-run", "no-overwrite", "bounded scope"):
-    if marker not in kernel:
-        errors.append(f"global kernel missing automation-safety routing marker: {marker}")
-proj = (root / "templates/repository/AGENTS.md").read_text(encoding="utf-8")
+    if marker not in managed_project_agents:
+        errors.append(f"managed governance block missing automation-safety routing marker: {marker}")
 for section in ("## Destructive data invariant", "## Assurance completeness invariant", "## Assurance outcome and environment invariant"):
-    if section not in kernel: errors.append(f"global kernel missing {section}")
-if "GOVERNANCE_ROOT" not in kernel or "GOVERNANCE_ROOT" not in proj:
-    errors.append("central governance locator missing from global/project instructions")
+    if section not in managed_project_agents:
+        errors.append(f"managed governance block missing {section}")
+for label, text in (("professional", managed_project_agents), ("non-professional", managed_non_professional_agents)):
+    if "$CLAUDE_CONFIG_DIR/GOVERNANCE_ROOT" not in text or "$CODEX_HOME/GOVERNANCE_ROOT" not in text:
+        errors.append(f"{label} managed governance block does not name both hosts' GOVERNANCE_ROOT locators")
 
 # Unified project update must migrate legacy Technology Baseline state truthfully.
 for marker in (
@@ -732,7 +729,7 @@ for marker in ("Release artifact and evidence binding", "Retained release decisi
 for marker in ("completion record", "No findings", "exact source/revision"):
     if marker.lower() not in security_workflow.lower(): errors.append(f"security review workflow missing completion-evidence marker: {marker}")
 for rel in ("assurance/verification-standard.md", "assurance/architecture.md", "assurance/severity-policy.md", "assurance/exception-policy.md"):
-    if rel not in proj: errors.append(f"release routing does not load {rel}")
+    if rel not in project_agents: errors.append(f"release routing does not load {rel}")
 
 # Framework self-governance is deliberately lightweight; assurance truth lives in the v3 plan.
 try:
@@ -811,6 +808,6 @@ print(
     f"Codex {campaign_words.get(campaign_states.get('codex'), 'PENDING')}; "
     f"Claude Code {campaign_words.get(campaign_states.get('claude'), 'PENDING')}"
 )
-print("- central governance locator referenced by global/project instructions")
+print("- governance text is project-scoped: one managed block, both hosts' locators, no host-level kernel")
 print("- assurance completeness and outcome invariants present")
-print("- kernel and managed-block token budgets met")
+print("- per-session governance byte budgets met (under Codex's 32 KiB project-doc limit)")
