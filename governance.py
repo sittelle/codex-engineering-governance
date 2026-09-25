@@ -1845,7 +1845,7 @@ def preview_project_update(root: Path, project: Path, plan: dict) -> None:
             if plan["technology_added"]
             else "Technology Baseline: preserve existing project-owned state"
         ),
-        "AGENTS.md: replace/append managed governance block only",
+        "AGENTS.md: managed governance block first; project-specific text kept after it (unedited framework-authored text refreshed)",
         (
             "CLAUDE.md: create managed Claude adapter"
             if plan["claude_old"] is None
