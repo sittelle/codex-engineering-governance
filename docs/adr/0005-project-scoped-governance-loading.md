@@ -2,13 +2,13 @@
 
 ## Status
 
-Proposed, 2026-09-25. Requested by Gregor Kleiber, framework maintainer: the
+Accepted, 2026-09-25, by Gregor Kleiber, framework maintainer, including the
+recommended answer to each open question (see "Resolved questions").
+Implementation follows the current regression campaign. Requirement: the
 framework should be present only in governed projects, not in every Claude
 Code or Codex session on the machine, and should impose the lowest token cost
-that still achieves its goals. To be implemented after the current regression
-campaign. This is a C2 change (installer behavior, templates, normative text
-layout, evaluation contexts) and needs maintainer approval of the detailed
-design below before implementation.
+that still achieves its goals. This is a C2 change (installer behavior,
+templates, normative text layout, evaluation contexts).
 
 ## Context
 
@@ -162,12 +162,15 @@ Negative and risks:
    user-scope footprint), evaluation VM docs.
 7. Full campaign on both hosts.
 
-## Open questions for approval
+## Resolved questions
 
-1. GOV-001/GOV-003: move to the governed-project context (recommended), or
-   keep a separate "fresh governed project" context.
-2. User scope: write nothing at all (recommended, per the requirement), or a
-   one-line pointer to `governance.py project new` at a cost of about 100
-   characters per session.
-3. Byte budget: 28 KiB for the whole project file (recommended), or document
-   raising `project_doc_max_bytes` in Codex configuration instead.
+Decided by the maintainer on 2026-09-25, each as recommended:
+
+1. GOV-001 and GOV-003 move to the governed-project context. This is a
+   scenario definition revision approved by this ADR; the scenario rubrics
+   stay unchanged.
+2. Nothing is written to user scope that loads into sessions, not even a
+   pointer to `governance.py project new`.
+3. The whole rendered project `AGENTS.md` is budgeted at 28 KiB (bytes,
+   UTF-8), enforced by the validator, rather than relying on users raising
+   Codex's `project_doc_max_bytes`.
