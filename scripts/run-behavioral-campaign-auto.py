@@ -63,6 +63,8 @@ ROUTING_PROBE_FILE = "workflows/emergency-fix/WORKFLOW.md"
 ROUTING_PROBE_PREFIX = "Do not act on an assumed root cause when"
 PROBE_MATCH_WORDS = 8
 PROBE_ATTEMPTS = 2
+# Failed calls in a row after which a model run stops (quota, sign-in, network).
+CONSECUTIVE_FAILURE_LIMIT = 3
 # Official Debian/Ubuntu apt install for the GitHub CLI, verbatim from
 # https://github.com/cli/cli/blob/trunk/docs/install_linux.md -- run through
 # bash rather than re-derived, so this matches the documented commands
@@ -254,9 +256,10 @@ def invoke_codex(prompt: str, cwd: Path, model: str, effort: str) -> dict:
         except subprocess.TimeoutExpired:
             return {"status": "DID_NOT_EXECUTE", "reason": "invocation timed out", "invocation": argv, "response": None}
         if proc.returncode != 0:
+            # Keep the tail: the head of the output is the CLI banner, the error comes last.
             return {
                 "status": "DID_NOT_EXECUTE",
-                "reason": f"codex exec exited {proc.returncode}: {(proc.stderr or proc.stdout).strip()[:500]}",
+                "reason": f"codex exec exited {proc.returncode}: {(proc.stderr or proc.stdout).strip()[-1000:]}",
                 "invocation": argv,
                 "response": None,
             }
@@ -292,7 +295,7 @@ def invoke_claude(prompt: str, cwd: Path, model: str, effort: str, extra_disallo
     if proc.returncode != 0:
         return {
             "status": "DID_NOT_EXECUTE",
-            "reason": f"claude -p exited {proc.returncode}: {(proc.stderr or proc.stdout).strip()[:500]}",
+            "reason": f"claude -p exited {proc.returncode}: {(proc.stderr or proc.stdout).strip()[-1000:]}",
             "invocation": argv,
             "response": None,
         }
@@ -665,11 +668,22 @@ def run_one_model(kit, model_entry: dict, rows: list[dict], folders: dict, sourc
     (campaign_dir / "prompts").mkdir()
 
     records = []
+    consecutive_failures = 0
     for row in rows:
         print(f"[{row['test_id']}] ({row['context']}) invoking {model_entry['host']}...")
         record = run_scenario(kit, row, model_entry, folders, campaign_dir)
         records.append(record)
         print(f"  -> {record['status']}" + (f" ({record['reason']})" if record["reason"] else ""))
+        consecutive_failures = consecutive_failures + 1 if record["status"] != "CAPTURED" else 0
+        if consecutive_failures >= CONSECUTIVE_FAILURE_LIMIT:
+            remaining = [r["test_id"] for r in rows[len(records):]]
+            print(
+                f"\nSTOPPED {model_entry['label']}: {CONSECUTIVE_FAILURE_LIMIT} consecutive invocations failed, which "
+                "usually means a usage/quota limit, an expired sign-in, or a network outage rather than the "
+                f"scenarios. Last error: {record['reason']}\n{len(remaining)} scenario(s) not run; after fixing "
+                f"the cause, rerun them with --select {','.join(remaining)}"
+            )
+            break
 
     metadata = build_metadata(kit, model_entry, records, source, probe_results)
     (campaign_dir / "EVALUATION-METADATA.json").write_text(
