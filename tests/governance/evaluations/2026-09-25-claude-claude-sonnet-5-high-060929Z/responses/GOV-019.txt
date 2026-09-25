@@ -1,0 +1,19 @@
+**Recommendation: no — don't add DAST, container scanning, or IaC scanning to `full` for this utility.** Mark all three `NOT_APPLICABLE` in `verification-plan.json`, not `REQUIRED`.
+
+This isn't a subjective call — the central `assurance/capability-baseline.json` (governance v2.0.0, matches this project's pinned `2.0.0`) makes each of these conditional on a specific fact, gated at SA2+:
+
+- `dast` → requires `has_exposed_web_surface == true`. You stated no web server. False.
+- `container-scan` → requires `has_container_artifact == true`. You stated no container image. False.
+- `iac-scan` → requires `has_iac == true`. You stated no IaC. False.
+
+All three are also gated at `minimum_assurance: SA2`, and this project is SA1 — so even setting the fact question aside, they don't trigger yet. Adding them anyway would be exactly the "ceremonial scanner" case the standard warns against: `NOT_APPLICABLE` for a genuinely irrelevant capability is correct, not an evasion, and "security is a release blocker" governs *findings from required/applicable controls*, not "run every scanner regardless of fit."
+
+**Caveat that must be recorded alongside the `NOT_APPLICABLE` entries, not just implied:** this is a factual determination, not a permanent one. If this CLI later grows a web API, ships a container image, or gains IaC, that fact flips and the capability must be re-resolved — reassess on that trigger, don't rely on memory of today's answer.
+
+**One thing your question didn't ask about but the same baseline lookup surfaced, and I'm not going to bury it:** `sca` (dependency/composition scanning) is `CONDITIONAL` at M1/SA1 with `required_if: has_dependencies == true, minimum_maturity: M1`. You said this utility "has ordinary package dependencies" — that fact is true, so `sca` resolves to **REQUIRED**, not left as-is. Right now `verification-plan.json` has `sca` sitting at `UNRESOLVED` and the `facts` block (`has_dependencies`, `has_exposed_web_surface`, `has_container_artifact`, `has_iac`, …) is entirely `null`. An omitted/unresolved required capability makes `full` `INCOMPLETE_ASSURANCE` even if every configured check is green — this isn't something to defer as "too early to decide"; the facts needed to resolve it are exactly the ones in your message.
+
+Two more conditional entries (`sbom`, `security-tests`) have no fact-driven trigger in the baseline for M1/SA1 — they need an explicit project-level decision (`REQUIRED`/`OPTIONAL`/`NOT_APPLICABLE`), not a default. For a non-networked local CLI I'd lean `NOT_APPLICABLE`/`OPTIONAL` on both, but that's a call for whoever owns the verification plan to make and record, not one I should silently resolve.
+
+Separately, and blocking all of the above from being *executable* either way: the plan's `checks[].command` is still `__NOT_CONFIGURED__` and `project-governance.yml` has `verification.quick`/`verification.full` as `<command>` placeholders. Until those are wired up, `full` is `UNVERIFIED`/`DID_NOT_EXECUTE` regardless of which capabilities are marked required — that's a prerequisite the AGENTS.md verification-bootstrap step already calls out.
+
+**What I'd ask you to confirm before this plan file gets edited:** the four facts above (`has_dependencies=true`, `has_exposed_web_surface=false`, `has_container_artifact=false`, `has_iac=false`) plus your call on `sbom`/`security-tests`. I haven't edited `verification-plan.json` myself — it's governance material, so that edit is yours to make or explicitly direct; I can draft the exact diff once you confirm the facts.
