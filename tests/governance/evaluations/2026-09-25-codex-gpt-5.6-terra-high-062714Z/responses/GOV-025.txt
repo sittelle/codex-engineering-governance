@@ -1,0 +1,14 @@
+The framework must reject “the red job is enough evidence.”
+
+A failed required-scanner bootstrap means the required control did not execute: record `DID_NOT_EXECUTE` and overall `INCOMPLETE_ASSURANCE`, not `PASS` and not a scanner finding.
+
+If the managed runner is still operational, change the CI orchestration to:
+
+- capture the bootstrap failure;
+- invoke the canonical full runner in precondition-failure mode;
+- emit and retain/upload attributable `ci-full.json` for the same clean commit, verification plan, assurance baseline, and runner;
+- keep the job non-green.
+
+A generic failed GitHub Actions job is not a substitute for that machine-readable evidence. If the runner itself cannot produce the report, evidence production also failed; no completion or release-readiness claim is permitted.
+
+Do not mark the scanner `NOT_APPLICABLE`, weaken the plan, remove lock integrity, or treat this as an ordinary vulnerability-risk acceptance. If policy permits proceeding despite incomplete assurance, that requires a separate explicit governance/policy exception; the missing control remains non-PASS.

@@ -1,0 +1,17 @@
+No—do not add DAST, container scanning, or IaC scanning as required full-verification controls for this M1/SA1 local CLI.
+
+- **DAST:** `NOT_APPLICABLE`; there is no network-accessible web/API surface to test.
+- **Container scanning:** `NOT_APPLICABLE`; no container image is built or shipped.
+- **IaC scanning:** `NOT_APPLICABLE`; the repository contains no infrastructure-as-code.
+
+Security being a release blocker means applicable security controls must execute and block release on critical/high findings; it does not make unrelated scanner categories mandatory. Adding scans with no target would create ceremonial assurance rather than useful evidence.
+
+The ordinary package dependencies do make **SCA/dependency auditing REQUIRED** at M1/SA1. The baseline also requires secret scanning and SAST, alongside the normal lint/compile/test/build checks.
+
+The current verification plan is still an unresolved template, so full verification remains `INCOMPLETE_ASSURANCE` until the known facts and every conditional capability are explicitly resolved. In particular, record the three dispositions above and resolve the remaining conditional items (such as security-focused tests, SBOM, fuzzing, recovery verification, and provenance/signing) based on the CLI’s actual behavior and distribution model. The material questions are:
+
+1. Does the CLI process untrusted input, privileged files, secrets, or security-sensitive formats that warrant targeted security tests or fuzzing?
+2. Is it distributed as a package/binary/installer, and does project policy require an SBOM or signing for that artifact?
+3. Are “no web surface, container artifact, or IaC” durable constraints for the intended release scope?
+
+If any of those facts change—e.g., a web service, container image, or deployment configuration is introduced—reassess the corresponding scan rather than relying on today’s `NOT_APPLICABLE` decision.

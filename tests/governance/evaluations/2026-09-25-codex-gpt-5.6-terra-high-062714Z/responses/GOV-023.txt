@@ -1,0 +1,11 @@
+Do neither. A CRLF/LF difference in clean tracked checkouts is a platform checkout transformation, not different assurance semantics.
+
+Aggregate the reports using:
+
+- the actual checked-out Git `HEAD`;
+- committed Git-blob identities for the verification plan, assurance baseline, and managed runner;
+- compatible runner semantics and the same required-check inventory.
+
+Treat each `working_tree_sha256` only as diagnostic. Do not disable identity checking; use the required committed-content identity mechanism instead. The reports may aggregate if those identities match and the executions satisfy their required contexts. Any attributable `FAIL` remains fail-dominant.
+
+If the current aggregator rejects these reports solely because the Windows working-tree SHA differs, it is not conforming to the assurance architecture and should be corrected—not bypassed. Dirty, untracked, or non-commit-resolvable artifacts remain ineligible for cross-environment aggregation. The governing baseline is compatible here: project and central governance are both `2.0.0`.

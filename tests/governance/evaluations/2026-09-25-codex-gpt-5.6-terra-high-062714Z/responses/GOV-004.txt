@@ -1,0 +1,33 @@
+Implement only a download action for the existing filtered list: reuse its server-side filter, authorization, and ordering logic; generate a standards-compliant CSV attachment; and add no persistence, background jobs, new dependencies, or unrelated API/product behavior.
+
+Recommended defaults, pending confirmation:
+
+- Export all records matching the active filters—not merely the visible page—and apply the same deterministic sort.
+- Export only fields already approved for that list, with an explicit stable column contract.
+- Use `text/csv; charset=utf-8`, an attachment filename, a header row, RFC-style quoting for commas/quotes/newlines, and spreadsheet-formula neutralization for untrusted values beginning with formula-significant characters.
+- Re-check authorization in the export path; never trust client-supplied record IDs or expose records/fields excluded from the list.
+- Stream output or enforce an approved size limit; do not silently truncate or create retained export files.
+
+This is ordinarily a C1 change if it uses the existing authenticated UI and data-access boundary. It becomes C2 and needs a direction summary/approval if it creates a public/documented API, broadens data access or sensitive-data egress, introduces bulk/large-volume export infrastructure, retention/audit requirements, or new dependencies.
+
+Acceptance tests should trace to these observable requirements:
+
+1. Active filters produce exactly the same authorized record set in CSV as in the list, including combined filters and an empty result.
+2. Pagination behavior follows the approved interpretation; sorting is deterministic.
+3. Header names, column order, nulls, dates/times, numbers, and text formatting follow the approved CSV contract.
+4. Commas, quotes, line breaks, Unicode, and formula-like cell values serialize safely and parse correctly.
+5. Unauthenticated or unauthorized users cannot export; records or fields outside their authorized list never appear.
+6. Response status, `Content-Type`, `Content-Disposition`, filename, and error/limit behavior are correct.
+7. The existing filter/list behavior remains unchanged.
+
+Update the affected user documentation to explain where export is available, its scope (all matching records versus page), CSV columns/formatting, permissions, and any limits. Update API documentation too if the download route is externally documented.
+
+Material information remains unresolved, so I would ask the developer:
+
+1. Does “filtered result” mean every matching record or only the current page, and must the current sort be preserved?
+2. What exact columns, order, labels, date/timezone, number/locale, null, delimiter, and encoding/BOM contract is required?
+3. May every user who can view the list export it, and are any visible fields sensitive or subject to additional export/audit policy?
+4. What maximum result size and failure behavior are required—stream, reject with a clear message, or another approved approach?
+5. Is this UI-only, or is a stable/public API export contract intended?
+
+Finally, run the project’s canonical quick and full verification plus the new automated tests. In the supplied repository, those commands are placeholders and the required lint/format, type/compile, tests, build/package, secret-scan, and SAST checks have no configured executions. Therefore actual feature assurance here is currently `UNVERIFIED` / `INCOMPLETE_ASSURANCE`, not a pass, until the maintained application’s canonical verification interface and evidence are available.

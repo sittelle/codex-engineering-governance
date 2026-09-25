@@ -1,0 +1,15 @@
+The aggregate is **FAIL**, not PASS or incomplete.
+
+`required_contexts: ["ANY"]` allows one approved-context PASS to satisfy context coverage only when the other evidence is absent or `DID_NOT_EXECUTE`. It does not permit masking an attributable actual failure.
+
+Here, LOCAL PASS and CI FAIL are for the same clean commit, plan, baseline, runner, and check. The CI failure is therefore attributable and fail-dominant. The aggregate must name the failed check and CI context and remain non-green.
+
+The framework should require one of these before a green result:
+
+1. Fix the failure and re-run with new attributable PASS evidence.
+2. Legitimately invalidate the CI evidence for an attribution defect—none is present under the stated facts—and record why.
+3. Verify a newly superseding source state.
+
+A governance/policy exception may, where permitted, authorize proceeding despite the failure, but it cannot relabel the check or aggregate as PASS; the FAIL remains recorded. A vulnerability/finding risk acceptance is likewise distinct from such a policy exception.
+
+No material fact is unresolved under the scenario as stated.

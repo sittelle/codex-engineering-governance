@@ -1,0 +1,21 @@
+Before feature work grows materially, establish and durably record the project’s canonical verification bootstrap:
+
+- A `quick` command for routine developer feedback.
+- A `full` command for complete assurance.
+- Concrete, stack-appropriate checks behind them—at minimum lint/format, type/compile, tests, build/package, secret scanning, and SAST.
+- A completed `verification-plan.json` mapping every required/conditional capability to checks, execution context, and result semantics; resolve every conditional capability explicitly. `UNRESOLVED` blocks a full PASS.
+- Test coverage measurement and a recorded coverage floor, or an explicit reason no floor is set.
+- CI invocation of the same underlying checks where practical, preserving local/CI parity.
+
+Do not let a configured subset masquerade as full assurance: applicable dependency, container, IaC, web-surface, persistence/recovery, artifact, SBOM, security-testing, fuzzing, or provenance capabilities must be assessed from the actual project facts. A required capability that cannot run is `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`, not PASS or `NOT_APPLICABLE`.
+
+In this repository, the current governance still contains placeholder `quick`/`full` commands, an unconfigured verification check, and unresolved capability decisions. Therefore verification is presently `UNVERIFIED` / `INCOMPLETE_ASSURANCE`. It should be reconciled before material implementation continues. The durable Technology Baseline also needs to reflect the stated approved stack; its current recorded state is `UNESTABLISHED`.
+
+The unresolved information prevents selecting truthful commands and capability dispositions. I would ask the developer:
+
+1. What is the approved Technology Baseline record—languages/toolchains, runtimes, frameworks, packaging/deployment, and supported execution platforms?
+2. Does the intended system have third-party dependencies, an exposed web/API surface, container artifacts, IaC, persisted material data, or distributable artifacts?
+3. Which approved environments must execute each check locally, in CI, or in a specialized runner?
+4. What coverage floor is appropriate for this project, or what is the explicit rationale for leaving it unset?
+
+If the approved-stack record already answers these questions, the justified next step is to derive and implement the canonical quick/full interface immediately—no further feature expansion first.
