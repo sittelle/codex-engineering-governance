@@ -1,0 +1,41 @@
+## Where this stands right now
+
+Before treating "Approved" as authorization to write code, I checked the actual repository state against the routed governance material (`project-governance.yml`, the `new-project` workflow, and the `authentication-design` skill it invokes). Several things are unresolved, and one is a direct conflict with what the developer just told me:
+
+**1. Assurance-level conflict — must be resolved, not assumed.**
+`project-governance.yml` declares `project.assurance: "SA1"`. The developer's message describes an "SA-2 LAN/VPN control application." These are not interchangeable: SA-2 is what makes the `authentication-design` gate mandatory in the `new-project` workflow, and it selects a different required-capability set in `assurance/capability-baseline.json` (e.g., `security-tests` is currently `UNRESOLVED` in `verification-plan.json` pending exactly this). I cannot silently pick either value — this needs an explicit developer decision recorded in `project-governance.yml`.
+
+**2. Technology Baseline is `UNESTABLISHED`.**
+No language/framework, session-storage mechanism, password-hashing library, or CA/PKI implementation has been chosen or recorded (`docs/design.md` Technology Baseline table is still template placeholders). The `new-project` workflow is explicit: *"Do not begin substantial implementation while an M1+ Technology Baseline is UNESTABLISHED... except bounded scaffold/reconciliation work."* `technology-selection` has not been invoked for the consequential choices here (hashing library, session library, CA/PKI library, token generation).
+
+**3. `authentication-design` gate not run.**
+This skill is REQUIRED before substantial SA-2 locally-managed-auth implementation and its own stop conditions explicitly block implementation while any of these are unresolved — none of which exist yet for this project:
+- identity lifecycle (creation/activation/credential change/suspension/revocation/deletion/recovery) for the single admin account;
+- bootstrap constraints: where it may run, how authority is established, what artifacts it produces, **whether it can run more than once**, recovery if bootstrap state is lost, audit evidence — and that it must not become a hidden permanent backdoor;
+- session lifecycle: creation, storage, idle/absolute timeout, rotation, revocation, logout, concurrent sessions, cookie protections;
+- enrollment token lifecycle: entropy source, storage representation, expiry, single-use enforcement, device binding, revocation, replay handling, transport assumptions;
+- **full CA lifecycle, not just issuance**: private-key ownership/storage, issuance/validity/renewal, rotation, backup/recovery, revocation/compromise response;
+- recovery flows: lost-machine re-enrollment and emergency admin recovery.
+
+**4. No readiness summary or C2/C3 approval has actually been produced.**
+This work is C3 under the kernel's own definition — it creates/modifies security boundaries (auth, sessions), privileged infrastructure (a CA), and consequential credential use (admin password, enrollment token) — even though everything is nominally local. The kernel requires a readiness summary (requirements, assumptions, architecture/security/data/dependency impact, implementation plan, verification plan) *before* implementation, with approval of the material direction. "Approved. Implement the bootstrap..." precedes that summary; it approves a general intent, not a reviewed design. I'm not treating it as the C3 approval the kernel requires.
+
+**5. No version control and no verification interface yet.**
+The working directory is not a git repository, and `verification.quick`/`full` in `project-governance.yml` are still `<command>` placeholders (`verification-plan.json`'s one check is `__NOT_CONFIGURED__`). Per the M1+ C2/C3 baseline rule, Git must be initialized and an approved-design baseline committed *before* substantial implementation, and canonical quick/full verification must be established once the stack is chosen and before implementation grows past scaffold.
+
+## Professional self-certification note
+
+Signing off on the bootstrap/session/CA/enrollment security direction here is a C3 decision that needs real security-architecture judgment (CA key custody and rotation, bootstrap re-run/backdoor risk, enrollment-token replay and binding, session revocation model). If and when you approve that direction, it will be recorded as your professional decision under your name — flagging this explicitly because this class of call is genuinely hard even for someone fluent in the terminology, not a rubber-stamp step. I'm not recording an approval yet because the design it would attach to doesn't exist.
+
+## What I need from you before implementation
+
+1. **Is this project SA-2 or SA-1?** `project-governance.yml` currently says SA1; your message says SA-2. This changes required verification capabilities and confirms (or not) that the `authentication-design` gate is mandatory rather than discretionary.
+2. **Bootstrap re-run behavior**: can the admin-bootstrap flow run more than once (e.g., to reset a lost admin account), or is it strictly single-shot? What's the recovery path if bootstrap state (including CA key material) is lost?
+3. **CA scope and custody**: does the local CA issue certs only for machine enrollment (mTLS to the control app), or anything broader? Who/what stores the CA private key, and is there a rotation/backup plan, or should one be designed now?
+4. **Enrollment token specifics**: expected TTL, single-use enforcement, device binding, and transport (out-of-band vs. over the LAN/VPN)?
+5. **Session model**: browser session cookies vs. API tokens, idle/absolute timeout expectations, concurrent-session policy?
+6. **Recovery**: if the sole admin is locked out, what's the accepted recovery path (physical/local console access, re-run bootstrap, etc.)?
+
+## Conditional recommendation (pending the above)
+
+If you confirm SA-2 and want to proceed efficiently: I'd recommend Argon2id via a maintained library for password hashing, server-side sessions with signed httpOnly cookies (not custom JWT handling), a mature PKI/CA library rather than hand-rolled X.509 code, and cryptographically random single-use enrollment tokens with short TTL — but these are `technology-selection` recommendations, not a substitute for running that skill and `authentication-design` and recording the results in `docs/design.md`, initializing Git over the approved baseline, and bootstrapping verification. I'd start there rather than writing the bootstrap code directly.

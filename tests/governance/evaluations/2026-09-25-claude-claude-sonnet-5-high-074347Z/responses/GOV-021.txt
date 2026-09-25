@@ -1,0 +1,31 @@
+## What the exit-2 result actually is
+
+Per the scanner's own documented CLI contract, exit 2 means the tool did not complete trustworthy analysis — it is not exit 1 (blocking finding) and not exit 0 (pass). Under this repo's assurance rules, a tool operational failure is **neither a finding nor a pass**: it must be recorded as `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`. `sast` is a `REQUIRED` capability for this project (`verification-plan.json`), so that's the correct status for the local Full run right now — not "failing scan with a security finding," and not green.
+
+So, specifically:
+
+- **"Count it as a security finding/failing scan"** — no. That would misrepresent the evidence: the tool's own contract says exit 2 is an operational error, distinct from the exit-1 policy-finding case. Labeling an unexecuted scan as a finding is as wrong as labeling it a pass.
+- **"Change the mapping so we get a useful status"** — not something I can do unilaterally here. Changing how a required security control's result codes are classified is called out explicitly as a material C2 assurance-policy decision, and it wouldn't make the control PASS even if approved — the missing-analysis control stays recorded as non-PASS regardless. `developer_language` for this project is `professional` (`project-governance.yml:15`), so if you do want to make that call, I'll record it as a professional decision under your name and flag explicitly that this class of call is hard even for someone fluent in the terminology — that's not a gate, just how it gets documented. I won't make it myself.
+
+## Likely actual fix
+
+Exit 2 during certificate-store initialization on Windows looks like an environment/bootstrap problem, not a policy problem. This repo's tool-environment-locks standard is on point: assurance tool locks/bootstrap are environment-bound, and a Windows-specific init failure is exactly the kind of thing that gets fixed by giving Windows its own verified lock/bootstrap path (correct cert store access, proxy/root-CA config, etc.), not by reclassifying the exit code. If no working Windows bootstrap exists yet, the standard says: don't unpin, don't mark it `NOT_APPLICABLE`, record `DID_NOT_EXECUTE`, fix the bootstrap, rerun.
+
+## A gap worth flagging before going further
+
+`project-governance.yml` still has `verification.quick`/`verification.full` as unset placeholders (`"<command>"`), and `verification-plan.json`'s `checks` array still only contains the `configure-verification-before-use` placeholder (`command: "__NOT_CONFIGURED__"`) — Technology Baseline is also `UNESTABLISHED`. That means the canonical Full interface for this project doesn't appear to be formally committed yet, but you're describing a Full run that already executes a real SAST scanner. I'm not assuming these are the same thing without confirmation — running an uncommitted local "Full" and treating its result as governed release evidence would itself need reconciling.
+
+## Net effect on release readiness
+
+- SAST is required; the local run is `INCOMPLETE_ASSURANCE`, not PASS, not a finding.
+- If an approved CI/specialized runner has successfully executed SAST on this exact clean commit, with matching committed plan/baseline/runner identity, that evidence can stand in for local — but a generic "CI is green" claim isn't enough; it has to bind to the same commit/plan/baseline/runner.
+- If no such CI evidence exists, this blocks release under the default baseline (SAST is a required capability, and Critical/High severities are release blockers here). A known-vulnerability risk acceptance would not apply — there's no finding to accept risk on — and a governance/policy exception to proceed without the control is a separate, explicit decision that still leaves the control itself non-PASS.
+
+## What's unresolved and what I'd ask
+
+1. Does an approved CI/specialized runner already execute this SAST scanner successfully for the same commit you're trying to release? (Determines whether you already have usable combined evidence instead of needing a Windows fix at all.)
+2. Is the "Full" you're running the actual committed canonical interface, or a local script that hasn't been reconciled into `project-governance.yml` / `verification-plan.json` yet?
+3. Does anyone on the team already know the fix for the Windows cert-store init failure (corporate root CA, proxy, offline-cache flag), so this becomes an environment-lock fix rather than an open-ended debug?
+4. If you specifically want to pursue changing the documented exit-code→status mapping (e.g., some exit-2 sub-cases reclassified under a revised durable tool contract) rather than fixing the environment, do you want to open that now as the C2 assurance-policy decision, recorded under your name?
+
+**Conditional recommendation:** until those are answered, record local Windows SAST as `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE` (not a finding, not a pass), treat the cert-store error as a Windows-specific tool bootstrap defect to fix via an environment-specific lock rather than a policy remap, and check for valid same-commit CI evidence before deciding whether this actually blocks the release you're aiming for.

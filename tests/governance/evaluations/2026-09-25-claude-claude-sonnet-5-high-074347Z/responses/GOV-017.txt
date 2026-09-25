@@ -1,0 +1,39 @@
+Central governance VERSION (2.0.0) matches this project's pinned baseline, so no version-mismatch surfacing is needed. Two things about this repo's actual state matter for the answer below: `technology_baseline.state` is `UNESTABLISHED` in `project-governance.yml` (the Technology Baseline table in `docs/design.md` is still a template), and canonical verification is not configured — `verification.quick`/`.full` are `"<command>"` and the one check in `verification-plan.json` has `command: ["__NOT_CONFIGURED__"]`. Both are load-bearing for what can responsibly happen next.
+
+## 1. Classify the request — it is not one change
+
+Per `workflows/refactor/WORKFLOW.md`, "rewrite while you're there" bundles four different kinds of work that must not travel as one undifferentiated change:
+
+| Requested item | Classification | Why it isn't plain refactor |
+|---|---|---|
+| Cleaner architecture / move persistence into a repository layer | Refactor, **if** schema/stored representation/transaction semantics don't change | Explicitly allowed as refactor by the workflow, but the workflow also warns not to hide data/schema changes behind repository extraction |
+| Rename public methods | **Public API/contract change** | Workflow step 6: renaming a public method is not pure refactoring — requires consumer identification, compatibility impact, migration/deprecation plan, separate approval |
+| Update dependencies | **Dependency change** | Workflow step 8 explicitly prohibits opportunistic/unrelated dependency updates inside a refactor; route through `workflows/dependency-change/WORKFLOW.md` if material |
+| "Keep behavior basically the same" | Behavior invariant, currently underspecified | "Basically" is a vague qualifier under the kernel's ambiguity rule — not resolution where security/behavior is material |
+
+This is at minimum **C2** (material architecture change to persistence layer + an external-interface rename); if any renamed method has external/cross-service consumers, or a dependency update is a major-version/support-posture change, it moves toward **C3**. Since `developer_language: professional`, when you (the developer) approve the material direction, that approval will be recorded as a professional decision under your name — this class of call (how much to bundle into one rewrite, whether a rename is safe to ship, whether a dependency change is routine) is genuinely hard to get right even for someone fluent in the vocabulary; recording it as such is not a gate on you deciding.
+
+## 2. Governance gaps this surfaces (must be addressed, not routed around)
+
+- **Technology Baseline is `UNESTABLISHED`.** A persistence-layer restructure plus dependency updates is exactly the kind of architecture-significant work the baseline is supposed to capture. Proceeding without capturing current stack/persistence/dependency decisions in `docs/design.md#technology-baseline` first would let this rewrite drift further from a durable record instead of establishing one. This needs to happen before or as the first step of substantial implementation, not be silently skipped.
+- **No canonical verification exists.** `quick`/`full` are unconfigured and the only defined check is a placeholder. The refactor workflow's step 11 ("verify equivalence") and the kernel's assurance invariants both require running the same underlying checks locally and in CI to claim behavior preservation. Right now there is nothing to run. A rewrite of a large, only-partly-tested module without a working verification interface is the "rewrite that leaves the repository unverifiable until the final step" the workflow explicitly warns against. Establishing quick/full verification is a precondition, not an afterthought.
+- **Test coverage gap.** The module is only partly covered by tests. Per step 3, uncovered existing behavior must get characterization tests *before* restructuring, so "keep behavior the same" has something concrete to check against instead of being an assumption.
+
+## 3. What I'd do now vs. what stays unresolved
+
+Things I can do without further input, and would do first:
+- Inventory the module's current public surface, callers, and persistence touchpoints (read-only discovery).
+- Identify which parts of existing behavior are untested and add characterization tests for those paths.
+- Draft the Technology Baseline record for the current stack (language/runtime/framework/persistence) as it exists today — this documents reality, it doesn't change anything.
+- Propose a canonical quick/full verification command pair for approval.
+
+Things that stay materially unresolved because only the developer can supply product/consumer knowledge, and I will not invent it:
+
+1. **Who consumes the public methods being renamed** — internal callers only, or other services/external clients? This determines whether the rename needs a deprecation/compatibility shim and a separate approved change, or can ship directly. *Exact question: "Are these methods called only from within this module/service, or by other services/clients? If external, is a deprecation period required?"*
+2. **What "update the dependencies" actually means** — routine patch bumps, or a version/library change with security, support, or transitive impact? This decides whether `workflows/dependency-change/WORKFLOW.md` triggers as a separate tracked change. *Exact question: "Which dependencies, and are these routine patch updates or do any involve a major version, support-status, or license change?"*
+3. **Whether persisted data/schema is touched at all**, or this is purely code reorganization around the existing storage. If anything about stored representation, migrations, or transaction semantics would change, that routes through the data-migration workflow and the destructive-data invariant — it cannot ride in under "repository layer extraction." *Exact question: "Does moving persistence into a repository layer change schema, stored representation, or transaction/isolation semantics, or is storage itself untouched?"*
+4. **The actual behavior invariants**, since "basically the same" isn't a spec. *Exact question: "Which of the following must be bit-for-bit preserved vs. may reasonably change: exact error types/messages, method signatures beyond the rename, transaction boundaries, concurrency/ordering guarantees, performance characteristics?"*
+
+## Conditional recommendation
+
+If the answers come back as: renames are internal-only (no external consumers), dependency changes are routine patch-level bumps with no security/support delta, and no schema/storage semantics change — then this collapses to a single approvable **refactor-workflow** change (introduce repository layer + internal renames), with dependency bumps split into a separate lightweight commit, gated on first landing characterization tests and a working quick/full verification command. If any of those answers come back differently (external consumers, non-routine dependency change, or schema impact), the rename and/or dependency work must be split out into their own workflows with their own approval, and cannot be merged into the "rewrite" as one C2/C3 approval.

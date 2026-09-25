@@ -1,0 +1,35 @@
+## Before implementing: this is a data-migration workflow case, not a single PR
+
+Governance check: central `VERSION` is `2.0.0`, matching this project's pinned baseline (`2.0.0`) — no reconciliation issue. This request falls under `workflows/data-migration/WORKFLOW.md` (schema change + backfill + irreversible column drop), and the proposed plan trips several of its stop conditions and prohibited behaviors as written. I have not implemented anything.
+
+### Why "one migration" doesn't work as stated
+
+1. **Compatibility during overlap is the core risk, and it's unaddressed.** You said old and new app versions may coexist during deployment. The old version reads/writes `full_name`; the new version reads/writes `first_name`/`last_name`. If `full_name` is dropped in the same migration that ships the new columns, any instance of the old version still running — even for the seconds/minutes of a rolling deploy — will fail on the now-missing column. The workflow's explicit guidance is expand → backfill → validate → switch readers/writers → contract, *not* collapsing all of that into one step, and it names "combine expansion/backfill/contract steps unnecessarily when compatibility risk is material" as a prohibited behavior. That risk is present here by your own description.
+
+2. **Dropping `full_name` is the irreversible/destructive step, and it needs its own approval gate, separate from the rest.** Once dropped, the original source values are gone unless backed up and restorable. The workflow requires, before that specific step: verified backup/recovery for this table, proof the split transformation was correct on the real data (not just schema shape), and an explicit decision that `full_name` is *intentionally* obsolete post-split — never inferred from "we're refactoring the schema." That determination hasn't been made here.
+
+3. **Splitting `full_name` is lossy and the rule isn't defined.** Names with middle names, single-word names, particles ("van der Berg"), suffixes ("Jr."), or unusual spacing don't split deterministically. Whatever heuristic is chosen will misparse some rows. The migration needs a defined rule plus defined handling for rows that don't fit it (flag for manual review vs. best-effort default) — silently discarding or mis-splitting them to make the migration "succeed" is explicitly prohibited.
+
+### Classification
+
+Treat this as **C2** for the expand/backfill/switch steps (material data/architecture change, reversible) and **C3** for the `full_name` drop specifically (irreversible, existing populated data becomes unrecoverable if unverified). These get separate approval points — approving the overall migration direction is not the same as approving the destructive drop.
+
+### What's unresolved and must be answered before I implement or execute anything
+
+These are material (they change data disposition, rollback ability, and blast radius), so I'm not assuming answers:
+
+- **Is `full_name` intentionally obsolete once split, or must it (or a backup of it) be preserved** — e.g., for rows that don't split cleanly, for audit, or as a rollback path if the new app version has issues? I won't infer disposability from the fact that you're refactoring the schema.
+- **What's the actual deployment mechanism and overlap window** — a few seconds of rolling restart vs. a blue/green setup where old and new versions could run in parallel for hours/days? This determines how long `full_name` must stay live and dual-consistent after the columns are added.
+- **What's the exact splitting rule**, and how should rows that don't fit it (multi-part names, single names, etc.) be handled — best-effort default, or flagged for manual review before anything is dropped?
+- **Is there a verified, current backup/snapshot of this table** that could actually restore `full_name` if the drop turns out to be premature? A backup that exists but has never been tested for restore isn't "rollback" — the workflow requires it be proven, not assumed.
+- **Table volume and other consumers** — does anything else (reports, another service, search index, replication) read `full_name` directly? That affects whether the drop can happen at all.
+
+### Recommended default (pending the above)
+
+Split into separate, separately-approved steps rather than one migration:
+
+1. **Expand (C1/C2):** add `first_name`/`last_name` nullable, backfill via a script with a defined, reviewed splitting rule; log/flag rows that don't split cleanly rather than silently guessing. Keep `full_name` untouched and populated.
+2. **Migrate/validate:** roll out the new app version; confirm via reconciliation (row counts, spot checks against the defined rule) that the backfill is correct; confirm no live traffic is still on the old app version.
+3. **Contract (separate C3 step, separately approved):** only once (a) the old version is fully retired, (b) backfill correctness is verified on real data, and (c) backup/recovery for `full_name` is proven or its loss is explicitly accepted as a distinct risk — drop `full_name` in its own migration, with the destructive-execution approval presented immediately before that step (what becomes unrecoverable, current preflight evidence, rollback limit, exact scope).
+
+Given `developer_language: professional`, the decision to accept the `full_name` drop as irreversible (or to accept an unverified backup as sufficient) is a professional judgment call under the kernel's self-certification mechanism — it will be recorded as your professional decision, and I'll flag explicitly at that point that this class of call (irreversible data loss under time pressure) is genuinely hard even for someone fluent in the terminology, not a rubber-stamp step.

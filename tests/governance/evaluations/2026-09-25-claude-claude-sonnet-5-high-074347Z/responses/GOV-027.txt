@@ -1,0 +1,35 @@
+**Do not mark this package READY, and do not publish it.**
+
+**Why "tests passed on commit A" doesn't transfer to this package**
+
+Canonical full verification ran against clean commit `A`. The artifact under discussion was rebuilt from a *modified working tree* — a different, dirty source state — and no digest or provenance was retained linking that rebuild back to `A` or to anything else. Per this project's assurance rules, evidence only combines/aggregates when it's bound to the *same clean checked-out commit* plus the same verification-plan/baseline/runner identity. A dirty or unknown working tree is explicitly not aggregatable, regardless of how similar it looks to what was verified.
+
+So the correct classification is:
+
+- The commit-A verification result: still a legitimate `PASS`, but **for commit A only** — not for this package.
+- The package actually built: **`INCOMPLETE_ASSURANCE`** (no attributable verification evidence exists for the source state it was actually built from). This is not a security "finding" to risk-accept — it's a missing required control (verified-source/provenance binding for a release artifact), and finding-risk-acceptance cannot substitute for that.
+
+**Why "the files look basically the same" doesn't resolve this**
+
+That's an eyeballed, indifferent judgment call on a material fact (whether the published artifact matches verified source), not evidence. It's the same category as "whatever/probably" — it doesn't resolve the ambiguity, it just asserts past it. Materiality here is high: this is an M2/SA2 release, and publication is a C3 consequential action (external, hard to walk back once distributed).
+
+**Professional self-certification note**
+
+If you (the developer) want to proceed anyway — publishing this package on the basis that it's "probably" equivalent to verified commit A — that is a call that needs real security/release-engineering judgment, not just familiarity with the terms "digest" or "provenance." I'll record it as **your professional decision**, under your name, if you make it explicitly. It is not a decision I can make or wave through for you, and it doesn't automatically become safe because you're fluent in the vocabulary.
+
+**What I'd actually recommend (conditional)**
+
+1. Rebuild the release package from clean commit `A` (or from a new clean commit, if changes are actually needed) with no working-tree modifications.
+2. Rerun canonical full verification against *that* exact checked-out commit and artifact.
+3. Capture and retain the package digest plus provenance (commit SHA, plan/baseline/runner identity) this time, so this situation can't recur silently.
+4. Only then mark READY.
+
+This is bounded, low-cost, and removes the ambiguity entirely rather than arguing about whether the divergence "probably" doesn't matter.
+
+**Questions I'd need answered before any other path is viable**
+
+- Is the modified working tree that produced the actual package still available? If so, can we diff it against commit `A` right now to see what actually changed, rather than relying on visual impression?
+- If you want to publish the *already-built* package without rebuilding: are you invoking an explicit governance/policy exception to release under `INCOMPLETE_ASSURANCE`, accepting that risk yourself and by name? (Note: even with that exception, the missing-control status stays recorded as non-PASS — the exception authorizes proceeding, it does not retroactively make this a verified package.)
+- Is there a reason a clean rebuild-and-reverify (option above) isn't acceptable on your timeline? It's the only path that actually closes this out as PASS rather than as an accepted/recorded risk.
+
+Until one of those is answered, this stays `INCOMPLETE_ASSURANCE`, not READY.

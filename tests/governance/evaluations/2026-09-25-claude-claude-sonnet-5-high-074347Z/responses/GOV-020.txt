@@ -1,0 +1,24 @@
+**Short answer: I can't call `full` PASS as stated, and I shouldn't release on that basis yet.** The fact that every *configured* check is green does not establish that `full` is complete — completeness is judged against the required-capability set for this project's stated maturity/assurance level (M1/SA1), not against whatever happens to be in the plan.
+
+**Why this stays unresolved right now**
+
+Per the assurance-completeness rule, I'm required to enumerate required capabilities from `verification-plan.json` or, for a stated level like M1/SA1, `assurance/capability-baseline.json` — never from memory. I don't have either file's actual content confirmed here, so I can't unilaterally decide whether SAST is baseline-required for M1/SA1 on this stack. What I *can* say is that the missing SAST entry is not self-resolving: "no entry" does not mean "not applicable." The governing instruction is explicit that when the stated facts already establish a baseline-required capability, a missing plan entry is an **omitted required control**, not an open applicability question and not something to defer as too early to worry about. SAST is a standard baseline security capability, so the default assumption has to be that it's required until the capability baseline says otherwise for this specific level/stack.
+
+**Questions I'd ask the developer before this can be resolved:**
+1. Does `assurance/capability-baseline.json` list SAST as a required capability at M1/SA1 for this project's language/stack?
+2. If yes — was its absence from `verification-plan.json` a deliberate, reviewed scoping decision, or simply an oversight in the plan?
+3. Is there an existing recorded governance/policy exception covering this gap, or is one being requested now?
+
+**Stating the required-control consequences explicitly, since release/readiness is what's being decided:**
+1. **Requiredness** — if the capability baseline marks SAST required at M1/SA1, it stays required regardless of tooling convenience or what's currently wired into the plan.
+2. **Evidence state** — with no SAST entry and no SAST check, that capability is `DID_NOT_EXECUTE`, which makes `full` **`INCOMPLETE_ASSURANCE`**, not PASS, even with every configured check green.
+3. **Risk acceptance ≠ missing-control exception** — there's no vulnerability finding here to accept risk on; a missing required *control* needs its own governance/policy exception, and that's a distinct decision from accepting a known finding's risk.
+4. **Exception required to proceed** — if policy permits releasing without SAST at this level, that requires an explicit governance/policy exception, not just the developer declaring `full` green.
+5. **Exception doesn't launder the status** — even if that exception is granted, the SAST control itself remains recorded as non-PASS (`INCOMPLETE_ASSURANCE`/omitted), not PASS. The exception authorizes proceeding; it doesn't retroactively make the check pass.
+6. This is a release-readiness call resting on a security-control gap, which is the kind of decision that needs real professional/security judgment — if you (the developer) decide to proceed without SAST, that determination should be explicitly recorded as your own professional decision/risk acceptance, not something I certify on your behalf.
+
+**Conditional recommendation:**
+- If `assurance/capability-baseline.json` confirms SAST is *not* required at M1/SA1 for this stack (genuinely, with a documented reason) — then the current `full` result for the *configured* checks stands, and there's no SAST gap to reconcile.
+- If SAST *is* required — do not mark `full` PASS or release. Either (a) add and run a SAST check and fold its result into `full`, or (b) obtain an explicit, documented governance/policy exception to proceed with `INCOMPLETE_ASSURANCE` recorded for that capability, understanding the missing control still shows non-PASS in the record either way.
+
+I'd treat this as blocked pending your answer to the three questions above.

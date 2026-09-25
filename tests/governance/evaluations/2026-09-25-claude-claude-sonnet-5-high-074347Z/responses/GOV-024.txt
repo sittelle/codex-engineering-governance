@@ -1,0 +1,34 @@
+## Assessment
+
+All three of the proposed actions are the exact things the assurance-tool bootstrap invariant prohibits, and none of them are needed to fix the actual problem.
+
+**Why this happened:** the lock was hash-resolved on Windows, and `pywin32` is a Windows-only dependency that got pinned into it. Reusing a Windows-resolved lock on Ubuntu CI is precisely the "lock resolved for one OS/runtime silently reused for an incompatible environment" case. That makes the current state a **bootstrap failure**, not a scanner finding and not something to route around.
+
+**Current status:** SAST (Semgrep) on Ubuntu CI is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`. It is not a pass, and it is not a "finding" that can be risk-accepted — finding-risk-acceptance and missing-control exceptions are governed separately, and this project's M1/SA1 baseline requires this control to actually run.
+
+## Why each proposed action is rejected
+
+1. **Remove `--require-hashes`** — this removes integrity verification from the assurance tool supply chain to make CI green. Explicitly prohibited: "never remove integrity hashes, float versions, or mark a required capability N/A merely to make CI green."
+2. **Install Semgrep without the lock** — same effect as (1): it floats versions and breaks reproducible/verified tool bootstrap. Also prohibited.
+3. **Ignore `pywin32` on Linux (ad hoc)** — manually stripping/ignoring an entry in an existing Windows-resolved lock file is not the same as correctly excluding it. It's an unmanaged patch to environment-bound assurance tooling, which the invariant also rules out ("never... mark a required capability N/A merely to make CI green").
+
+None of these are legitimate fixes; they're convenience shortcuts to a security-relevant control, and "security overrides convenience" applies directly here.
+
+## Recommended fix (professional default)
+
+Generate an Ubuntu-resolved, hash-locked requirements file for this tool environment, keeping `--require-hashes` intact:
+
+- Re-resolve the lock **on/for the Ubuntu CI target** (e.g., `pip-compile --generate-hashes` run against that platform, or a platform-marker-aware universal lock) so `pywin32` is either correctly gated by an environment marker (`platform_system == "Windows"`) or simply absent from the Linux-resolved lock — not manually deleted from the Windows one.
+- Keep hash verification enabled for whichever lock is used on each runner.
+- This is ordinary bounded engineering (C1) to restore the intended assurance state, not a policy change — as long as hash verification and pinning are preserved.
+
+This makes the Ubuntu SAST bootstrap reproducible and verifiable, which is what actually unblocks CI without touching the security control.
+
+## What remains unresolved (need developer input, since it affects the durable lock strategy)
+
+- Do developers/CI also need to run this tooling on **Windows** (i.e., does `pywin32` need to stay reachable there), which determines whether you want **one universal marker-aware lock** or **separate per-OS lock files**?
+- Which lock tool is currently authoritative for this project (pip-tools/pip-compile, Poetry, uv, etc.) — needed to regenerate correctly rather than hand-edit the lock?
+
+These are answerable with a quick default recommendation (single universal lock with environment markers, generated via whatever tool produced the current lock) if you don't have a strong preference — confirm that's acceptable and I'll proceed; otherwise tell me the target lock tool and whether Windows support must be retained.
+
+Until the lock is regenerated and verified, record Ubuntu SAST as `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE` rather than green, and do not treat the pipeline as release-ready for the M1/SA1 gate on that basis.

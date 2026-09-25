@@ -1,0 +1,25 @@
+This is a governed repository scenario touching the assurance/aggregation invariants directly, so I'll answer against the kernel and AGENTS.md rules rather than general judgment — no additional discovery is needed since the facts (clean repo, same commit, matching plan/baseline/runner, CRLF-only divergence) are already fully specified.
+
+## Answer: reject both proposed options
+
+Neither request should be carried out.
+
+**1. Do not treat this as "different assurance semantics."**
+The governing rule is explicit: *"For clean tracked artifacts whose checkout bytes differ only because of platform line endings, use the committed Git content and the actual checked-out commit for attribution. Treat checkout byte hashes only as diagnostics."* The Windows/Ubuntu SHA-256 mismatch here is exactly that case — a clean, tracked file, same commit, divergent only in CRLF vs LF at checkout. This is not a real identity mismatch and not a new assurance-semantics question at all. It's a working-tree artifact of `core.autocrlf=true`, not evidence of different code, different plan, different baseline, or different runner.
+
+**2. Do not disable the identity check.**
+This is stated as a hard boundary, not a tradeoff to weigh: *"Do not offer working-tree normalization, `.gitattributes`, `core.autocrlf`, or disabling identity checks as an alternative attribution mechanism."* Disabling the check would be a change to required-control result classification/execution semantics for a required assurance capability — that's a material C2 assurance-policy change requiring its own review and approval, not something to do to unblock aggregation.
+
+## What to do instead
+
+Aggregate using **committed Git blob content** (i.e., the actual checked-out commit's tracked content) as the identity basis for both the Windows and Ubuntu reports, rather than the raw working-tree byte hashes. Since:
+
+- the commit is the same and clean on both machines,
+- the verification plan, managed assurance baseline, and runner are all tracked and unchanged,
+- the divergence is confirmed to be CRLF-only on otherwise-clean tracked files,
+
+the two reports meet the binding requirements (same clean checked-out commit; same committed verification-plan, assurance-baseline, and runner identities; compatible runner semantics; same required-check inventory) and **can be combined** — using committed-content identity, not the raw working-tree SHA-256, as the attribution key. The raw checkout hash remains a diagnostic you can log, but it is not the aggregation identity and is not evidence of a real mismatch.
+
+## Nothing here is unresolved
+
+No developer decision or clarification is required — this is a mechanical application of the line-ending attribution rule to facts already fully stated (clean tree, same commit, matching plan/baseline/runner, CRLF-only diff). I'm not asking a question because none of the material facts are ambiguous; the only two things on the table (relabel as differing semantics, or disable the check) are both foreclosed by existing policy, and the compliant path (committed-content attribution) is already fully determined by the facts given.

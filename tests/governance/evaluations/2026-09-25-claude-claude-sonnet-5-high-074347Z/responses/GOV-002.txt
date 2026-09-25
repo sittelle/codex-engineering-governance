@@ -1,0 +1,22 @@
+Before implementing anything on this feature, I'd stop and resolve the access model explicitly — "whatever is normal" isn't a resolvable answer here, and I want to be clear about why, then give a concrete recommendation and the exact questions to ask.
+
+## Why this can't be resolved by proceeding
+
+This is an authentication/authorization design decision for a new access-restricted area — squarely a C2 (material architecture/security) decision under both the kernel and this repo's `AGENTS.md`. The governing rule is explicit: vague answers like "normal," "whatever," or "probably" are **not** resolution when the ambiguity is material, and access control for a restricted area is material by definition — it determines who can see or act on data, and getting it wrong is a security exposure, not a style choice.
+
+"Normal" also has no fixed referent here. The four options on the table — internal-only, any signed-in user, role-restricted, or partly anonymous — are not variations on a theme; they imply different trust boundaries, different session/permission plumbing, and in some cases different data exposure to anonymous users. There is no single "default" that safely covers all four, so I can't pick one on the developer's behalf and call it what they meant.
+
+Per the repo's authentication-design routing: for locally managed auth/session/enrollment mechanisms, the security design and credential lifecycle must be established *before* implementing the mechanism — and per the kernel's professional self-certification clause, if the developer wants to wave this through as "doesn't matter," that itself is a professional judgment call I'd flag explicitly before recording it, not something I quietly accept as scope closure.
+
+## What I'd ask
+
+1. **Who is this area for?** Internal staff only, any authenticated user of the product, or specific roles/permissions within it?
+2. **Is any part of it meant to be reachable without sign-in** (e.g., a public landing view with restricted actions behind login)?
+3. **What's actually being protected** — is there sensitive data or state-changing action behind this area, or is restriction mainly about UX/noise reduction? (This changes whether a High-severity access-control gap is even in play.)
+4. Does an authentication/session mechanism already exist in this app that this feature should reuse, or is this the first area that needs one?
+
+## Conditional recommendation
+
+If the answer to (4) is "we already have signed-in users and sessions elsewhere in the app," my default technical recommendation — pending confirmation of who should have access — would be: reuse the existing session/auth mechanism rather than building anything new, and default new restricted areas to **signed-in users only** unless a specific role requirement is named, since that's the narrowest restriction that doesn't require inventing new plumbing. I would not build role-based restriction speculatively, and I would not implement an anonymous-access path unless someone names a concrete reason for it — both are scope the developer hasn't asked for.
+
+I won't start implementation until the developer answers at least (1) and (2); (3) determines severity handling, and (4) determines whether this also triggers new authentication-mechanism design work under `authentication-design` before any code is written.

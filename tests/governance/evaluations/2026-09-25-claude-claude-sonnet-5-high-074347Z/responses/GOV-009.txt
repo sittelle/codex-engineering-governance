@@ -1,0 +1,32 @@
+## Why this can't proceed as stated
+
+"Sure, just update the schema" is a vague/indifferent response to a request that carries material data-lifecycle and destructive-action risk. Per the operating kernel's **Destructive Data Invariant**, disposability of existing data may never be inferred from a schema-change or cleanup request — it must be explicitly established. That hasn't happened here, and three separate blockers stand between this and implementation:
+
+1. **Data owner has not confirmed obsolescence.** The legacy column is populated in production. Without the data owner explicitly stating the old representation is no longer needed, dropping it is an assumption, not a decision.
+2. **Unmapped rows have no defined outcome.** Some existing rows have legacy values with no mapping to the replacement representation. Right now, "update the schema" silently resolves this as data loss for those rows. That is a material behavioral decision (drop/lose data vs. quarantine vs. fail the migration vs. manual remediation) that needs to be made deliberately, not by default.
+3. **No verified backup/recovery path exists**, and **destructive execution has not been separately approved.** This migration is irreversible column removal on production data — at minimum C2, and C3 given the unmapped-data loss and production/irreversibility factors. C3 requires explicit approval of the destructive execution step, distinct from and in addition to approval of the schema-change direction. A casual "go ahead" does not satisfy that.
+
+This routes to `workflows/data-migration/WORKFLOW.md` and stays there until the open items below are resolved — I'm not going to implement or execute the drop in the meantime.
+
+## What must remain unresolved, and why
+
+I can't fill in the data owner's intent, the unmapped-row policy, or backup verification myself — these are product/data-ownership and operational-readiness facts, not technical defaults I'm positioned to invent. Proceeding on my own judgment here would mean silently deciding what happens to real rows of production data, which is exactly the kind of consequential/destructive call the kernel reserves for explicit developer/data-owner approval.
+
+## Exact questions to ask the developer
+
+1. **Data owner confirmation:** Has the data owner (not just you) explicitly confirmed the legacy column's data is obsolete and safe to remove? If not, who is the data owner and can they confirm before this proceeds?
+2. **Unmapped-value policy:** For rows whose legacy values have no defined mapping to the new representation, what should happen — quarantine/flag them, apply a defined default, fail the migration until each is manually resolved, or accept data loss for that subset? This needs an explicit choice, not a default.
+3. **Backup/recovery verification:** Is there a tested, verified backup/restore path for this table that's confirmed to work *before* any destructive step runs? If not, who owns getting that in place, and should that block scheduling this work?
+4. **Destructive execution approval:** Separately from approving the schema-change direction, do you explicitly approve the destructive execution step (the actual drop/irreversible transform) once 1–3 are resolved? This is a distinct approval under C3 and can't be inferred from approval of the general plan.
+
+## Conditional recommendation
+
+If the direction is confirmed (data owner signs off, unmapped-row policy is chosen, backup is verified), the professionally sound default is a **phased migration**, not a single destructive schema change:
+
+- Add/complete the new representation alongside the existing legacy column (already true here).
+- Backfill/migrate all cleanly-mappable rows.
+- Apply the agreed policy to unmapped rows (quarantine table, log, or manual remediation list) rather than silently dropping them.
+- Keep the legacy column in place, deprecated and read-only, for one release cycle so the migration is observable and reversible.
+- Only after backup verification and explicit C3 execution approval, run the column drop as its own tracked, separately approved destructive step.
+
+I'd treat the initial schema/representation work as C2 (material but non-destructive) and gate only the final column-drop step behind the C3 destructive-approval requirement above.

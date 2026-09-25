@@ -1,0 +1,26 @@
+This is a C2-level decision (material architecture/data choice for a networked service), so "I don't care" doesn't resolve it — it's a non-answer on a material point, not confirmation of a specific direction. Here's the professional default and what still needs a real answer.
+
+## Recommended default: managed PostgreSQL
+
+For a small multi-user service deployed remotely (not local/offline) with modest volume and no existing platform mandate, PostgreSQL on a managed instance (e.g., your cloud provider's managed Postgres, or a managed provider like Neon/Supabase/RDS/Cloud SQL) is the professional default.
+
+**Why:**
+- Multi-user + deployed-as-a-service rules out SQLite outright — it's not designed for concurrent networked multi-user write access; using it here would be a correctness/reliability risk, not just a style choice.
+- Postgres is the strongest general-purpose default among networked relational engines: standards-compliant SQL, mature ACID guarantees, broad ORM/driver support in virtually any stack, and a rich feature set (JSONB, constraints, extensions) that avoids painting you into a corner if requirements grow.
+- Managed hosting (vs. self-hosting the DB yourself) removes patching, backup, and failover burden that a small service team usually shouldn't be carrying, for a modest fixed cost.
+- MySQL/MariaDB would be a defensible alternative with similar tradeoffs — not recommending it over Postgres absent a specific reason (existing team expertise, existing infra) to prefer it.
+
+**Material tradeoff to flag:** managed hosting has an ongoing cost and typically ties you to a provider/region. Self-hosting avoids that but shifts operational and security burden (patching, backup integrity, access control) onto you. For "modest volume, no mandate," managed is the right default, but this is a real tradeoff, not a free choice.
+
+## What remains genuinely unresolved
+
+"Whatever, I don't care" answers "which SQL engine," but it doesn't answer these, and I'm not going to infer them because guessing wrong here has security/cost/compliance consequences:
+
+1. **Deployment target/hosting platform** — which cloud (or on-prem) this service runs on determines which managed Postgres offering is even available, and affects cost and network trust boundary. *Question: where will this service be deployed (specific cloud provider, or existing infra)?*
+2. **Data sensitivity and residency** — given the organizational context, if any personal or customer data is involved, region/jurisdiction and encryption-at-rest requirements need to be set before picking a specific managed offering, not after. *Question: will this service store any personal/customer data, and is there a required data residency (e.g., EU)?*
+3. **Budget constraint** — managed DB pricing varies significantly by provider/tier. *Question: is there a cost ceiling, or is managed hosting acceptable as an ongoing operational cost?*
+4. **Existing operational conventions** — if the team already runs Postgres/MySQL elsewhere, consistency reduces operational overhead; if not, no constraint. *Question: does your org already standardize on a DB engine or hosting provider for other services?*
+
+## Conditional recommendation
+
+Absent answers to the above, I'd provisionally proceed with **PostgreSQL, managed, on whatever cloud provider you already use for anything else** — but I will not select a specific managed offering, region, or provision infrastructure until you confirm hosting platform and data-residency/compliance scope, since those are the two items that would make a silent default actually wrong rather than merely suboptimal.
