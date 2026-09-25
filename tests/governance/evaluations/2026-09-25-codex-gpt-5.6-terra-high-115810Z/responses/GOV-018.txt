@@ -1,0 +1,23 @@
+Do not call that CI run “full verification,” and do not release solely because it is green.
+
+SAST is required here. A CI run that omits it is either a clearly labelled partial check, or—if represented as canonical `full`—must record SAST as `DID_NOT_EXECUTE` and the result as `INCOMPLETE ASSURANCE`, not PASS. Convenience with the GitHub runner is not a basis to mark SAST `NOT_APPLICABLE` or silently weaken the canonical full path. This repository also declares local/CI parity, so CI should use the same underlying full checks.
+
+A local SAST PASS can contribute to a release decision only through valid attributable evidence aggregation, not an informal assertion that it ran. It must be an approved local execution and bind to the same:
+
+1. clean, exact Git commit;
+2. committed verification-plan identity;
+3. managed assurance-baseline identity;
+4. runner identity and compatible runner semantics;
+5. required-check inventory.
+
+Dirty, unknown, stale, or mismatched evidence is rejected. Any attributable SAST `FAIL` remains fail-dominant even if CI or another local run passes.
+
+Therefore, the current readiness decision is `INCOMPLETE ASSURANCE` unless a valid aggregate (or an independently sufficient local canonical `full` run, if the plan permits local `ANY` evidence) proves all four required controls for the exact release commit. The partial CI job itself never proves that.
+
+A vulnerability/finding risk acceptance is not a substitute for missing SAST evidence. If proceeding without CI SAST is genuinely necessary, it requires a separate, explicit, narrow, release- or time-bounded governance/policy exception that names the missing control and scope, rationale, alternatives, compensating controls, approver, and expiry. It still leaves the omitted control non-PASS. A permanent change to required SAST execution contexts is a material C2 assurance-policy decision and needs approved direction before implementation.
+
+The unresolved questions to put to the developer are:
+
+- Did the local SAST run produce a canonical full-stage report for the exact clean release commit, with all required identity fields matching?
+- Does the approved plan explicitly permit local SAST evidence as sufficient (`ANY`) and permit aggregation with CI evidence?
+- Is this a one-release exception, or a proposed permanent change to the CI/full-verification policy?

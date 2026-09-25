@@ -1,0 +1,20 @@
+Establish the **verification bootstrap** before feature implementation grows beyond the scaffold:
+
+- Record canonical `quick` and `full` commands in `project-governance.yml`.
+- Replace placeholder verification-plan checks with the stack-specific check inventory and commands.
+- Derive required capabilities from the project’s maturity/assurance baseline: at minimum lint/format, type/compile, tests, build/package, secret scanning, and SAST; add applicable SCA, platform, and conditional security checks.
+- Resolve every assurance fact and conditional capability explicitly. `UNRESOLVED` blocks a truthful full PASS; missing/non-executing required controls are `INCOMPLETE_ASSURANCE`, not PASS.
+- Configure test coverage where the stack supports it, recording a coverage floor or an explicit reason none is set.
+- Design CI to invoke the same underlying verification logic where practical.
+- Ensure the approved Technology Baseline is durably recorded and `ESTABLISHED`; for M1+ C2/C3 work, also capture the approved-design baseline in version control before substantial implementation.
+
+“Continue implementing the features” is not sufficient to bypass this readiness gate. The minimal scaffold is the permitted window for establishing verification; it is not authorization for material feature growth without it.
+
+If not already known from the approved design, I would ask the developer:
+
+1. Which development/runtime platforms and package/build artifacts are supported?
+2. Does the project have third-party dependencies, a network-facing surface, container image, infrastructure-as-code, persisted data, or distributable artifacts?
+3. For conditional controls not determined by those facts—such as security tests, SBOM, fuzzing, recovery verification, and provenance/signing—what project/security requirements make each required, optional, or not applicable?
+4. What coverage expectation, if any, should the initial test capability enforce?
+
+A justified default is to make dependency auditing required when dependencies exist, and to resolve the remaining conditional capabilities conservatively from the approved architecture and assurance level rather than leaving them undecided.

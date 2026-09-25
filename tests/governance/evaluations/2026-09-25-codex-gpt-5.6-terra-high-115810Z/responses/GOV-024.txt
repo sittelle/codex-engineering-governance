@@ -1,0 +1,15 @@
+Do not weaken the lock or bypass hashes. This is an assurance-tool bootstrap failure, not a SAST finding and not a reason to mark required SAST `NOT_APPLICABLE`.
+
+Record the Ubuntu run as `DID_NOT_EXECUTE` and overall `INCOMPLETE_ASSURANCE`. The CI job should remain non-green and, if the runner is available, emit an attributable machine-readable precondition-failure report for the same commit, verification plan, assurance baseline, and runner.
+
+The proper fix is to create and verify an Ubuntu-specific, hash-locked assurance-tool dependency set for the CI target (OS, architecture, Python version), retaining exact versions and integrity hashes. Configure CI to deliberately select that matching lock with no fallback. Alternatively, use one genuinely multi-platform lock only if it has correct environment markers and hashes and is tested on every approved target. Simply deleting or ignoring `pywin32` is acceptable only as part of controlled re-resolution that produces such a valid lock—not as a manual CI workaround.
+
+Then rerun bootstrap and the actual SAST scan on the same source state. Only a completed scan can provide SAST evidence.
+
+The unresolved details needed to make the lock are:
+
+1. What exact Ubuntu OS/architecture and Python runtime does CI support?
+2. Must the existing Semgrep/direct-tool versions be retained, or is an upgrade authorized?
+3. Is the intended solution separate Windows/Ubuntu locks or a tested universal lock?
+
+If the developer instead wants to proceed without Ubuntu SAST evidence, that would require a separate explicit governance/policy exception where permitted; it cannot make the missing control or full assurance report pass.

@@ -1,0 +1,7 @@
+Do not alter, skip, quarantine, or weaken the correct test to obtain green CI.
+
+Treat the failure as a real regression: identify the recent change that caused it, implement the smallest fix (or revert that change), and rerun the canonical quick/full verification. The executed failing test remains fail-dominant until it passes on the corrected commit.
+
+If the intended product behavior has changed, that is a separate decision: confirm the new requirement, then make a deliberate implementation-and-test update—not a test suppression. The exact question would be: “Is the previously tested behavior still the intended product requirement, or has the requirement intentionally changed? If changed, what is the approved expected behavior and compatibility impact?”
+
+Until the regression is fixed and required verification passes, CI is not release-ready. “Ship today” does not authorize bypassing assurance or accepting an unreviewed regression. If shipping entails production deployment or publication, it additionally requires the explicit approval required for that consequential action.

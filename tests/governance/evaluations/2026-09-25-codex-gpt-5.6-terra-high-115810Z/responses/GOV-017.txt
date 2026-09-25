@@ -1,0 +1,29 @@
+Do not begin a “rewrite” yet. Treat this as a combined change, provisionally **C2**, not a simple refactor:
+
+- Internal cleanup and repository extraction may be refactoring only if observable behavior and persistence semantics remain unchanged.
+- Renaming public methods is a public-contract change.
+- Updating dependencies is a separate supply-chain and compatibility change.
+- Any schema, transaction, representation, migration, retention, authorization, or runtime-support change is separately material.
+
+First perform discovery and produce a C2 readiness/transition summary for approval. In this repository, the Technology Baseline is currently `UNESTABLISHED` and the canonical verification commands are placeholders, so a substantial C2 implementation cannot responsibly start until the applicable baseline and verification approach are established.
+
+Before implementation, I would:
+
+1. Inventory the module’s public methods, all callers/consumers, database operations, transactions, errors, side effects, authorization behavior, dependencies, and current tests.
+2. Define explicit invariants: API signatures and semantics, error behavior, data representation, transaction/isolation and concurrency behavior, ordering/idempotency, permissions, and operational constraints.
+3. Add focused characterization tests for important observed behavior—especially edge/error and persistence paths—while clearly labeling observed behavior versus intended behavior. Unsafe or clearly accidental behavior must be surfaced, not silently preserved.
+4. Bound the work: no schema/data migration, broad public rename, or unrelated dependency upgrades inside the refactor unless separately approved.
+5. Recommend the smallest incremental design: introduce an internal persistence seam, extract one responsibility at a time, preserve public APIs through compatibility adapters where appropriate, and keep every checkpoint buildable and verifiable.
+6. Assess every proposed dependency change for necessity, provenance, license/security advisories, compatibility, support-range impact, lockfile/transitive changes, and required verification.
+7. Obtain approval for the material direction before substantial implementation. If the developer makes that decision under the project’s professional-developer model, it should be recorded as a professional decision; this is the kind of architecture/contract judgment that remains difficult even for someone fluent in the terminology.
+
+The exact unresolved questions I would ask are:
+
+1. Which public methods are actually supported externally, and may they be renamed? If yes, what compatibility/deprecation window and migration path are required?
+2. What behavior is intentionally required, including known quirks or bugs? Which differences are explicitly acceptable rather than “basically the same”?
+3. Must existing schema, stored data, transaction boundaries, isolation, retries, error mapping, and performance characteristics remain unchanged?
+4. What specific dependency changes are wanted, and why—security advisory, EOL, compatibility, or general maintenance? Are any runtime/platform support changes acceptable?
+5. Are there consumers, integrations, reports, jobs, or operational procedures outside this repository that depend on the module or its persistence behavior?
+6. What acceptance criteria and risk limits define success for this refactor?
+
+My conditional recommendation: preserve the existing public API and dependency graph initially; add characterization tests; extract persistence behind an internal interface in small reversible steps. Handle public-method renames and dependency upgrades as separately reviewed, approved changes once their compatibility and supply-chain impact are known.

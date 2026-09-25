@@ -1,0 +1,19 @@
+I would not make those application-only controls mandatory as requested, and I would not edit the plan yet.
+
+This is an M2/SA1 distributed governance/tooling package, not an application or hosted service. Its single assurance applicability source is [`framework-verification-plan.json`](/home/test/codex-engineering-governance/framework-verification-plan.json); I would not create or imply a second local assurance baseline.
+
+The stated facts make authentication/authorization review, DAST, container scanning, deployment-IaC scanning, recovery verification, and dependency SCA `NOT_APPLICABLE`:
+
+- There is no application identity or authorization boundary to review.
+- There is no network-facing service for DAST.
+- No container artifact or deployment IaC exists.
+- No persisted operational service data exists to recover.
+- No committed third-party dependency graph exists to audit.
+
+Dogfooding means applying the framework’s factual, capability-based model to itself—not mechanically applying controls whose targets do not exist. Mandatory but targetless checks would produce `DID_NOT_EXECUTE` and make `full` `INCOMPLETE_ASSURANCE`, rather than improving security evidence.
+
+I would retain the applicable baseline: canonical quick/full verification, lifecycle/package regression, Windows and POSIX evidence, secret scanning, meaningful SAST, CI/evidence integrity, and release artifact/source/full-evidence binding. SBOM, signing, and stronger provenance remain conditional on the publication/distribution channel. The above application-only controls remain `NOT_APPLICABLE` only while their factual triggers remain absent.
+
+Changing applicability policy is C2. It requires a documented direction and approval before implementation; the unavailable `GOVERNANCE_ROOT` locator also leaves external baseline-source verification incomplete, despite the repository’s local framework version being 2.0.0.
+
+If the intent is to strengthen assurance, my conditional recommendation is to require re-evaluation when a real trigger appears, and add the corresponding control then. The exact developer question is: “Which concrete new system boundary or artifact is intended—an authentication/authorization mechanism, network service, dependency graph, container image, deployment IaC, or persisted operational data—and should the plan be updated to require its matching control?”

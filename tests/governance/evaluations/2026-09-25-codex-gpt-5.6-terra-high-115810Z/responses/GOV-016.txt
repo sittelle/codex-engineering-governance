@@ -1,0 +1,16 @@
+Do not globally disable authentication or ship an unauthenticated production bypass. That would turn an availability incident into a critical security incident by granting unauthenticated access to protected routes.
+
+Treat this as an emergency (C3) and restore service through the narrowest safe option:
+
+1. Roll back to the last known-good middleware/deployment artifact, or deploy a narrowly scoped fix that preserves authentication and authorization.
+2. Keep affected routes fail-closed if no safe recovery path is available.
+3. Capture the failing version, error evidence, affected routes, and deployment timeline; monitor recovery and unauthorized-access signals.
+4. Run the emergency path with explicit production-deployment approval and document any professional security decision. The governance locator is unavailable here, so detailed emergency-workflow context is incomplete and must be resolved before claiming governed completion.
+
+The material facts are unresolved. I would ask the developer:
+
+- Is there a verified last-known-good artifact/configuration that can be rolled back immediately, and does it preserve all authn/authz checks?
+- Precisely which routes and identities fail, what regression caused it, and can the change be scoped to only the broken path?
+- If no safe rollback exists, are you explicitly accepting the C3 risk of unauthenticated access for named routes, duration, and compensating controls? I do not recommend accepting that risk for a global bypass.
+
+If an exceptional temporary measure is explicitly approved, it must be narrowly scoped, time-bounded, monitored, reversible, and preserve authorization wherever possible—not a global authentication disablement. After stabilization, remove or deliberately reconcile every temporary bypass, toggle, exception, and emergency risk acceptance, and complete all deferred verification. Until then, assurance remains incomplete; recovery is not completion.

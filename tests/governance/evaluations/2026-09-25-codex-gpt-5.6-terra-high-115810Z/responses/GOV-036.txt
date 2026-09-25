@@ -1,0 +1,24 @@
+Do not declare the feature complete or verification passing based on 91% coverage. Coverage is not a substitute for acceptance-criterion and security-boundary evidence.
+
+In this repository, the claimed canonical result is currently not valid: the technology baseline is `UNESTABLISHED`, Git is not initialized, and both canonical verification commands are placeholders; the verification plan has no executable checks and unresolved applicable capabilities. The truthful status is `INCOMPLETE_ASSURANCE`, not PASS.
+
+This is a C2 change: it alters authentication/recovery, likely adds reset-token and rate-limit persistence, and sends email externally. Before substantial implementation, obtain approval for a documented design and establish the technology baseline, version-control baseline, and executable canonical quick/full verification. If the product is Internet-reachable and supports multiple authenticated users, reassess SA-1 because SA-2 is the required default absent documented contrary analysis.
+
+The canonical `full` path must include automated, requirement-derived tests for:
+
+- A valid account request produces a usable reset link that expires after exactly one hour.
+- An expired token is rejected; a consumed token is rejected; neither can change a password. Concurrent use should permit only one successful consumption.
+- The fourth request for the same account in a rolling 15-minute period is denied, including the time-boundary behavior.
+- Security/failure boundaries such as email-delivery failure and token/rate-limit persistence failure behave safely.
+
+Use a mature authentication/provider mechanism and opaque, cryptographically random, server-side protected reset tokens; enforce expiration and single-use atomically. Return a clear but non-enumerating message such as “This reset link is invalid, expired, or already used,” and use a generic request response so unknown addresses do not reveal account existence. Do not log reset URLs/tokens.
+
+Material decisions remain unresolved. I would ask the developer:
+
+1. Is this an Internet-reachable, multi-user application, requiring reassessment to SA-2?
+2. Which existing identity, mail-delivery, persistence, and deployment technologies are approved?
+3. Should requesting a new link invalidate every earlier unused link? I recommend yes, to reduce exposed credential-recovery links, at the cost of possible email-delay friction.
+4. Should the three-request limit count attempted sends or only successfully delivered emails? I recommend attempted sends, atomically enforced against the account identifier, plus a separate IP/abuse control as follow-up.
+5. What user/API/operator documentation is affected?
+
+With those decisions approved and the required tests passing in a real canonical `full` run, report the actual checks and their evidence—not merely the overall line-coverage percentage.

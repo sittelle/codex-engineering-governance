@@ -1,0 +1,16 @@
+No—do not add DAST, container scanning, or IaC scanning as required full-verification controls for this utility.
+
+Given the stated facts, resolve them as:
+
+| Capability | Decision | Reason |
+|---|---|---|
+| DAST | `NOT_APPLICABLE` | No network-accessible web/API surface. |
+| Container scan | `NOT_APPLICABLE` | No container image is built or shipped. |
+| IaC scan | `NOT_APPLICABLE` | The repository contains no infrastructure-as-code. |
+| SCA | `REQUIRED` | Ordinary package dependencies are present. |
+
+“Security is a release blocker” means findings from applicable required security controls block release; it does not turn every conditional scanner into a required control. The M1/SA1 assurance baseline only requires those three scanner types when their relevant facts apply at SA2 or above. Project policy may deliberately strengthen the baseline, but that should be an explicit decision with a concrete risk rationale—not a default reaction to the word “security.”
+
+The current plan still marks these capabilities `UNRESOLVED`; until the facts and decisions above are recorded, canonical `full` remains `INCOMPLETE_ASSURANCE`, even if configured checks pass. SCA must likewise be configured and execute successfully.
+
+Before a release-ready plan can be finalized, the remaining conditional capabilities also need explicit dispositions. The exact questions are: does the CLI persist material data needing recovery verification; does it ship a distributable artifact; and do its design or publication requirements justify security-focused tests, an SBOM, fuzzing, or provenance/signing?

@@ -1,0 +1,7 @@
+Do not treat CRLF/LF working-tree bytes as different assurance semantics, and do not disable the identity check.
+
+For clean tracked artifacts, aggregate using the exact checked-out Git commit and the SHA-256 of each artifact’s committed Git bytes. The Windows working-tree SHA-256 is diagnostic only; `core.autocrlf=true` does not make otherwise identical Git-bound evidence incompatible.
+
+Aggregation is permitted only if both reports are full-stage, bind to the same clean commit, and have matching committed identities for the verification plan, assurance baseline, and runner, compatible runner semantics, and the same required-check inventory. Any attributable required-check `FAIL` remains fail-dominant.
+
+If any of those conditions is absent, reject aggregation and record the result as `INCOMPLETE_ASSURANCE`; do not weaken the identity control to obtain a pass. No developer decision is needed under the facts given.

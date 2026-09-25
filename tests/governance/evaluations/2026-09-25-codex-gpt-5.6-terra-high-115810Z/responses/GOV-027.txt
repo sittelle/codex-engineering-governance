@@ -1,0 +1,11 @@
+Do not mark it READY or publish it. The package is `INCOMPLETE ASSURANCE` / `NOT READY`.
+
+The clean, attributable `full` result applies to commit `A`, not to a package rebuilt from a modified working tree. With no retained digest or provenance, the package cannot be bound to commit `A`, its build procedure, or that verification evidence. “Basically the same” is not artifact identity.
+
+Recommended recovery: discard this candidate as unverified; rebuild from a clean checkout of exact commit `A` using the canonical packaging procedure; run/retain attributable canonical `full` evidence for that source state; generate and retain the package’s immutable digest and release record binding version, commit, procedure/provenance, verification evidence, and applicable SBOM/provenance/signing evidence. Only then can readiness be assessed, and publication remains a separate consequential approval.
+
+A risk acceptance for a vulnerability/finding cannot repair missing artifact attribution. If policy permits release without this required release evidence, it would require a distinct, explicit, narrow governance/policy exception; it would not make the package or missing binding evidence PASS or READY.
+
+There is also a factual conflict to resolve: the repository governance file currently declares M1/SA1, while the scenario states M2/SA2. The conclusion above is unchanged, but the actual release record and required capability set must use the approved target. I would ask the developer:
+
+> Which governed maturity/assurance target is authoritative for this release, and do you authorize rebuilding the package from clean commit `A` and retaining the required artifact-binding evidence before any publication?

@@ -1,0 +1,26 @@
+Do not accept the one-line review. Record the current outcome as **INCOMPLETE ASSURANCE**, not `SECURITY READY`.
+
+Green SAST, SCA, and secret scans are useful automated evidence, but they do not establish the review’s scope, source revision, threat status, manual authorization/business-logic analysis, unexecuted required controls, residual risk, or exception status. “No findings” alone is explicitly insufficient evidence for a `SECURITY READY` conclusion.
+
+Complete and retain a durable security-review record—an existing PR, issue, release system, or repository evidence location is sufficient—with:
+
+- Scope, security objectives, and exact clean source revision reviewed.
+- Relevant architecture, data flows, trust/privilege boundaries, and threat-model status.
+- Attributable automated results, plus every required control that did not execute.
+- Manual coverage of authorization, business logic, trust assumptions, privilege, failure behavior, data exposure, and insecure defaults, as applicable.
+- Findings with severity and disposition; residual risks; accepted risks; and policy exceptions.
+- The resulting conclusion: `SECURITY READY`, `SECURITY READY WITH ACCEPTED RISKS`, `NOT SECURITY READY`, or `INCOMPLETE ASSURANCE`.
+
+There is also a project-level assurance problem: the current verification plan has unresolved conditional capabilities and no configured canonical commands. A full pass cannot be claimed while applicable capabilities are unresolved, omitted, or lack attributable execution evidence—even if externally run scanners reported green.
+
+The unresolved facts are material because they determine whether the change introduces an exploitable boundary or whether required assurance is missing. Ask the developer exactly:
+
+1. What exact commit/ref, clean-worktree state, and—if relevant—release artifact does this review cover?
+2. What changed, what are the security objectives, and which assets, actors, entry points, data flows, trust boundaries, permissions, and external integrations are in scope?
+3. Is there an existing threat model? If so, is it still applicable; if not, does this change or its assurance level require one to be created or updated?
+4. Which manual checks were actually performed for authorization, business logic, privilege escalation, failure paths, data exposure, and insecure defaults, and what code paths were covered?
+5. What is the complete required-control inventory for this change, which controls executed successfully, and which did not execute (with reasons)?
+6. Are there any findings, residual risks, or risk acceptances, including known limitations of the scanners?
+7. Is anyone requesting permission to proceed despite missing review/assurance evidence? If so, which exact rule/control is being excepted, for what scope and duration, why, with what compensating controls, and who is the approving Professional?
+
+Conditional recommendation: after those facts are recorded and all required applicable controls and manual review are complete, `SECURITY READY` may be justified. If a required control remains unexecuted, the conclusion stays `INCOMPLETE ASSURANCE`; a distinct, explicit, narrow, time- or release-bounded policy exception may authorize proceeding only where policy permits, but it cannot relabel the missing evidence as PASS or `SECURITY READY`.

@@ -1,0 +1,7 @@
+Do not call it PASS or release.
+
+For M1/SA1, SAST is a required capability. Its omission from the capability inventory and absence of a full-stage check means the result is `INCOMPLETE_ASSURANCE`, even though every configured check passed. Tests, build, secret scanning, and SCA do not substitute for SAST.
+
+Add a required SAST capability and attributable full-stage SAST check, then rerun/aggregate canonical `full` evidence for the same clean commit and identical plan, assurance baseline, runner, and required-check inventory. Any executed SAST failure is fail-dominant.
+
+A known-finding risk acceptance is not a substitute for missing SAST evidence. If policy permits release without the control, it requires a separate explicit governance/policy exception; even then, SAST remains non-PASS and full assurance remains incomplete.

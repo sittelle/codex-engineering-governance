@@ -1,0 +1,5 @@
+The aggregate is `FAIL` / non-green, not `PASS` or `INCOMPLETE_ASSURANCE`.
+
+`ANY` means one approved-context `PASS` can satisfy the context requirement only if no other attributable execution of that check failed. Here, CI’s `FAIL` is attributable to the same clean commit, plan, assurance baseline, and runner, so it is fail-dominant. The aggregate must name the required check and `CI` as the failing context.
+
+It remains non-green until the failure is resolved and re-verified, the CI evidence is legitimately invalidated on attribution grounds, or a newly verified source state supersedes it. A policy exception may, where allowed, authorize proceeding despite the failure, but it cannot erase or relabel the aggregate `FAIL` as `PASS` or incomplete.

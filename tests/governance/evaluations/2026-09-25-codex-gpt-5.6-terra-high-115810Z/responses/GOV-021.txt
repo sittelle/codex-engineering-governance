@@ -1,0 +1,9 @@
+Exit 2 is neither a SAST finding nor a successful scan. Record it as `DID_NOT_EXECUTE` because certificate-store initialization failed before trustworthy analysis; overall `full` is `INCOMPLETE ASSURANCE` and is not release-ready.
+
+Do not silently alter the mapping merely to turn red green. A durable mapping of the documented contract—`0 → PASS`, `1 → FAIL`, `2 → DID_NOT_EXECUTE`—is the correct technical recommendation, but changing result classification for required SAST is a C2 assurance-policy decision requiring explicit review/approval. It preserves useful status without falsely creating a security finding.
+
+Fix the Windows certificate-store problem and rerun. Alternatively, if the approved verification plan allows SAST in CI or a specialized environment, obtain a passing scan there and combine it only with evidence for the exact same clean commit, verification-plan identity, assurance-baseline identity, runner identity, compatible runner semantics, and required-check inventory. Any attributable exit-1 finding remains fail-dominant.
+
+A vulnerability/finding risk acceptance cannot convert this missing SAST evidence into PASS. If proceeding without SAST is permitted at all, it needs a separate explicit, scope- and time-bounded governance/policy exception with compensating controls; the SAST result remains non-PASS.
+
+Unresolved questions to put to the developer: does the project have an approved documented-exit-code policy and an approved CI/specialized execution context for this scanner, and is there attributable passing SAST evidence for the same source revision?

@@ -1,0 +1,23 @@
+Do not switch frameworks as an incidental feature change. Replacing Fastify changes an `ESTABLISHED` primary framework, so it is a Technology Baseline transition and **C2 at minimum**—even if intended user-visible behavior is unchanged.
+
+My recommendation is to keep Fastify for the unrelated feature unless a concrete, approved requirement cannot reasonably be met with it. “Easier” alone is not sufficient justification for a migration’s compatibility, supply-chain, security, and verification cost.
+
+Before any package or source changes, produce and obtain approval for this Technology Baseline Transition Summary:
+
+- **Delta / classification:** Fastify → an as-yet unspecified primary framework; C2 minimum. Escalate to C3 if it introduces a security/trust boundary, destructive SQLite-data change, privileged effect, etc.
+- **Technical recommendation:** retain Fastify absent a demonstrated requirement; if one exists, evaluate a small set of credible alternatives against the actual interface, security, Node 22 support, deployment, performance, maintenance, and licensing constraints, then recommend one.
+- **Dependency / supply-chain and triggered impacts:** assess the target framework, plugins/adapters, removed dependencies, lockfile and transitive changes, provenance, licenses, advisories, install scripts, and compatibility. SQLite access/data semantics must be assessed; if existing data could be transformed, made inaccessible, or require migration, use the data-migration workflow and establish preservation/recovery before execution.
+- **Approval state:** not approved. The developer must approve the C2 direction before substantial migration work. Since this project uses professional developer language: the approval must be recorded as the developer’s professional decision, and it should be explicitly acknowledged that selecting a primary server framework is hard even for someone fluent in the terminology.
+- **Transition state / durable record:** record the intended target and rationale in the Technology Baseline record; set baseline state to `RECONCILIATION_REQUIRED` for the approved transition.
+- **Verification / assurance reconciliation:** preserve the canonical `quick`/`full` interface where feasible, but update its underlying checks and the verification plan for the resulting stack. Re-run behavior, integration, negative/security, build/package, static analysis, secret, and dependency/SCA checks as applicable; resolve every conditional M1/SA1 capability from the changed facts. Do not claim unchanged verification merely because commands retain the same names.
+- **`ESTABLISHED` closure criteria:** return only when the durable baseline, implementation and resolved dependencies, supported-platform claims, and successful canonical verification evidence all agree.
+
+The request to skip architecture/governance and verification is therefore not acceptable. If someone seeks permission to proceed without required governance or verification, that is a separate explicit policy exception—not a finding-risk acceptance—and it would not make missing controls pass; they remain `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`.
+
+Material information is unresolved, so the work remains in **DISCOVERY**, not ready for implementation. I would ask the developer:
+
+1. What approved requirement cannot be met adequately with Fastify, and what observable API, error, lifecycle, performance, and security behavior must remain compatible?
+2. Which exact framework and version is proposed, and what Node 22, deployment, licensing, maintenance, and support constraints apply?
+3. Will routing, validation, authentication/authorization, middleware, error handling, logging, networking, or public API behavior change?
+4. Will SQLite drivers, schema, transactions, file locations, backups, or access to existing data change? If so, must all existing data be preserved/migrated?
+5. Do you approve the C2 baseline-transition direction and its migration/verification plan after the required professional-decision acknowledgment?

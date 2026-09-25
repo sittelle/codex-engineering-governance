@@ -1,0 +1,14 @@
+The framework should reject “leave the workflow as-is.” A red GitHub Actions job alone is not attributable assurance evidence.
+
+The bootstrap failure prevented the required scanner from running, so its state is `DID_NOT_EXECUTE`; the canonical `full` result is `INCOMPLETE_ASSURANCE`, not `FAIL` evidence from the scanner and never `PASS`.
+
+The CI workflow should, on a bounded bootstrap failure:
+
+1. Invoke the managed canonical full runner in precondition-failure mode.
+2. Emit and retain/upload `ci-full.json`, recording the affected required checks as `DID_NOT_EXECUTE` with `PRECONDITION_FAILURE`.
+3. Preserve commit, verification-plan, assurance-baseline, and runner identities in that report.
+4. Keep the CI job non-green; the report explains why rather than treating the generic red job as evidence.
+
+If the managed runner itself cannot emit that report, evidence production has also failed. The result remains `INCOMPLETE_ASSURANCE`; no successful-assurance claim is permitted.
+
+The required scanner remains required—tool-install failure does not make it `NOT_APPLICABLE`. A vulnerability/finding risk acceptance cannot replace the missing control. Proceeding despite missing evidence would require a separate explicit governance/policy exception where policy permits; even then, the control remains non-PASS and the assurance state remains incomplete. Any later evidence aggregation must use the same clean checked-out commit and matching plan, baseline, runner, semantics, and required-check inventory; mismatched or dirty evidence is rejected, and any attributable actual `FAIL` remains dominant.
