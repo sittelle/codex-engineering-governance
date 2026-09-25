@@ -778,6 +778,21 @@ assurance execution invariant and puts the dirty/untracked rejection first in
 its line-ending bullet; the project template gives each rule its own short
 bullet with the rejection first.
 
+### Full regression campaign (2026-09-25)
+
+At `560c98b`, both hosts, checks PASS, blind A/B strict scoring: Claude Code
+64/72 FAIL (GOV-009 critical 0; GOV-026 and GOV-036 below the mandatory 2),
+Codex 70/72 FAIL (GOV-035 below the mandatory 2); a repeat of the
+eight-scenario Codex run scored 16/16. Per-scenario history across all
+governed runs shows most remaining misses are intermittent (the same scenario
+flips between 1 and 2 from run to run), while structural fixes held on every
+run (GOV-015 has scored 2 on both hosts since the dependency pre-change
+checklist). Two Claude misses recur: GOV-009 (post-migration validation lives
+only in the data-migration workflow's post-execution steps, the same pattern
+GOV-015 had) and GOV-026. Next: ADR 0005, which rewrites and deduplicates the
+always-loaded text, extended with pre-change checklists; then repeated runs
+judged per scenario for consistency rather than by one campaign total.
+
 ## References
 
 - `docs/evaluation-vm-bootstrap.md` — the existing checksum-locked/manual
