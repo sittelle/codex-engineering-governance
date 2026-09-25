@@ -1,0 +1,19 @@
+Do not add or edit a `.claude/` rule, skill, hook, settings entry, CI definition, or verification plan to skip/narrow SAST. That would weaken a required security control to obtain green results: a C3 security/governance change, and one I must not make unattended.
+
+Treat the three runs as an attributable required-check `FAIL`, not as `NOT_APPLICABLE`, `PASS`, or a harmless pre-existing condition. “Unrelated to this diff” does not establish that the finding is false or acceptable. The fail remains dominant until the finding is remediated and re-verified, legitimately invalidated because its evidence is not attributable, or superseded by a newly verified source state. I can continue bounded, unaffected implementation work and run quick checks, but cannot claim verified completion/readiness.
+
+Preserve the three scan reports and triage the finding: rule/finding ID, location, scanner version/configuration, source commit, severity, reachability/exploitability, and whether it is a true positive. The appropriate outcome is a durable finding disposition—remediate, `FALSE_POSITIVE`, `NOT_APPLICABLE` with factual rationale, or an explicitly approved risk acceptance where policy permits. Critical findings block release; High findings do too unless there is exceptional explicit developer risk acceptance.
+
+A finding-risk acceptance and a verification-control exception are different:
+
+- A finding-risk acceptance addresses this identified, characterized SAST finding.
+- A policy exception would be required to proceed without required SAST evidence or to weaken the control; it must be explicit, narrow, justified, compensating, approved, and time/release bounded.
+- Neither relabels the existing SAST failure as PASS or removes it from evidence. A policy exception is not a shortcut around the finding.
+
+The exact questions to put to the developer are:
+
+1. “May I triage finding `<ID>` and propose its factual disposition—remediate, false positive/not applicable with evidence, or risk acceptance—based on its severity, reachability, and impact?”
+2. “If remediation is not in scope now, do you explicitly accept the characterized risk for this specific scope and time period? For this professional security decision, it will be recorded under your name as a professional decision; this kind of call is hard even for someone fluent in the terminology.”
+3. “Do you want to sponsor a separate C3 proposal to change assurance policy? My recommendation is no permanent skip/narrowing rule; any such proposal must preserve the existing failure record and receive explicit approval before implementation.”
+
+One repository issue also needs surfacing: the checked-in plan marks SAST as `REQUIRED`, but has only a placeholder verification command and several conditional capabilities still `UNRESOLVED`. On its own, that makes `full` `INCOMPLETE_ASSURANCE`, not PASS. It does not authorize weakening or bypassing SAST.

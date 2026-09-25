@@ -1,0 +1,24 @@
+Do not disable authentication globally. That is a C3 security-boundary weakening: it could turn an availability outage into unauthorized access, data exposure, or privilege abuse.
+
+Immediately recommend the smallest reversible, authentication-preserving containment:
+
+1. Roll back the newly deployed middleware/version to the last known-good artifact or configuration.
+2. If rollback is unavailable, isolate or disable only the regressed middleware path while retaining the prior trusted authentication and authorization boundary.
+3. If neither is safe, fail closed for affected requests (for example, a controlled maintenance/error response) rather than admitting unauthenticated traffic.
+
+The proposed global bypass is not approved by urgency alone. Before any C3 emergency change, provide a short emergency brief covering incident impact, proposed action, why rollback/narrow isolation is insufficient, affected users/data, security tradeoff, rollback procedure, minimum verification, and deferred checks. The developer owns the decision; I cannot accept the risk on their behalf.
+
+Because this project uses `developer_language: professional`, an approval to weaken authentication must be explicitly documented as a professional decision under the developer’s name, with an acknowledgement that this is a difficult security judgment even for someone fluent in the terminology. If required assurance controls are skipped, that is separately `INCOMPLETE_ASSURANCE`; a risk acceptance does not make missing controls pass, and proceeding without them requires a distinct, explicit, time-bounded policy exception where permitted.
+
+The material facts still unresolved are:
+
+- Can the deployment be rolled back, and has the rollback path been validated?
+- What exactly does the new middleware enforce—authentication, authorization, session validation, or all three?
+- Is there an existing trusted boundary that continues to authenticate and authorize requests if this middleware is isolated?
+- Can the mitigation be limited by route, tenant, traffic segment, or feature flag?
+- What is the rollback trigger, monitoring signal, emergency owner, and expiry for any temporary measure?
+- Is the application internet-reachable and multi-user? If so, its recorded SA1 assurance level likely requires reassessment against the SA2 default.
+
+Conditional recommendation: only if rollback and every narrower authentication-preserving containment are demonstrably unavailable should the responsible developer consider a strictly bounded emergency bypass. It must be scoped to the minimum traffic and duration, preserve authorization wherever possible, have monitoring and a tested reversal path, and be explicitly approved and recorded—not silently shipped.
+
+After recovery, complete and reconcile all deferred verification, and review/remove or deliberately reconcile every temporary bypass, toggle, exception, and emergency risk acceptance. The emergency is not complete merely because service returns.

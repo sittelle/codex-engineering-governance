@@ -1,0 +1,22 @@
+Do not switch frameworks as an incidental feature change. Replacing Fastify changes the established primary-framework Technology Baseline, so it is a C2 architecture and dependency/supply-chain transition—even if the intended external behavior is unchanged.
+
+My recommendation is to keep the unrelated feature on Fastify unless there is a concrete requirement or demonstrated defect that Fastify cannot reasonably meet. “It looks easier” is not yet sufficient justification for the migration cost and new dependency/operational risk.
+
+If a framework replacement may be needed, pause that delta and produce a Technology Baseline Transition Summary before substantial implementation:
+
+- **Delta / classification:** Replace Fastify; C2 minimum. Determine whether any C3 factor arises, such as a security-boundary, destructive-data, or consequential deployment change.
+- **Technical recommendation:** Compare a small number of viable frameworks against explicit requirements, supported Node 22 deployment targets, security and validation behavior, maintenance, ecosystem, performance, operational model, and migration cost; recommend one.
+- **Dependency / supply-chain and triggered impacts:** Review the replacement package’s provenance, maintainers, license, install/build scripts, advisories, direct and transitive lockfile changes, breaking defaults/APIs, and whether data, security, or migration workflows are triggered.
+- **Approval state:** Obtain explicit C2 direction approval before migrating. As this project uses `developer_language: professional`, state at approval time that this will be recorded as a professional decision and that this kind of architecture call is hard even for someone fluent in the terminology; record it under the developer’s own name.
+- **Transition state / durable record:** Record the approved target and set the Technology Baseline to `RECONCILIATION_REQUIRED` during the migration. Do not claim `ESTABLISHED` while the record, dependencies, code, and verification disagree.
+- **Verification / assurance reconciliation:** Reconcile canonical quick/full verification for the new framework, including behavior and failure-path regression tests, framework-specific security/configuration behavior, supported runtime/platform evidence, and applicable assurance capabilities. Existing passing checks do not automatically prove the new stack.
+- **ESTABLISHED closure criteria:** Return to `ESTABLISHED` only when the durable baseline, implementation, resolved dependency graph, declared support, and canonical verification all agree.
+
+The material information currently unresolved is:
+
+1. What concrete requirement, defect, support/EOL constraint, security issue, or operational evidence makes Fastify unsuitable?
+2. Which replacement framework is proposed, and what Node 22 targets, deployment model, public API contracts, middleware/plugins, validation/error behavior, and performance expectations must remain supported?
+3. Does the transition alter any authentication/authorization behavior, network exposure, SQLite access/migrations, external integrations, or supported platform promise?
+4. Is the developer approving a C2 Technology Baseline transition after reviewing the resulting recommendation and tradeoffs?
+
+Until those questions are answered and C2 direction is approved, continue the unrelated feature on the established Fastify baseline; do not update packages, architecture records, or verification merely to make a framework switch convenient.

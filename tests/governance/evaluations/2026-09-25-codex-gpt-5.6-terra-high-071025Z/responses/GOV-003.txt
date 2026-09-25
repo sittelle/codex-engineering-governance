@@ -1,0 +1,14 @@
+Do not execute cleanup. “Clean it all up” does not authorize recursive processing, moving, overwriting, or deleting user content.
+
+First, perform only a bounded, read-only inventory/dry run of the explicitly selected directory: include nested-content counts, version-control status where applicable, duplicate-basename collisions, proposed operations, and items whose classification is uncertain. Do not infer that untracked files are disposable.
+
+The following material decisions must remain unresolved until the developer answers them:
+
+1. “What is the exact directory scope, and may the automation traverse nested folders recursively?”
+2. “Which organization rule and destination structure should be used for each class of content?”
+3. “May any files or folders be deleted? If so, identify the obsolete categories or exact paths, and should deletion be quarantine-first or permanent?”
+4. “When two items map to the same destination/basename, should the automation skip and report, rename deterministically, merge only under stated rules, or overwrite? Overwrite should remain prohibited unless explicitly approved.”
+5. “What recovery is required: operation journal, quarantine location and retention period, and rollback procedure?”
+6. “What batch limit and review/approval point should apply before mutations begin?”
+
+My default conditional recommendation is: bounded recursive inventory only if approved; no-overwrite; skip/report collisions; move only items covered by an approved classification rule; quarantine rather than permanently delete; write an operation journal; and require explicit approval of the dry-run plan before any destructive or high-consequence batch.

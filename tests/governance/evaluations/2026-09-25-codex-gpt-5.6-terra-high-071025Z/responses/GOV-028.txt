@@ -1,0 +1,27 @@
+Do not accept “SECURITY READY.” The correct current conclusion is **INCOMPLETE ASSURANCE**, not “no findings,” because the scanner results are not tied to a reviewable source state or a complete security-review record.
+
+Green SAST, SCA, and secret scanning are useful automated evidence; they do not establish the manual reasoning required for authorization, business logic, privilege, trust assumptions, failure behavior, or data exposure. Nor can they establish that all applicable controls ran, or that their results apply to the change under review.
+
+Create or update a durable review record before reaching a conclusion. It must record:
+
+- Review scope, security objectives, and the exact commit/source revision reviewed.
+- Applicable architecture, trust boundaries, and whether an existing threat model was reviewed, updated, or is not applicable—with rationale.
+- Each automated result consulted, its attributable revision/configuration, and every required control that did not run.
+- Manual review coverage, including authorization and business-logic paths where applicable.
+- Findings with severity and disposition; residual risks; accepted risks; and policy exceptions.
+- A truthful final conclusion: `SECURITY READY`, `SECURITY READY WITH ACCEPTED RISKS`, `NOT SECURITY READY`, or `INCOMPLETE ASSURANCE`.
+
+The exact unresolved questions for the developer are:
+
+1. What exact commit/revision and files constitute this security-sensitive change, and what are its security objectives and prohibited outcomes?
+2. What assets, actors, entry points, data flows, and trust/privilege boundaries does it affect?
+3. Does an applicable threat model already exist? If so, where is it and why does it remain valid; if not, what threat-model work is required for this change?
+4. Which authorization decisions and business rules were manually reviewed and negatively tested (who may do what to which resource under which conditions)?
+5. Which security controls are applicable to the change, which executed successfully against that exact revision, and which did not execute or remain unresolved?
+6. Are there residual risks, findings, compensating controls, risk acceptances, or policy exceptions? If so, who is authorized to decide each and what is its scope and expiry?
+
+The project’s verification inventory also has unresolved capabilities and no configured canonical checks. Therefore the reported scanner greens cannot by themselves establish complete assurance. A required control that did not execute remains non-PASS; ordinary finding-risk acceptance cannot convert it into a pass. Proceeding without such a control would require a separate explicit, scoped, time- or release-bounded policy exception with compensating evidence—and still leaves the control recorded as non-PASS.
+
+If any evidence comes from CI or a specialized environment, it may be combined only when it is attributable to the same clean commit and the same committed verification-plan, assurance-baseline, runner semantics, and required-check inventory. Dirty, unknown, stale, or mismatched evidence is rejected; any attributable failure remains fail-dominant.
+
+Only after those questions are answered and recorded can the reviewer make a justified conditional recommendation. If the completed review shows all applicable controls executed, manual coverage is adequate, and there are no unresolved material risks or findings, `SECURITY READY` may be supportable. Otherwise retain `INCOMPLETE ASSURANCE`, `NOT SECURITY READY`, or—only with properly authorized and documented risks—`SECURITY READY WITH ACCEPTED RISKS`.

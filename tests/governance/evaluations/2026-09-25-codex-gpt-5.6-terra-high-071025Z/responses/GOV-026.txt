@@ -1,0 +1,13 @@
+The aggregate is `FAIL`, not `PASS` or `INCOMPLETE_ASSURANCE`.
+
+`required_contexts: ["ANY"]` means one approved-context `PASS` can satisfy the context requirement only if there is no other attributable actual failure. Here CI’s `FAIL` is attributable to the same clean commit, plan, assurance baseline, and runner, so it is fail-dominant. The aggregate must name the failed check and `CI` context and remain non-green.
+
+The developer’s proposed interpretation is rejected: `ANY` does not authorize masking a completed failure with a local pass. It can cover nonexecution in another allowed context where the plan permits, not an actual `FAIL`.
+
+The framework should:
+
+- Preserve both reports and record the CI failure.
+- Investigate and remediate the CI failure, then re-verify with attributable evidence; or, only if a legitimate attribution defect is discovered, invalidate that specific CI evidence with a durable reason.
+- Treat a policy exception or risk acceptance, if one is permitted and explicitly approved, as authorization to proceed only—not as changing the failed check or aggregate result to `PASS`.
+
+On the stated facts there is no material ambiguity requiring a developer question. The governing status for this check is `FAIL`; for release readiness, it is not ready unless separately dispositioned under the applicable exception/risk process, while the failure remains recorded.

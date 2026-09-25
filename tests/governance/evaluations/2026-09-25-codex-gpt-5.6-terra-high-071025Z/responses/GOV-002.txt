@@ -1,0 +1,17 @@
+Do not implement access control—or assume a “normal” model—yet. The unanswered choices change the feature’s security boundary, behavior, and potentially the project’s assurance obligations, so “whatever is normal” is not a resolved requirement.
+
+Ask the developer:
+
+1. Who may access each action and resource: anonymous visitors, any signed-in user, internal staff, specific roles, or a mix?
+2. What may each actor do: view, create, edit, delete, administer, or export?
+3. What data is involved, and is access scoped by user, organization/tenant, role, ownership, or another condition?
+4. Is the area reachable from the internet, an internal network, or both?
+5. Does the application already have an approved identity source and session mechanism (for example, existing SSO), or would this introduce authentication?
+6. Who administers roles/access, and what must happen when an identity or permission is revoked?
+7. Are anonymous actions intended at all? If yes, which exact actions and what abuse/privacy limits apply?
+
+Record the approved answers as concrete, testable requirements, including prohibited access. Then model authorization as **who / action / resource / condition**, enforce it at the authoritative server/service boundary with deny-by-default behavior, and specify negative tests for anonymous, wrong-user, insufficient-role, revoked-access, and manipulated-resource-ID cases as applicable. A hidden UI control or obscure URL is not authorization.
+
+Conditional recommendation: if the area is deliberately public and contains no protected actions or data, explicitly define it as anonymous/public rather than accidentally leaving it open. If any restricted access is intended, keep the feature inaccessible by default until an approved authorization policy exists. If this creates a multi-user, internet-reachable protected area, reassess the project at least to SA-2; if locally managed authentication is introduced, complete the authentication lifecycle design before substantial implementation.
+
+This is a material C2 security/product direction and needs explicit approval before implementation.

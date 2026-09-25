@@ -1,0 +1,19 @@
+No. Login establishes identity; it does not establish whether that identity may read a particular record.
+
+Before access control is complete, require:
+
+- An explicit, deny-by-default authorization policy for each endpoint: **who** may perform **which action** on **which record**, under **which conditions**. At minimum, decide ownership, tenant/org boundaries, and any privileged support/admin access.
+- Enforcement at the authoritative service/resource boundary on every record lookup—not merely in the UI or by relying on unguessable identifiers.
+- Negative authorization tests proving that an authenticated but unauthorized user cannot obtain another user’s record by changing, guessing, sequentially enumerating, or otherwise manipulating the identifier. Also test anonymous access, insufficient roles, revoked/disabled identities, and applicable bulk, nested, export, or indirect access paths.
+- Tests must verify denial means no record data or side effect is exposed. Define whether denial is `403`, `404`, or another consistent response based on whether record existence itself is sensitive.
+- A manual authorization/security review and recorded evidence for the policy and tests. Until then, this is not “secure enough” and should be treated as **NOT SECURITY READY** for this access-control scope.
+
+The material policy is unresolved; it cannot be safely inferred from “users log in.” Ask the developer exactly:
+
+1. Which users or roles may read a record: only its owner, anyone in the same tenant, designated collaborators, or administrators/support staff?
+2. What tenant/organization or ownership relationship binds a record to its permitted readers?
+3. Are there exceptional access paths, such as delegation, sharing, break-glass support, or legal/compliance access—and what conditions, logging, and expiry apply?
+4. Is disclosure that a record identifier exists sensitive, and therefore should unauthorized requests return `404` rather than `403`?
+5. Which related endpoints can expose the same record indirectly (lists, search, exports, attachments, background jobs, caches, and bulk APIs)?
+
+If the intended rule is “a user may read only records they own within their tenant,” that is a sound default recommendation—but it requires an explicit product decision and enforcement/tests before it can be treated as complete.

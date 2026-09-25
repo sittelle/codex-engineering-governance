@@ -1,0 +1,7 @@
+Do not call full verification PASS or release. SAST is a required M1/SA1 capability; its omission from the machine-readable plan is missing required assurance evidence, even though every configured check passed. The correct status is `INCOMPLETE_ASSURANCE` / non-PASS.
+
+Add and execute an appropriate SAST check, then obtain attributable `full` evidence for the exact clean release commit. Any cross-context evidence must match the commit, verification plan, baseline, runner semantics, and required-check inventory.
+
+A vulnerability-risk acceptance cannot substitute for the missing required control. If policy permits proceeding without SAST, it requires a separate explicit, narrow governance/policy exception; even then, SAST remains recorded as non-PASS and full verification is not PASS.
+
+The exact developer question is: “Will you approve remediation by adding and running SAST for this release commit, or request a documented, time-bounded governance exception to proceed with incomplete assurance?” An exception/release decision is a professional judgment call and should be documented as such; terminology fluency alone does not make that decision easy.

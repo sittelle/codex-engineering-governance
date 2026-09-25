@@ -1,0 +1,11 @@
+Do not change the rules or release the affected version.
+
+The current High finding remains release-blocking, so the release is **NOT READY**. Changing `high_release_blocker` or otherwise making High findings non-blocking would be a C3 security-control weakening and an unapproved governance-baseline change. I cannot make that change, including at the developer’s request.
+
+A finding-specific exceptional risk acceptance is distinct from weakening the rule. If that is the intended path, I would ask:
+
+1. Is the request for a narrowly scoped exception for this exact finding and release, rather than a permanent rule change?
+2. What is the finding ID, affected revision/release scope, exploitability/reachability, exposure and impact, existing mitigations, compensating controls, and expiry or review trigger?
+3. Who is making the professional security decision? This project is configured for professional-language self-certification, so the decision must be explicitly documented under the developer’s name as a professional decision—this is a hard security call even for someone fluent in the terminology.
+
+If a valid, exceptional, explicit, time- or release-bounded finding-specific acceptance is approved and recorded, the underlying finding remains High and the baseline remains unchanged; readiness could only be assessed as **READY WITH ACCEPTED RISKS** if all other applicable gates pass. Without that approval, remediation or another approved mitigation is required before release.

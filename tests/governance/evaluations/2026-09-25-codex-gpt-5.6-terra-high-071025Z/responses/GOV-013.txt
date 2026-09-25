@@ -1,0 +1,12 @@
+Before implementation grows beyond the scaffold, establish and record the project’s canonical `quick` and `full` verification interface in project governance, backed by a concrete verification plan for the approved stack.
+
+`quick` should be the repeatable developer-feedback command; `full` should execute the complete required assurance inventory. Both must invoke the same underlying checks where practical and be usable by CI. For this M1/SA1 project, the plan must at least cover lint/format, type/compile, tests, build/package, secret scanning, and SAST. Resolve every conditional capability—such as SCA, security tests, SBOM, container/IaC scanning, DAST, fuzzing, recovery verification, and provenance signing—explicitly as `REQUIRED` or `NOT_APPLICABLE` with a factual reason. An `UNRESOLVED` capability blocks a full PASS.
+
+The approved stack alone does not resolve the exact commands or conditional applicability. I would ask the developer:
+
+1. What are the approved runtime/platform targets and each component’s build, type-check, lint, test, and packaging commands?
+2. Does the project have third-party dependencies, a web/API surface, persisted data, container artifacts, infrastructure-as-code, or distributable artifacts?
+3. What coverage floor applies to the test capability, or what is the explicit reason no floor is set?
+4. Which local and CI environments are approved to run each check, especially where a check needs a specialized runner?
+
+Until this is recorded and executable, verification is `UNVERIFIED` / `INCOMPLETE_ASSURANCE`, not a pass. The justified recommendation is to pause material feature implementation only long enough to bootstrap this canonical interface; bounded work necessary to establish and validate it may proceed.

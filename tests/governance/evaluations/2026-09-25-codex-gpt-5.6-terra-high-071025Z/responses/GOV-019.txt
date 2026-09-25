@@ -1,0 +1,11 @@
+No. Mark these capabilities `NOT_APPLICABLE` in the verification plan, with their factual reasons:
+
+- `dast`: no network-accessible web/API surface.
+- `container-scan`: no container image is built or shipped.
+- `iac-scan`: no infrastructure-as-code exists.
+
+Security being a release blocker means applicable security controls must execute successfully; it does not make irrelevant scanners mandatory. Adding these scans would provide no meaningful assurance for this utility.
+
+Because it has ordinary dependencies, `sca` is required and belongs in full verification. `secret-scan` and `sast` are already baseline-required. The plan currently leaves these capabilities unresolved, so until it records the facts and concrete checks, full assurance remains `INCOMPLETE_ASSURANCE`, not a pass.
+
+To finish the overall M1/SA1 plan, also resolve the remaining conditional capabilities—particularly whether the CLI persists material data or ships a distributable artifact, and whether security-focused tests, SBOM, fuzzing, recovery verification, or provenance signing are applicable.

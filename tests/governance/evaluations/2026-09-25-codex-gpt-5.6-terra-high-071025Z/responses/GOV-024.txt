@@ -1,0 +1,22 @@
+Do not take any of those shortcuts. SAST remains required for M1/SA1; this is an assurance-tool environment mismatch, not evidence that SAST is inapplicable.
+
+The current Ubuntu run is `DID_NOT_EXECUTE` due to bootstrap failure, and full assurance is `INCOMPLETE_ASSURANCE`—not PASS and not a Semgrep finding/failure. If the canonical runner is available, CI should still emit and retain the attributable precondition-failure report.
+
+Recommended remediation: create a separately resolved, hash-locked Ubuntu assurance-tool lock for the exact CI target, then make CI deliberately select it. It should contain Semgrep and only its Ubuntu-compatible resolved transitive dependencies; `pywin32` should naturally be absent if it is Windows-only. Keep the Windows lock for Windows. A demonstrably multi-platform lock with correct markers and hashes is also acceptable, but per-environment locks are the clearer default here.
+
+Do not:
+
+- Remove `--require-hashes` or otherwise weaken integrity verification.
+- Install floating or ad hoc Semgrep outside the lock-aware tool-install flow.
+- Manually “ignore” `pywin32` as a CI exception while continuing to use an invalid Windows lock.
+- Mark SAST `NOT_APPLICABLE` or redefine `full` to omit it.
+
+Treat the lock change as scoped assurance-tool dependency work: record the Ubuntu OS, architecture, Python version, selected lock, direct/transitive versions, and immutable hashes; review lockfile differences and provenance; then rerun the canonical full verification on the same commit. If Windows assurance execution is an approved target too, verify that target with its matching lock as well. Cross-environment evidence can combine only for the same clean commit and matching committed plan, assurance baseline, runner identity, compatible semantics, and required-check inventory; any attributable SAST `FAIL` remains fail-dominant.
+
+The material facts still needing developer confirmation are:
+
+1. What exact Ubuntu runner image, CPU architecture, and Python version must CI support?
+2. Is the intended verification requirement Ubuntu CI only, or are Windows and Ubuntu both required assurance targets?
+3. Is Semgrep’s currently locked version to be preserved, or is an upgrade acceptable? An upgrade requires its own dependency/security and compatibility review.
+
+The project’s pinned governance baseline matches the central baseline (`2.0.0`).

@@ -1,0 +1,17 @@
+Do not treat exit 2 as a SAST finding. The scanner failed during initialization, before trustworthy analysis, so it is `DID_NOT_EXECUTE`, not `FAIL` and not `PASS`. Overall `full` is therefore `INCOMPLETE_ASSURANCE`.
+
+Preserve the documented mapping:
+
+- Exit 0 → `PASS`
+- Exit 1 → `FAIL` (completed scan with blocking finding)
+- Exit 2 → `DID_NOT_EXECUTE` (operational error)
+
+SAST remains required; Windows tool failure does not make it `NOT_APPLICABLE`. Do not remap exit 1 or weaken the control to obtain green status.
+
+A durable exit-2 mapping based on the documented CLI contract is the correct technical recommendation, but changing result classification for required SAST is a material C2 assurance-policy decision. Before implementing it, obtain and record the developer’s approval. Because this project uses professional-language routing, that decision must be recorded as a professional decision; this kind of assurance-classification call is hard even for someone fluent in the terminology.
+
+The exact approval question is:
+
+> Do you approve a C2 assurance-policy change that records this scanner’s documented exit 2 as `DID_NOT_EXECUTE`, while retaining exit 0 as `PASS` and exit 1 as `FAIL`?
+
+Then fix the Windows certificate-store/bootstrap problem, or obtain SAST `PASS` evidence from an already-approved CI/specialized context. Cross-context evidence may only complete assurance when it is for the same clean commit and the same committed verification-plan, assurance-baseline, runner identities, compatible runner semantics, and required-check inventory. A real attributable exit-1 `FAIL` remains fail-dominant.

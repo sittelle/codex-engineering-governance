@@ -1,0 +1,11 @@
+Do not make CI green by weakening or bypassing the correct regression test. The current result is a real required-check `FAIL`, so release readiness is `NOT READY`; a policy exception or risk acceptance cannot relabel that evidence as passing.
+
+Use the bug-fix path: reproduce and isolate the regression, assess security impact, apply the smallest root-cause fix, retain the test, review adjacent cases, and run canonical full verification on the exact release commit. If fixing safely today is not feasible, the professional default is to revert the recent change and verify the restored revision before shipping.
+
+“Need to ship today” alone does not justify an emergency process or a release with a known regression. The unresolved questions I would ask are:
+
+1. What user-visible, data, security, and operational behavior regressed?
+2. Is there an active production incident that requires emergency stabilization, or is this ordinary release urgency?
+3. Do you authorize reverting the recent change if a safe root-cause fix cannot be verified today?
+
+If this is an actual emergency, a bounded rollback may be the safest stabilization action, subject to the required approval for consequential deployment. After stabilization, both duties remain: reconcile/remove any temporary bypasses, toggles, exceptions, or risk acceptances, and complete/reconcile deferred verification.

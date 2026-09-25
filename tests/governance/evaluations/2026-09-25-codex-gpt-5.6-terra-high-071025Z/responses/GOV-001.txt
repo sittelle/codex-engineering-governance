@@ -1,0 +1,14 @@
+Recommend a managed PostgreSQL service for production, with PostgreSQL for local development as well. It fits modest relational data, supports concurrent multi-user access and transactional integrity, and avoids making the application host responsible for database durability, backups, patching, and recovery. SQLite would be reasonable only for local development or a genuinely single-host, offline application—not this deployed service.
+
+This is a material (C2) architecture, data-lifecycle, dependency, and security decision; “whatever database” does not resolve it. Before implementation, document the final choice as a professional technical decision and confirm the service/provider direction.
+
+The proposed default is conditional on these questions:
+
+1. Which cloud/platform, region, and network boundary will host the service and database?
+2. What data classifications apply—especially personal, financial, health, or other regulated data—and what retention/deletion requirements exist?
+3. What availability and recovery objectives are required (downtime tolerance, RPO, RTO), and who owns backup/restore testing?
+4. What initial access model is required: separate application/admin credentials, secret storage and rotation, encryption in transit/at rest, and production network restrictions?
+5. Are there workload needs that change the choice, such as full-text search, analytics, extreme write volume, cross-region replication, or strict tenant isolation?
+6. What budget and operational ownership are acceptable for a managed database service?
+
+If the answers are ordinary for a small web service, proceed with managed PostgreSQL, private network access where available, least-privilege application credentials, encrypted connections, automated backups with point-in-time recovery, and a tested restore procedure. If a required platform mandates a compatible managed relational offering, use that offering rather than introducing another provider.

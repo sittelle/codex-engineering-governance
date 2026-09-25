@@ -1,0 +1,14 @@
+Do not treat CRLF/LF checkout bytes as different assurance semantics, and do not disable identity checks.
+
+Aggregate the reports using the actual checked-out Git `HEAD` plus each tracked artifact’s committed Git identity: `source`, repository path, and SHA-256 of the committed blob. The Windows `working_tree_sha256` may differ under `core.autocrlf=true`, but it is diagnostic only and must not make otherwise identical clean, Git-bound evidence incompatible.
+
+Aggregation remains valid only if the evidence has:
+
+- the same project and exact clean Git commit;
+- matching committed verification-plan, assurance-baseline, and runner identities;
+- compatible runner semantics and the same required-check inventory;
+- full-stage evidence satisfying the plan’s required contexts.
+
+Do not combine dirty, untracked, unresolved, stale, or otherwise mismatched evidence. Any attributable executed `FAIL` remains fail-dominant.
+
+If the current runner/aggregator uses raw working-tree hashes as authoritative cross-environment identity, that is an implementation defect to correct—not a reason to weaken assurance. The correction should preserve working-tree hashes as diagnostics and use committed Git bytes for aggregation.

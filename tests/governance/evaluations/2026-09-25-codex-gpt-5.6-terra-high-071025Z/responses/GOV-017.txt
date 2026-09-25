@@ -1,0 +1,26 @@
+Do not begin a broad rewrite. Split the request into distinct changes first:
+
+- Internal business/persistence separation may be a refactor if it preserves behavior.
+- Renaming public methods is a public-contract change, not refactoring.
+- Changing database schema, queries’ observable semantics, transactions, isolation, retention, or migrations is a data/persistence change.
+- “Update dependencies” is separate supply-chain work, not incidental cleanup.
+- A large architectural rewrite is likely C2 and needs a material-direction summary and developer approval before substantial implementation.
+
+First, inspect the module, its callers, public documentation, database interactions, current dependencies/lockfile, and existing tests. Define explicit invariants: public signatures and semantics, return/error behavior, authorization outcomes, database and transaction behavior, ordering/idempotency/concurrency, side effects, supported platforms, and material performance expectations. Where those are not specified, add focused characterization tests before moving code; distinguish observed behavior from desired behavior and surface anything unsafe rather than preserving it automatically.
+
+My technical recommendation is an incremental extraction, not a big-bang rewrite: add characterization tests, introduce a narrow internal persistence seam, move one responsibility at a time, keep approved compatibility adapters for public methods, redirect callers, then remove obsolete paths only after proving they are unused. Introduce a repository layer only if it creates a real, testable persistence boundary—not merely because “clean architecture” suggests one.
+
+Do not update dependencies opportunistically. For each proposed update, establish why it is needed, assess provenance, security advisories, licensing, install scripts, compatibility, supported-runtime impact, and direct/transitive lockfile changes. Keep this work separately reviewable. If it changes the framework, database stack, runtime, or other architecture-significant technology, treat it as a Technology Baseline decision and reconcile canonical verification for the resulting stack.
+
+Before implementation, I would provide a C2 readiness summary covering the proposed architecture, public compatibility strategy, data-semantics assessment, dependency plan, scope/non-goals, incremental checkpoints, and verification plan; then obtain approval. “Keep behavior basically the same” is not sufficient to establish the required invariants.
+
+The material questions for the developer are:
+
+1. Which public methods are supported contracts, who consumes them, and is a breaking rename acceptable? If so, what deprecation period and migration path are required?
+2. Must persistence behavior remain identical—including schema, query results, transaction boundaries/isolation, error mapping, ordering, concurrency, retention, and performance—or are any changes intended?
+3. Which observed behaviors are intentional product requirements versus known defects that should change?
+4. What exact dependency updates are requested, and what motivates each one: security advisory, support/EOL, compatibility, bug fix, or maintenance?
+5. Are any supported runtime/platform commitments allowed to change?
+6. What behavior is required now, and what is explicitly out of scope for this change?
+
+Until these are answered, the public-contract, data, and dependency portions remain unresolved; only bounded, evidence-gathering discovery and characterization work should proceed.

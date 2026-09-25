@@ -1,0 +1,22 @@
+Do not report the feature complete or release it based on 91% coverage. Coverage is not evidence that the security-sensitive acceptance criteria were tested.
+
+This is at least a C2 change: it adds account recovery/authentication behavior, likely persistence, and email delivery. It needed a documented security/lifecycle design and developer approval before substantial implementation. Keep the work unshipped and produce a readiness record covering token entropy and storage, one-time atomic use, 1-hour expiry, revocation behavior, rate-limit storage/window semantics, email/link handling, logging/redaction, and failure behavior. Use mature authentication and cryptographic facilities rather than custom token mechanisms.
+
+The repository’s stated “canonical” quick/full commands and verification plan are still placeholders (`<command>` / `__NOT_CONFIGURED__`), so the claimed run cannot be accepted as canonical full verification. Its status is `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`, not PASS. The Technology Baseline is also `UNESTABLISHED`, so it must be recorded and canonical verification established before this C2 work can be completed.
+
+Add traceable automated tests in canonical `full` for:
+
+- A valid request produces a usable reset link, with expiry enforced at one hour.
+- Expired and previously consumed links are both rejected with a clear, non-sensitive error; include replay/concurrent-use protection where applicable.
+- The fourth request in the applicable 15-minute period is rejected or safely rate-limited.
+- Relevant negative cases, including malformed/unknown tokens, account-enumeration behavior, email-delivery failure, and token secrecy in logs.
+
+The 91% figure needs no action by itself unless an approved coverage threshold exists; it neither proves nor disproves correctness. What matters is that every acceptance criterion and material security boundary has a passing, behavior-oriented automated test.
+
+Material facts remain unresolved. I would ask the developer:
+
+1. Is this Internet-reachable and multi-user, or does it protect user-specific data? If yes, reassess from SA1 to at least SA2 and complete the required authentication design/threat modeling before proceeding.
+2. Should the “15 minutes” limit be a rolling window (recommended), and should attempts for unknown accounts count? Recommended: apply equivalent throttling without revealing account existence.
+3. What is the approved email provider, public reset URL/domain, identity source, and persistence mechanism for reset state/rate-limit state?
+4. Should issuing a new reset link invalidate all earlier unused links? Recommended: yes, unless a documented multi-link design and replay controls are approved.
+5. Is the developer approving the C2 direction? Because `developer_language` is `professional`, that approval must be recorded as a professional decision; this authentication/recovery security call is difficult even for someone fluent in the terminology.

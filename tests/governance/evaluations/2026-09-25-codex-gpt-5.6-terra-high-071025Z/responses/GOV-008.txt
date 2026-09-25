@@ -1,0 +1,16 @@
+Do not install it yet. The native implementation is the justified default: it is small, deterministic, uses existing facilities, and avoids an unreviewed supply-chain and licensing commitment. “If easier” is not enough to add a dependency merely to save lines.
+
+Before adding one, I would:
+
+1. Define the exact transformation and confirm the existing platform cannot meet the real requirements (including edge cases, performance, and supported runtimes).
+2. Classify the proposed dependency and its impact: runtime/build/test use, direct/transitive scope, Technology Baseline impact, and C1/C2/C3 consequence.
+3. Review the exact package and version from the authoritative registry: real package/publisher identity, provenance, maintenance and release history, security advisories/compromise history, license compatibility, install/build scripts, native or binary artifacts, telemetry/network/privilege behavior, and resolved transitive graph.
+4. If still justified, make a scoped, lockfile-aware change; inspect all direct and material transitive lockfile changes; then run the project’s canonical verification plus relevant dependency/security/license checks.
+
+At present, the package’s trust, transitive, security, and license facts are unresolved, so its risk and classification cannot truthfully be finalized. I would ask the developer:
+
+- What exact package and version are proposed, and what language/platform/runtime support must remain intact?
+- Is there any requirement the small native implementation cannot satisfy?
+- Is the project’s license/redistribution model known, so compatibility can be assessed?
+
+Conditional recommendation: use the native implementation unless review establishes a concrete capability or maintenance benefit that materially outweighs the dependency lifecycle cost. If that review reveals a material security, license, support, architecture, or transitive impact (C2/C3), obtain direction approval before implementation; in this professional-mode project, that decision must be documented as the developer’s professional decision, with the explicit acknowledgment that this kind of call is hard even for someone fluent in the terminology.

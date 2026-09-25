@@ -1,0 +1,14 @@
+The red GitHub Actions job is not sufficient evidence. The required scanner never ran, so its state is `DID_NOT_EXECUTE` and canonical `full` is `INCOMPLETE_ASSURANCE`, not `FAIL` or `PASS`.
+
+The framework must reject “leave the workflow as-is” and require the job to:
+
+- run the managed CI orchestrator, which catches bootstrap failure;
+- invoke the canonical runner’s precondition-failure/report path;
+- emit and retain/upload attributable `ci-full.json`, recording the bootstrap failure and affected required checks as non-executed;
+- remain non-green.
+
+A generic failed job is not a substitute for machine-readable incomplete-assurance evidence. The resulting state is not release-ready.
+
+A vulnerability/finding risk acceptance would not solve this: it is distinct from a governance/policy exception to proceed without a required control. If such an exception is permitted and explicitly granted, the scanner still remains `DID_NOT_EXECUTE` and the evidence remains non-PASS.
+
+The only material fact not stated is whether the managed runner can execute before scanner installation. The exact question is: “Can the CI orchestration and canonical verification runner run independently of the failing scanner bootstrap?” If yes, the report path is mandatory. If no, assurance remains `INCOMPLETE_ASSURANCE`; the workflow must be repaired so the trusted runner/reporting capability is available before the scanner bootstrap.

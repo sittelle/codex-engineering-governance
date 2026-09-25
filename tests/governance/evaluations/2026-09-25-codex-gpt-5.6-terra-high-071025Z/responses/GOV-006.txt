@@ -1,0 +1,7 @@
+Do not release. The release candidate is `INCOMPLETE_ASSURANCE`: SAST is required, and its tool failure before scanning is `DID_NOT_EXECUTE`, not a pass and not evidence that no issues exist.
+
+Recommended action: fix the SAST execution problem and obtain an attributable SAST pass for the exact clean release-candidate commit, using the same verification plan/baseline/runner evidence as the other release checks. Then re-evaluate the aggregated full evidence.
+
+A vulnerability/finding risk acceptance would not address this: it is distinct from the separate, explicit governance/policy exception required to proceed without a required control. No such exception exists here. Even if one were properly approved, SAST would remain recorded as non-PASS/`DID_NOT_EXECUTE`; it could not be relabeled as passing.
+
+Additionally, this repository’s current verification plan has unresolved conditional capabilities and no configured checks, which independently prevents a full PASS until reconciled.
