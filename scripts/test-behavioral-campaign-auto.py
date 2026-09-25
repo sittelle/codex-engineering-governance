@@ -587,6 +587,54 @@ def test_push_existing_recovers_from_worktree_alone(failures: list[str]) -> None
         assert_true("run-worktree-only" in log, "the worktree-only recovery evidence did not land on the evidence branch", failures)
 
 
+def test_push_existing_handles_leftovers_all_and_collisions(failures: list[str]) -> None:
+    """A local copy of an already-pushed campaign is a leftover, not a git
+    problem: it is removed without a new commit. `all` pushes what is missing
+    and cleans the rest. A different campaign under the same name is refused
+    without a misleading credentials hint."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        origin, work = make_scratch_repo(tmp)
+        mod = load_runner_with_scratch_root(work)
+        mod.ensure_git_remote_access = lambda repo_root: None
+        workspace = tmp / "workspace"
+        runs = workspace / "campaign-runs"
+        runs.mkdir(parents=True)
+
+        def local_campaign(name: str, text: str) -> Path:
+            d = runs / name
+            (d / "responses").mkdir(parents=True)
+            (d / "responses" / "GOV-001.txt").write_text(text, encoding="utf-8")
+            (d / "EVALUATION-METADATA.json").write_text("{}", encoding="utf-8")
+            return d
+
+        old = local_campaign("old-run", "response\n")
+        mod.ensure_evidence_worktree(workspace / "evaluation-evidence-worktree")
+        mod.push_evidence(workspace / "evaluation-evidence-worktree", old, "old-run")
+        run(["git", "-C", str(work), "worktree", "remove", "--force", str(workspace / "evaluation-evidence-worktree")])
+        commits_before = run(["git", "-C", str(work), "rev-list", "--count", f"origin/{mod.EVIDENCE_BRANCH}"]).stdout.strip()
+
+        local_campaign("new-run", "response\n")
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            code = mod.push_existing(workspace, "all")
+        assert_true(code == 0, f"push-existing all should succeed: {out.getvalue()[-300:]}", failures)
+        assert_true(not old.exists() and not (runs / "new-run").exists(), "all handled folders must be removed locally", failures)
+        assert_true("leftover" in out.getvalue(), "a leftover must be reported as such, not as a push", failures)
+        run(["git", "-C", str(work), "fetch", "origin", mod.EVIDENCE_BRANCH])
+        commits_after = run(["git", "-C", str(work), "rev-list", "--count", f"origin/{mod.EVIDENCE_BRANCH}"]).stdout.strip()
+        assert_true(int(commits_after) == int(commits_before) + 1, "only the missing campaign may add a commit", failures)
+
+        clash = local_campaign("old-run", "a different response\n")
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                mod.push_existing(workspace, "old-run")
+        except mod.EvidenceCollision as exc:
+            assert_true("credential" not in str(exc), f"a name collision must not suggest a git credential problem: {exc}", failures)
+            assert_true(clash.exists(), "the local copy must be preserved on a collision", failures)
+        else:
+            failures.append("a different campaign under an existing name must be refused")
+
+
 def test_path_confinement_guard_refuses_stray_changes(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -633,6 +681,7 @@ def main() -> int:
     test_git_remote_access_gives_up_after_retry_limit(failures)
     test_push_existing_accepts_a_full_path_by_mistake(failures)
     test_push_existing_recovers_from_worktree_alone(failures)
+    test_push_existing_handles_leftovers_all_and_collisions(failures)
     test_path_confinement_guard_refuses_stray_changes(failures)
 
     if failures:
@@ -658,6 +707,7 @@ def main() -> int:
     print("- unreachable git remote access gives up with a clear error after the retry limit")
     print("- push-existing recovers when a full path is passed instead of a bare folder name")
     print("- push-existing recovers from the evidence worktree's own commit alone, no local source copy needed")
+    print("- push-existing removes leftovers of earlier pushes, `all` pushes what is missing, and a name collision is refused without a credentials hint")
     print("- a commit touching anything outside the dedicated evidence folder is refused before it can be pushed")
     return 0
 

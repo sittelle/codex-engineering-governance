@@ -112,6 +112,10 @@ class Error(RuntimeError):
     pass
 
 
+class EvidenceCollision(Error):
+    """A different campaign already occupies the folder name: not a git access problem."""
+
+
 def load_campaign_kit():
     spec = importlib.util.spec_from_file_location("manual_behavioral_campaign", CAMPAIGN_KIT)
     module = importlib.util.module_from_spec(spec)
@@ -568,12 +572,26 @@ def _already_committed_locally(worktree_dir: Path, folder_name: str) -> bool:
     return subject == _commit_subject(folder_name)
 
 
-def push_evidence(worktree_dir: Path, campaign_dir: Path, folder_name: str) -> None:
+def _same_tree(a: Path, b: Path) -> bool:
+    files = lambda root: {p.relative_to(root).as_posix(): p for p in root.rglob("*") if p.is_file()}
+    fa, fb = files(a), files(b)
+    return fa.keys() == fb.keys() and all(fa[k].read_bytes() == fb[k].read_bytes() for k in fa)
+
+
+def push_evidence(worktree_dir: Path, campaign_dir: Path, folder_name: str) -> str:
+    """Returns "pushed", or "already-present" when this exact campaign is
+    already on the evidence branch (a leftover local copy of an earlier push)."""
     target = worktree_dir / EVIDENCE_ROOT / folder_name
     if not _already_committed_locally(worktree_dir, folder_name):
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists():
-            raise Error(f"evidence folder already exists on the evidence branch: {target}")
+            if campaign_dir.is_dir() and _same_tree(campaign_dir, target):
+                print(f"Already on the evidence branch, nothing to push: {EVIDENCE_ROOT}/{folder_name}")
+                return "already-present"
+            raise EvidenceCollision(
+                f"a different campaign named {folder_name} already exists on the evidence branch; the local copy "
+                f"at {campaign_dir} is preserved -- inspect both before deciding which to keep"
+            )
         shutil.copytree(campaign_dir, target)
         run(["git", "-C", str(worktree_dir), "add", "--", f"{EVIDENCE_ROOT}/{folder_name}"])
 
@@ -600,11 +618,12 @@ def push_evidence(worktree_dir: Path, campaign_dir: Path, folder_name: str) -> N
                 retry = run(["git", "-C", str(worktree_dir), "push", "origin", EVIDENCE_BRANCH], check=False)
                 if retry.returncode == 0:
                     print(f"Pushed evidence: {EVIDENCE_ROOT}/{folder_name} -> origin/{EVIDENCE_BRANCH}")
-                    return
+                    return "pushed"
                 raise Error(f"evidence branch push failed after retry: {retry.stderr.strip()}")
             raise Error(f"evidence branch push rejected and could not be reconciled automatically: {push.stderr.strip()}")
         raise Error(f"evidence branch push failed (could not fetch origin either -- check git credentials/network): {push.stderr.strip()}")
     print(f"Pushed evidence: {EVIDENCE_ROOT}/{folder_name} -> origin/{EVIDENCE_BRANCH}")
+    return "pushed"
 
 
 def _push_retry_hint(workspace: Path, campaign_dir: Path, folder_name: str) -> str:
@@ -619,7 +638,25 @@ def push_existing(workspace: Path, folder_name: str) -> int:
     """Push an already-captured campaign directory without re-running any
     scenarios (no AI calls). For recovering from a push failure -- wrong git
     credentials, network blip, non-fast-forward conflict -- without
-    re-paying for the whole campaign."""
+    re-paying for the whole campaign. `all` handles every folder under
+    campaign-runs/: missing ones are pushed, leftovers of earlier pushes are
+    removed."""
+    if folder_name == "all":
+        runs = workspace / "campaign-runs"
+        names = sorted(p.name for p in runs.iterdir() if p.is_dir()) if runs.is_dir() else []
+        if not names:
+            print(f"Nothing to push: {runs} has no captured campaigns.")
+            return 0
+        failed = []
+        for name in names:
+            print(f"\n== {name}")
+            try:
+                push_existing(workspace, name)
+            except Error as exc:
+                print(f"  NOT PUSHED: {exc}")
+                failed.append(name)
+        print(f"\n{len(names) - len(failed)} of {len(names)} campaign folder(s) handled" + (f"; not pushed: {', '.join(failed)}" if failed else "."))
+        return 1 if failed else 0
     if "/" in folder_name or "\\" in folder_name:
         # `workspace / "campaign-runs" / folder_name` silently discards
         # `workspace` when folder_name is itself an absolute path --
@@ -651,13 +688,18 @@ def push_existing(workspace: Path, folder_name: str) -> int:
     try:
         ensure_git_remote_access(ROOT)
         ensure_evidence_worktree(worktree_dir)
-        push_evidence(worktree_dir, campaign_dir, folder_name)
+        outcome = push_evidence(worktree_dir, campaign_dir, folder_name)
+    except EvidenceCollision:
+        raise
     except Error as exc:
         raise Error(f"{exc} -- {_push_retry_hint(workspace, campaign_dir, folder_name)}") from exc
     run(["git", "-C", str(ROOT), "worktree", "remove", "--force", str(worktree_dir)], check=False)
     if campaign_dir.is_dir():
         shutil.rmtree(campaign_dir)
-    print(f"Pushed previously-captured campaign: {folder_name}")
+    if outcome == "pushed":
+        print(f"Pushed previously-captured campaign: {folder_name}")
+    else:
+        print(f"Removed the leftover local copy of an already-pushed campaign: {folder_name}")
     return 0
 
 
@@ -725,6 +767,9 @@ def run_one_model(kit, model_entry: dict, rows: list[dict], folders: dict, sourc
 
     try:
         push_evidence(worktree_dir, campaign_dir, folder_name)
+    except EvidenceCollision as exc:
+        print(f"FAILED to push {model_entry['label']}: {exc}")
+        return False
     except Error as exc:
         print(f"FAILED to push {model_entry['label']}: {exc}")
         print(_push_retry_hint(workspace, campaign_dir, folder_name))
@@ -822,7 +867,7 @@ def main() -> int:
     parser.add_argument("--workspace", required=True, type=Path, help="the workspace bootstrap-test-vm.py created (contains folders.json and the three context directories)")
     parser.add_argument("--select", default=None, help="all, or a GOV-NNN[-GOV-MMM] range/list, same syntax as the manual conductor; omit to be prompted interactively")
     parser.add_argument("--manual-args", nargs=argparse.REMAINDER, help="arguments forwarded to manual-behavioral-campaign.py conduct when manual mode is chosen")
-    parser.add_argument("--push-existing", metavar="FOLDER_NAME", help="skip mode selection and scenario invocation; push a previously-captured campaign-runs/<FOLDER_NAME> that failed to push earlier (e.g. after a git credential problem), with no AI calls")
+    parser.add_argument("--push-existing", metavar="FOLDER_NAME", help="skip mode selection and scenario invocation; push a previously-captured campaign-runs/<FOLDER_NAME>, or `all` to push every missing one and remove leftovers of earlier pushes that failed to push earlier (e.g. after a git credential problem), with no AI calls")
     args = parser.parse_args()
 
     try:
