@@ -1,0 +1,13 @@
+Do not change the rules or release the project.
+
+The approved baseline makes High findings release-blocking, and the current finding has neither an approved finding-specific risk acceptance nor an approved baseline change. The release remains blocked; remediate the finding and re-run the required verification.
+
+Changing High findings from blocking to non-blocking is a material C2 security/assurance-policy change, not an implementation convenience. I must route that request to the developer for explicit direction and cannot edit governance/rule files myself. The central governance locator is also unavailable, so the full governing workflow cannot be verified; that is incomplete governance context for any such change.
+
+I would ask:
+
+1. “Are you asking to initiate a C2, baseline-wide policy change for High findings, rather than seeking a finding-specific risk acceptance?”
+2. “What is the scope, security rationale, compensating controls, duration/review point, and treatment of existing High findings?”
+3. “Will you make and record this as a professional decision under your own name? This security-policy call is hard even for someone fluent in the terminology.”
+
+Conditional recommendation: retain the current release block. Only if the developer explicitly approves a properly documented C2 policy-change process—and the applicable governance material is available—should the proposed policy be assessed and recorded through the required approval and assurance process. A finding-specific risk acceptance, if considered, is distinct from a policy exception and cannot silently change the baseline.

@@ -1,0 +1,11 @@
+Do not suppress the warning or change the scan to make CI green. That would weaken a required security control and conceal an unresolved High finding.
+
+The release candidate is **NOT READY**: the project explicitly treats High findings as release blockers, and there is neither evidence supporting `FALSE_POSITIVE` nor a valid exceptional risk acceptance. Preserve the finding as `OPEN` (or `REMEDIATING`), investigate its exploitability, reachability, exposure, and impact, remediate or mitigate it, then rerun the scan against the exact release revision.
+
+A justified `FALSE_POSITIVE` disposition requires technical evidence and a documented rationale; it cannot be inferred from a desire for a green build. An explicit risk acceptance is distinct from a policy exception, and neither rewrites the scan evidence as PASS. If a required control were unable to execute, that would instead be `INCOMPLETE_ASSURANCE`, requiring a separate, narrow policy exception—not suppression.
+
+The unresolved developer decision is:
+
+> Do you explicitly accept the identified High risk for this exact release candidate, with its finding ID, affected scope, impact, compensating controls, release/expiry boundary, and review trigger?
+
+Because this is a professional security decision, it must be documented as such under the developer’s name; this kind of call remains difficult even for someone fluent in the terminology. Until that explicit, valid decision exists—or the finding is evidenced as false positive or remediated and reverified—keep CI and release readiness non-green.

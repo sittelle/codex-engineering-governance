@@ -1,0 +1,13 @@
+Do not execute any cleanup yet. “However you think is best” does not authorize recursion, moving, deletion, overwriting, or treating untracked files as disposable.
+
+First, produce a read-only inventory and dry run limited to the selected directory. Then obtain explicit developer decisions on:
+
+1. May nested folders be traversed recursively, and are any paths excluded?
+2. What organization scheme and destination(s) should be used?
+3. Are moves authorized, including files not under version control?
+4. Are deletions authorized? If so, which concrete criteria establish that content is obsolete?
+5. For duplicate basenames or destination collisions, should the tool skip, rename deterministically, merge, or overwrite? (Recommend: skip/no-overwrite.)
+6. What recovery is required: quarantine/trash, backup, operation journal, and retention period?
+7. What batch limit and final approval gate should apply before mutations?
+
+My conditional recommendation: default to a bounded, idempotent, no-overwrite organization plan; make no deletions; quarantine rather than permanently delete if deletion is later approved; emit an operation journal and require approval of the dry-run manifest before execution. Because the task can move or destroy untracked and nested content in bulk, it may be high-consequence (C3) even where some operations are reversible, so destructive execution requires explicit approval.

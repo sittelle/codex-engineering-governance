@@ -1,0 +1,14 @@
+Do not treat “whatever is normal” as a decision. Access rules determine product behavior, privacy, and security, so implementation is not ready.
+
+Keep the feature at **DISCOVERY** and ask the developer:
+
+1. What content/actions does the area expose, and what harm follows from unauthorized viewing, editing, or administration?
+2. Which actors may access each action: anonymous visitors, any signed-in user, internal identities only, or defined roles?
+3. If “internal-only,” what authoritative identity source establishes internal status? If role-restricted, who assigns/removes roles and under what conditions?
+4. Is any anonymous access allowed? If so, exactly which read/write actions and resources are public?
+5. Does the feature use existing authentication, or require new accounts, sessions, credentials, or identity-provider integration?
+6. What must happen after account disablement, role removal, or attempts to access another user’s/resource’s data?
+
+Recommend a deny-by-default design until those decisions are approved: do not rely on hidden UI, URLs, or object IDs; enforce authorization for actor, action, resource, and condition at the authoritative service boundary. Any eventual design needs negative tests for anonymous, wrong-user, insufficient-role, revoked-identity, and identifier-manipulation cases where applicable.
+
+This is at least a C2 auth/security decision and may be C3 if it creates or expands a security/privilege boundary. Before substantial implementation, prepare the required design/readiness summary and obtain approval of the direction. If the application is internet-reachable and will authenticate multiple users or protect user-specific data, reassess the current SA1 classification; it normally requires at least SA2.

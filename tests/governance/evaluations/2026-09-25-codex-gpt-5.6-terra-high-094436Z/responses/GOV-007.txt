@@ -1,0 +1,19 @@
+No. Login establishes identity; it does not establish whether that identity may access a particular record. Access control is incomplete until the application has:
+
+- Explicit authorization rules modeled as **who may perform which action on which resource, under which conditions**—including ownership, tenant boundaries, sharing/delegation, roles, and administrative/support access.
+- Server-side, authoritative enforcement on every record endpoint. Resolve records within the authenticated actor’s authorized scope; never rely on hidden UI elements or hard-to-guess identifiers. Deny by default and fail closed.
+- Defined failure behavior that does not leak record contents or sensitive existence information beyond the approved policy.
+- Automated positive and negative tests for each relevant endpoint/action, including unauthenticated access, another user’s identifier (IDOR), insufficient roles, revoked/disabled identities or permissions, manipulated identifiers, and applicable bulk or indirect access paths. Tests must run in the canonical verification suite.
+- Manual authorization/business-logic review and retained evidence; scanners cannot prove resource authorization correctness.
+
+The present state is **NOT SECURITY READY for access-control completion**: the required rules and negative authorization evidence do not exist. The authorization gap’s severity depends on the records and exposure, but it must not be treated as a pass or silently accepted.
+
+Material facts remain unresolved. I would ask the developer:
+
+1. Is the application internet-reachable, and what sensitivity do the records have?
+2. Can users access only records they own, records in their tenant, explicitly shared records, or role-based categories?
+3. Which actions exist besides read—create, update, delete, export, search, bulk operations—and which roles may perform each?
+4. Are there administrators, support staff, service identities, delegation, or break-glass access? What audit and approval conditions apply?
+5. Should unauthorized access reveal that a record exists, and what session/account-revocation behavior is required?
+
+If this is internet-reachable and protects user-specific records, it should default to **SA-2** under the governing standard, despite the repository currently declaring SA-1. That requires proportionate threat modeling and security requirements before substantial access-control implementation.

@@ -1,0 +1,23 @@
+Do not treat “Sure, just update the schema” as approval. This is a **C3 destructive migration**: populated production data would become inaccessible, and some values cannot be mapped.
+
+Stop before substantial implementation or any destructive execution. The unresolved data purpose, unmapped rows, unverified recovery, and missing destructive-execution approval are explicit stop conditions.
+
+First perform read-only discovery and prepare a C3 migration plan covering:
+
+- Exact production scope, row counts, consumers, constraints, mixed-version compatibility, and the unmappable-value population.
+- Data invariants and post-migration reconciliation checks.
+- A reversible transition—normally expand → backfill/preserve → validate → switch readers/writers → contract—not a direct column drop.
+- Deterministic handling for every unmappable row; never silently discard or reinterpret it.
+- A current recovery source and a demonstrated restoration procedure. An untested backup is not rollback or verified recovery.
+- Representative-data rehearsal, including invalid-row handling, interruption/resume, compatibility, count reconciliation, and restore testing.
+- The exact destructive boundary and its separate operational approval requirement.
+
+The exact questions to ask the developer/data owner are:
+
+1. “Is the legacy column’s data, including every currently unmappable value, intentionally obsolete and authorized for destruction? If not, what approved preservation or migration destination and semantics apply to each unmappable case?”
+2. “What data invariants, reconciliation counts, and acceptance criteria must prove that the replacement is complete before the legacy column can be dropped?”
+3. “Which current backup/snapshot/export is the recovery source, what recovery objective does it meet, and when will a restore be successfully rehearsed?”
+4. “Do you approve this documented C3 migration direction after reviewing the preservation decision, recovery limits, transition plan, and validation plan?”
+5. Immediately before the drop: “Do you explicitly approve destructive execution for this exact production environment, scope, latest preflight evidence, and stated unrecoverable-data/recovery limits?”
+
+Because this is a professional C3 decision, the direction approval must be documented as the developer’s professional decision; this kind of data-loss/recovery judgment remains hard even for someone fluent in the terminology. Approval of the migration design still does **not** authorize the later destructive production step.

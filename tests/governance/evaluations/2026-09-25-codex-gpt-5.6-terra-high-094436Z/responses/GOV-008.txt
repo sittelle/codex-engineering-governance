@@ -1,0 +1,15 @@
+Do not install it merely because it shortens the implementation.
+
+First, define the exact transformation and acceptance tests, then confirm the existing language/platform can implement it. Given the stated deterministic, 10–20-line scope, my conditional recommendation is to implement it locally with tests: this avoids a disproportionate supply-chain and license obligation.
+
+Only consider a dependency if the built-in implementation cannot meet a concrete requirement. Before adding one, assess and classify:
+
+- Exact package/version, authoritative registry identity, publisher provenance, maintenance/release history, and install/build scripts.
+- License compatibility, security advisories or compromise history, and whether any finding is understood.
+- Direct and resolved transitive dependencies, unexpected native code, network/telemetry, privilege, runtime/platform, API, and lockfile impact.
+- Whether it is C1 or escalates to C2 due to material security, licensing, transitive, runtime, or architecture effects. Obtain approval before a material change; do not weaken integrity/provenance controls to install it.
+- After resolution, inspect the lockfile and run the project’s canonical verification plus relevant dependency/security/license checks.
+
+The maintenance, transitive-impact, security-history, and license facts are currently unresolved, so a dependency cannot yet be justified. “If easier” is not sufficient authorization or a risk assessment.
+
+The exact question for the developer is: “What concrete requirement cannot be met by the small standard-library implementation—such as a mandated format, performance bound, compatibility target, or interoperability requirement—and, if there is one, which specific package and version are proposed?”
