@@ -328,8 +328,12 @@ def test_instruction_probe_passes_when_instructions_are_quoted(failures: list[st
             f"loading and routing checks should both PASS, got {results}",
             failures,
         )
-        assert_true(len(calls) == 3, f"expected a retried loading check plus one routing check (3 calls), got {len(calls)}", failures)
-        loading_denied, routing_denied = set(calls[1][1]), set(calls[2][1])
+        assert_true(
+            len(calls) == 4,
+            f"expected kernel check (retried once), project AGENTS.md check, and routing check (4 calls), got {len(calls)}",
+            failures,
+        )
+        loading_denied, routing_denied = set(calls[1][1]) | set(calls[2][1]), set(calls[3][1])
         assert_true(
             {"Read", "Glob", "Grep"} <= loading_denied,
             "the Claude loading check must deny file tools so it cannot pass by reading the files instead of having them loaded",

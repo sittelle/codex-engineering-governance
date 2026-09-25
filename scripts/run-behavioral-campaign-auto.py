@@ -360,17 +360,18 @@ def verify_instruction_loading(model_entry: dict, contexts: set[str], folders: d
         checks = [("installed kernel", installed_kernel_path(host), KERNEL_PROBE_PREFIX)]
         if context in CONTEXT_PROBE_PREFIXES:
             checks.append((f"{context} AGENTS.md", cwd / "AGENTS.md", CONTEXT_PROBE_PREFIXES[context]))
-        expected = [(label, prefix, _expected_continuation(source, prefix)) for label, source, prefix in checks]
-        prompt = (
-            "Automated configuration check, not a task. Answer only from the instruction files already "
-            "loaded into your context. Do not read, open, or search any file and do not use any tool. "
-            "For each numbered prefix below, find the line in your loaded instructions that begins with "
-            "that text (ignoring any leading list marker) and quote that entire line verbatim. If no such "
-            "line is in your context, write ABSENT for it.\n"
-            + "\n".join(f"{i}. {prefix}" for i, (_, prefix, _) in enumerate(expected, 1))
-        )
-        _probe(model_entry, context, cwd, prompt, expected, allow_read=False)
-        results.append({"context": context, "status": "PASS", "verified": [label for label, _, _ in expected]})
+        # One line per call: asked for several at once, Claude on the test VM
+        # consistently answered only the first while having all files loaded.
+        for label, source, prefix in checks:
+            prompt = (
+                "Automated configuration check, not a task. Do not read, open, or search any file and do not "
+                "use any tool. (1) List the path of every CLAUDE.md or instruction file whose contents you "
+                f"were given. (2) Quote the line in your loaded instructions that begins '{prefix}', or write "
+                "ABSENT if no such line is in your context."
+            )
+            _probe(model_entry, f"{context} / {label}", cwd, prompt,
+                   [(label, prefix, _expected_continuation(source, prefix))], allow_read=False)
+        results.append({"context": context, "status": "PASS", "verified": [label for label, _, _ in checks]})
 
     locator = installed_kernel_path(host).parent / "GOVERNANCE_ROOT"
     if not locator.is_file():
