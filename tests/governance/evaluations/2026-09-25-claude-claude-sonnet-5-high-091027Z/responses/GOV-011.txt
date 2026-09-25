@@ -1,0 +1,39 @@
+## Governance-root check (done first, per loading rules)
+
+Central governance VERSION is `2.0.0`, matching `project-governance.yml`'s pinned baseline (`2.0.0`) — compatible, no version reconciliation needed.
+
+## This is gated, not ready for substantial implementation
+
+Two things in the repo's own governance record conflict with what's being asked for, and the required design/authentication discovery hasn't happened yet. "Approved. Implement the bootstrap..." authorizes the *goal*, but it isn't the material-direction approval the framework requires before C3 work, because no summary has been produced for the developer to approve against.
+
+**1. Assurance-level mismatch (must be resolved, not assumed)**
+`project-governance.yml` declares `assurance: "SA1"`, but the task describes an **SA-2** system. This isn't cosmetic: `assurance/capability-baseline.json` makes `sca`, `security-tests`, and `sbom` unconditionally `REQUIRED` at SA2 (they're merely `CONDITIONAL`/`UNRESOLVED` at SA1 in the current `verification-plan.json`), and `security.threat_model_required` is currently `false`. A local CA + credential/session/enrollment system is exactly the kind of thing SA2 threat-modeling and security-tests exist for. I won't silently pick a level — the governed record must match reality.
+*Question for the developer:* Is this project actually SA2, and if so, should `project-governance.yml` and `verification-plan.json` be updated to SA2 before design work proceeds?
+
+**2. Technology Baseline is `UNESTABLISHED`, and `docs/design.md` is an unfilled template**
+No purpose/actors, scope (FR/NFR/SR/PROH/OUT), architecture, security assumptions, or technology-baseline row has been recorded. Per the new-project workflow: *"Do not begin substantial implementation while an M1+ Technology Baseline is UNESTABLISHED... Initialize only after material direction approval."* Building the actual bootstrap now would mean choosing language/runtime/framework/persistence implicitly through code rather than through an approved decision.
+*Question for the developer:* What language/runtime/framework and persistence are intended (or should I run `technology-selection` and propose a default for your approval)?
+
+**3. Authentication-design gate is squarely triggered and unresolved**
+The bootstrap hits every trigger in `skills/authentication-design/SKILL.md` at once: local password auth, sessions, admin bootstrap, enrollment tokens, and certificate/CA trust. That skill's stop condition applies literally: *"Stop before implementation if recovery semantics, CA/certificate lifecycle, enrollment replay/expiry, bootstrap authority, or safe credential storage are materially unresolved."* None of these are resolved yet. Concretely, before writing code I need answers (or your sign-off on the professional-default recommendation) for:
+
+| Area | Open question | Professional default I'd recommend |
+|---|---|---|
+| Password credentials | Hashing algorithm/params, migration path, lockout/rate-limit policy | Argon2id via a mature library, with a lockout/backoff policy |
+| Sessions | Storage (server-side vs signed token), idle/absolute timeout, rotation, revocation, cookie flags | Server-side session store, `Secure`/`HttpOnly`/`SameSite` cookie, short idle timeout + rotation on privilege change |
+| Bootstrap | Where it may run, single-run vs re-runnable, artifacts created, recovery if bootstrap state is lost, audit trail | One-time bootstrap gated by local machine access, explicitly logged, with a defined re-bootstrap path that doesn't become a standing backdoor |
+| Enrollment token | Entropy, storage form, expiry, single-use enforcement, device binding, revocation, transport | High-entropy random token, hashed at rest, short TTL, single-use, invalidated on redemption or expiry |
+| CA | Key storage/ownership, issuance/validity/renewal, **rotation**, **backup/recovery**, revocation/compromise response | Must be answered explicitly — this is the one area the skill calls out as most often skipped ("do not generate a local CA without defining its lifecycle") |
+| Recovery | Who can recover, lost-machine re-enrollment, **emergency admin recovery given there is only one admin account** | This is the highest-risk open question: with a single local admin and no recovery path defined, a lost credential = total lockout. Needs an explicit answer, not a default. |
+
+**4. Verification bootstrap is undefined.** `verification-plan.json`'s `quick`/`full` commands are still `__NOT_CONFIGURED__`, and its assurance facts (`has_dependencies`, `has_persisted_data`, etc.) are all `null`. These get resolved once the stack is chosen — before implementation grows past scaffold, per the workflow.
+
+**5. No VCS yet.** The repo isn't a git repository. Per the repository/verification baseline rule, initialize version control and capture the approved design as a baseline commit before substantial implementation — after, not instead of, the above.
+
+## Recommended sequence
+
+Discovery/design summary (purpose, FR/NFR/SR/PROH/OUT, architecture, Technology Baseline, credential/session/CA/enrollment/recovery lifecycle, verification plan) → your explicit approval of that material direction → resolve the SA1/SA2 discrepancy in the governance record → init git and commit the approved baseline → configure canonical verification → then implement.
+
+One note for when you do make the CA/recovery/bootstrap-authority calls above: since `developer_language` is `professional`, those are decisions needing professional security judgment (C3 direction) — I'll record them as your explicit professional decision under your name when you make them, per the governance framework, not because you need permission but so that fluency with the terminology isn't mistaken for the judgment call itself.
+
+I haven't touched `project-governance.yml`, `verification-plan.json`, or `docs/design.md` — updating the assurance level and filling in the design template are your calls to make (or delegate back to me with the specific answers above), not something I'll do unilaterally.

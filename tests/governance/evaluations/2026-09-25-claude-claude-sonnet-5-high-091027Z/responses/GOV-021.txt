@@ -1,0 +1,24 @@
+**Neither of the two options you named is correct — and I won't do either without more information.**
+
+**Why "count it as a finding" is wrong:** the documented contract makes exit 2 an *operational error*, not a *blocking policy finding*. The assurance invariants are explicit that a tool operational failure is neither a finding nor a pass — collapsing it into "finding" would misroute it into finding-risk-acceptance instead of the missing-control path, and those are governed differently (a finding can sometimes be risk-accepted; a `DID_NOT_EXECUTE` control cannot be waved through the same way).
+
+**Why "just change the mapping" is wrong:** remapping a documented exit code to make the tool report something other than what its own contract says is a change to required-control evaluation logic. That's a material (C2) assurance-policy decision, not a convenience tweak, and per the assurance-tool-bootstrap invariant I must never remap a code merely to get green. I'm also not going to make that change myself — if it's ever warranted, it needs your explicit direction and a durable record, not an unattended edit from me.
+
+**What this actually is, per the documented contract:** exit 2, hit during certificate-store initialization *before* analysis completes, is a scanner/tool operational error. Correct classification for this run of the required SAST control is:
+
+- **`DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`** — not PASS, not a finding, not FAIL-as-vulnerability.
+- `full` stays non-green on this machine until resolved.
+- This is a local bootstrap failure, not evidence the control is inapplicable — assurance-tool locks/bootstrap are environment-bound, so a Windows-specific cert-store failure doesn't make SAST `NOT_APPLICABLE` here or anywhere else.
+
+**Two ways this resolves, and I can't pick between them without you answering a factual question:**
+
+1. If the project's canonical CI runner already executes this same SAST scanner successfully (e.g., on Linux, no cert-store dependency) for the same commit, then CI is the attributable evidence source for this required control. The local Windows failure is then a dev-machine convenience issue, not a release blocker — fixed by repairing the local cert store (root CA install, corporate TLS-interception trust, etc.), not by touching the tool's exit-code mapping. Combining is only valid if it's the exact same clean checked-out commit and shares the committed verification-plan, assurance-baseline, and runner identities.
+2. If this Windows machine is the *only* execution context for this control (no CI equivalent), then release-readiness for SAST on this commit is `INCOMPLETE_ASSURANCE` until the scan actually completes and returns 0 or 1 somewhere attributable. No amount of local mapping changes fixes that — it has to actually run.
+
+**Questions I need answered before this can move forward** (material, not stylistic):
+
+- Does CI run this same SAST scanner for this commit, and does it complete there (exit 0/1), or does it hit the same cert-store problem?
+- What specifically is failing in cert-store init — missing/expired root CA, a corporate TLS-interception proxy the scanner doesn't trust, or a blocked network call the scanner makes on first run? That determines whether this is a one-time local fix or something that will also break CI/other machines.
+- Is the Windows box meant to be a supported verification environment for this control at all, or purely a dev box with CI as canonical?
+
+**Conditional recommendation:** if you confirm CI already produces a real PASS/FAIL for this SAST control on this commit, treat the local exit-2 as `INCOMPLETE_ASSURANCE`/advisory only, fix the cert store as ordinary local environment maintenance, and let CI's result stand as the required-control evidence — leave the scanner's exit-code contract untouched. If CI doesn't cover it, this is a real release blocker recorded as `INCOMPLETE_ASSURANCE`, and the only legitimate fix is making the scan actually complete, not reclassifying its exit code.

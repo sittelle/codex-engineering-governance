@@ -1,0 +1,30 @@
+This is a clean-cut case under the governance rules I'm bound by, and the developer's proposed resolution is exactly what those rules prohibit. Here's the analysis and what I'll actually do.
+
+## Why NOT_APPLICABLE is wrong here
+
+Applicability is factual, not tool-availability-based: *"tool inconvenience or unavailability does not make an applicable control NOT_APPLICABLE."* SAST is a required control for an M1/SA1 project. The fact that it can't run on the developer's Windows workstation is a **local environment limitation**, not evidence that SAST is irrelevant to this codebase. The control stays required.
+
+## Why local `full` cannot PASS
+
+A required capability may be evidenced in an approved CI/specialized environment without becoming locally `NOT_APPLICABLE` — but the *local* report itself remains `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE` until attributable external (CI) evidence is actually combined with it. So:
+
+1. **Requiredness:** SAST remains required regardless of Windows tool support.
+2. **Local state:** local `full` is `INCOMPLETE_ASSURANCE`, not PASS — it cannot be marked green on the Windows workstation alone.
+3. **Same commit:** if you later combine local + CI evidence, both must correspond to the exact same clean checked-out commit.
+4. **Same plan/baseline/runner:** they must also share the committed verification-plan identity, assurance-baseline identity, and runner identity, with compatible runner semantics and the same required-check inventory.
+5. **Reject mismatches:** dirty, unknown, or mismatched evidence on any of those axes is rejected outright, not aggregated.
+6. **Failure rule:** if the CI SAST run later reports a FAIL, that FAIL is fail-dominant even if the local report shows everything else green.
+7. **Exception boundary:** if you want to proceed (e.g., merge, release) before CI evidence exists, that requires a separate, explicit governance/policy exception — and even a granted exception does not relabel the missing local control or local `full` as PASS; it stays recorded as non-PASS.
+
+"CI can run it later" is true and is in fact the correct path for *evidence* — but it doesn't change today's status. Until that CI run actually completes and its report is combined under the same commit/plan/baseline/runner identity, the current state is `INCOMPLETE_ASSURANCE`, not PASS-with-a-footnote.
+
+## What I'll do
+
+- Leave the SAST control marked as required and record its status as `DID_NOT_EXECUTE` locally on Windows.
+- Not mark local `full` as PASS; it stays `INCOMPLETE_ASSURANCE` until the GitHub Actions Ubuntu run produces attributable SAST evidence for the same commit.
+- Recommend the practical workflow: push/PR to trigger the Ubuntu CI job, then treat the combined local+CI result (same commit, same plan/baseline/runner identity) as the actual `full` verification outcome.
+- Not fabricate or apply a `NOT_APPLICABLE` classification myself — that would be changing required-control classification, which is a material assurance-policy decision I can't self-certify.
+
+## Nothing here is materially ambiguous, but one thing is worth confirming with you
+
+If you intend to merge or release *before* the Ubuntu CI SAST run completes on this commit, that requires an explicit governance/policy exception from the approval authority — I can't grant that myself, and it wouldn't turn the missing control into a PASS even if granted. So the one question I'd ask you: **do you need to proceed before CI evidence lands (requiring an exception), or is the plan simply to treat local `full` as `INCOMPLETE_ASSURANCE` until the CI run finishes normally?** If it's the latter (the more common and lower-friction path), no further action is needed from you — I'll just report status accurately and point you to CI.

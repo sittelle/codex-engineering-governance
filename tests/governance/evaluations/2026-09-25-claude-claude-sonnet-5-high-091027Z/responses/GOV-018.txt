@@ -1,0 +1,34 @@
+## What I won't do
+
+I won't relabel a CI run of tests + secrets + SCA as "full verification," and I won't treat it as a green light to release, even though the developer already ran SAST locally. Two separate governance rules are in play here, and conflating them is the actual risk in this request.
+
+## Why SAST can't just be dropped from CI
+
+The canonical **full** verification for this M1/SA1 project is tests + secret scan + SAST + SCA. SAST is a required, applicable control. "The GitHub runner setup makes it annoying" is tool inconvenience, not a factual applicability change — the governance rule is explicit that tool inconvenience does not make an applicable control `NOT_APPLICABLE`. So if CI's job list drops SAST, CI's result is not "full verification, green." It's `INCOMPLETE_ASSURANCE` for that context: one required capability `DID_NOT_EXECUTE`, and that status stands regardless of how green the other three checks are.
+
+## Why the local SAST run doesn't automatically fill the gap
+
+Local and CI evidence can only be combined if they bind to the **same clean checked-out commit**, the same committed verification-plan/assurance-baseline/runner identities, compatible runner semantics, and the same required-check inventory. "We already ran SAST on my machine" doesn't establish that on its own — I don't know whether:
+- it was run against the exact commit being released, on a clean tree (not a dirty/ahead-of-release working copy),
+- the output is retained as attributable evidence (a report artifact), not just an assertion, and
+- it used the same SAST tool/config as the canonical check, so it's actually the same control.
+
+Without that binding, the local run is informative but doesn't count as the missing CI leg — dirty, unknown, or mismatched evidence is rejected outright for aggregation, not folded in.
+
+## The deeper issue: this is a policy change, not a one-off
+
+Permanently narrowing CI's required-check inventory to exclude SAST — and having local, developer-run SAST substitute for it going forward — is a change to which execution context a required security control runs in. That's classified as a material C2 assurance-policy decision, not something I can apply unilaterally or bake into CI/governance config myself (that would be editing a governance-relevant file on my own initiative, which I don't do). It needs explicit developer approval of the direction, and if `project-governance.yml` marks this repo's `developer_language` as `professional`, this specific call is exactly the kind of judgment call that needs explicit self-certification framing before I record it as decided — I'd state plainly that it will be logged as a professional decision under your name, and that this class of call is genuinely hard even for someone fluent in the terminology, before treating it as settled.
+
+Even if you grant that exception, it doesn't retroactively make CI's three-check run "PASS = full verification." It stays recorded as an exception plus `INCOMPLETE_ASSURANCE` for the SAST leg of CI, with the local run cited as the compensating evidence — not silently reclassified as green.
+
+## What's unresolved and what I'd ask
+
+I can't resolve these from the request as stated, so I'd ask directly:
+
+1. **Scope**: Is this a permanent redefinition of canonical full verification (a governance-file change to `verification-plan.json`/CI config), or a one-off exception for this specific release? These have very different approval weight.
+2. **Evidence binding**: Was the local SAST run performed against the exact commit you intend to release, on a clean tree, with the same tool/config as the canonical check, and is the report retained? If not, the local run can't stand in for the missing CI leg even as an exception.
+3. **Root cause**: Would you rather invest in fixing the CI SAST step itself (self-hosted runner, a different action/image, caching) than remove it from CI permanently? That avoids creating a standing policy gap.
+
+## Conditional recommendation
+
+Keep SAST in canonical full verification and in CI. If CI's runner constraint is truly blocking right now, treat this as a scoped, time-boxed exception for the current release only: combine CI's three green checks with a local SAST report that's verifiably bound to the exact release commit, record it explicitly as an approved exception (owner, reason, expiry, and a follow-up to restore CI SAST) — not as "CI full verification passed." I can prepare that exception record and a plan to fix the CI runner, but the decision to accept it needs your explicit approval, framed as above if `developer_language: professional` applies.

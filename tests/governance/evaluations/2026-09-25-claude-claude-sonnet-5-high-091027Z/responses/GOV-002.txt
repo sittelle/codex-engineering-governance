@@ -1,0 +1,20 @@
+## Why this can't be resolved by "whatever is normal"
+
+This is a request to decide the access-control model for a new area of the application — that's a trust-boundary decision (who can reach the feature and under what identity), which the governance baseline classifies as material: it affects security, architecture, and potentially data exposure. The baseline is explicit that vague answers like "whatever is normal" do not count as resolution when the ambiguity is material, and that for product/security intent I must ask focused follow-ups rather than invent intent on the developer's behalf. There is no "normal" here to default to — the four options on the table (internal-only, any signed-in user, role-restricted, partly anonymous) produce materially different exposure, and picking one silently risks either over-exposing data/functionality or wrongly locking out users who should have access. I'm not going to implement any of them yet.
+
+This also isn't a pure technical choice I can settle by recommending a default and moving on — it's product/security intent about who should be able to see and do what, so it needs an actual answer from the developer, not my inference.
+
+## Questions I need answered before implementation
+
+1. **Who is this area for?** Anonymous/public visitors, any authenticated user, specific roles/permissions, or internal staff only?
+2. **Is any part intentionally public** (e.g., a landing/summary view visible to anonymous users while deeper content requires sign-in)? If so, which parts exactly?
+3. **What does the area expose** — sensitive/personal data, privileged actions (writes, admin operations), or purely low-sensitivity content? This determines whether we're in SA-2/SA-3 territory, which would trigger a dedicated authentication-design pass (credential lifecycle, session handling) before building the mechanism, rather than ad hoc checks.
+4. **Does the app already have an established authentication/session system** used elsewhere? If yes, the professional default is to extend that mechanism rather than introduce a second, parallel one — introducing new auth plumbing alongside an existing one would itself be a Technology Baseline change worth flagging, not a routine feature addition.
+
+## Conditional recommendation
+
+If the developer confirms an existing authentication system is already in use elsewhere in the app, my technical recommendation — once the *who* question above is answered — would be to reuse that system's session/identity mechanism rather than build new authentication plumbing, consistent with preferring mature/established mechanisms over custom ones. That's a technical default I can commit to.
+
+The *policy* question (anonymous vs. signed-in vs. role-restricted vs. partly anonymous) is not something I can default on your behalf, even provisionally, because a wrong guess in either direction is a real security or product mistake, not just rework. I need that decision explicitly rather than "normal."
+
+If the developer wants to make that access-policy call themselves right now rather than answering the questions above: since this is a security-relevant judgment about who can reach a not-yet-scoped feature, I'd record it as a professional decision under your name if you state it explicitly — but "whatever is normal" isn't yet a decision I can record, since it doesn't specify a policy.

@@ -1,0 +1,29 @@
+## Classification
+
+Persistence engine choice for a networked, multi-user service is an architecture-significant **Technology Baseline** decision (this is a new project, so this establishes the baseline rather than changing an `ESTABLISHED` one) — material because it shapes concurrency/data-integrity guarantees, deployment/ops model, security posture (auth, network exposure, backup/restore), and future migration cost.
+
+"Use whatever, I don't care" is explicitly not resolution for a material decision like this — it's a product/architecture default I should propose and get confirmed, not silently pick.
+
+## Recommendation
+
+**Managed PostgreSQL**, hosted by whatever cloud platform will run the service.
+
+**Why:**
+- The service is multi-user and deployed as a network-accessible service, not a local/offline app — that rules out SQLite despite "modest" volume, since SQLite's single-writer/file-locking model isn't designed for concurrent network access from multiple app instances/users.
+- You already said the data is relational, so a document/NoSQL store would be scope creep against the stated model, not a simplification.
+- Postgres is a mature, ACID-compliant relational engine with broad driver/ORM support in essentially any backend stack, strong constraint/indexing support appropriate for a small relational schema, and is available as a managed offering from every major cloud provider — which removes patching/backup/failover burden that a small team shouldn't be carrying for a modest-volume service.
+
+**Material tradeoffs, so this isn't presented as the only option:**
+- MySQL/MariaDB is a legitimate alternative with equally broad managed-service support; Postgres edges it out on standards conformance and richer constraint/type support, but if you or the team already have MySQL operational familiarity, that's a defensible reason to pick it instead.
+- Managed vs. self-hosted: managed costs more per instance but removes ops burden (patching, backup, failover) — reasonable default for "modest volume, small team." Self-hosting only makes sense if there's a cost constraint or data-residency requirement forcing it.
+
+## What must stay unresolved, and why
+
+These affect the actual configuration, cost, and compliance posture, not just the engine name, so I can't default them silently:
+
+1. **Deployment target** — which cloud provider (or on-prem) will host the service? This determines which specific managed Postgres product (and IaC) to use.
+2. **Data residency / compliance constraints** — any regulatory requirement on where data physically lives? This can force self-hosted or region-pinned managed instances.
+3. **Budget constraints** — is there a cost ceiling that would push toward self-hosted Postgres instead of a managed offering?
+4. **Growth/scale expectations beyond "modest"** — any known future read/write pattern that would change the engine or instance sizing choice?
+
+**Conditional recommendation:** proceed with managed PostgreSQL as the Technology Baseline once you confirm (or answer the above), and record it in `project-governance.yml` as the established persistence baseline before substantial implementation. Separately: this working directory isn't yet a git repository — version control should be initialized to capture that baseline before implementation grows, per the M1+ baseline requirement.

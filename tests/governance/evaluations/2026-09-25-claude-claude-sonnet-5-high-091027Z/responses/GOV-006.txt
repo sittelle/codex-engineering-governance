@@ -1,0 +1,25 @@
+## Conclusion: Not releasable as-is
+
+SAST is a required control for this candidate, and it did not produce a result — the tool failed **before** the scan executed. Per the governance baseline this repository is governed by:
+
+1. **Requiredness** — SAST is required regardless of how everything else went. "Every other check passed" does not substitute for it; each required control is evaluated independently.
+2. **Evidence state** — A tool operational failure is neither a finding nor a pass. This is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`, not a benign skip and not green-by-default. The default-nonzero-exit rule applies unless there's a durable tool contract saying otherwise (there's no indication of one here).
+3. **Overall readiness** — A green set of the *other* checks is not sufficient. One required capability without evidence makes the release candidate `INCOMPLETE_ASSURANCE` as a whole, not "pass with a caveat."
+4. **Finding-risk vs. missing-control exception** — These are distinct. Even if there *were* a known SAST finding you were willing to accept, that would be a separate decision from what's needed here: there is no result to accept risk *on*. What's missing is the control itself, which requires a governance/policy exception to proceed without it, not a risk acceptance.
+5. **No such exception exists** — `project-governance.yml` shows `exceptions.active: []`. Nothing currently authorizes proceeding without SAST evidence.
+6. **An exception, even if granted, would not make this PASS** — It would let you proceed with the release *despite* the gap, but SAST itself stays recorded as `DID_NOT_EXECUTE`, not PASS, in the record.
+
+So: **recommend against release right now.** Release is a consequential/production action, and `critical_release_blocker`/`high_release_blocker` are both `true` in this project's config — proceeding without knowing whether SAST would have surfaced a critical/high finding is exactly the scenario those blockers exist for.
+
+## What I'd ask you (the developer) to resolve, and why it can't be resolved for you
+
+There are two materially different paths and only you can choose between them, because the choice trades off timeline against risk acceptance in a way that's a product/business call, not a technical one:
+
+- **(a) Fix and re-run SAST** — diagnose why it failed to start (config, environment, tool bootstrap, lock/version mismatch) and get an actual pass/fail result before release. This is the default path and requires no exception.
+- **(b) Request an explicit governance/policy exception** to release with SAST `INCOMPLETE_ASSURANCE`, accepting the risk that unscanned code ships. This is available only if you, as the approval authority, explicitly grant it — I can surface the option but must not grant it myself.
+
+If you want to pursue (b): since `developer_language` is `professional`, I want to flag before you decide — this would be recorded as a **professional decision** under your name. Deciding to ship without SAST evidence, weighing "how likely is an unscanned critical/high finding" against release timing, is genuinely hard judgment even for someone fluent in the security vocabulary here — it's not a formality I'd wave through.
+
+**Question for you:** Do you want to (a) investigate and re-run the SAST tool before we proceed, or (b) formally request an exception to release with SAST marked `INCOMPLETE_ASSURANCE` — understanding that it will be recorded as your professional risk-acceptance decision, and SAST will remain non-PASS in the record either way?
+
+**Conditional recommendation:** If timeline pressure is the concern, my default technical recommendation is (a) — diagnose the SAST bootstrap failure first, since "tool failed before it ran" is often a fast environment/config fix rather than a real delay, and it avoids shipping with a known assurance gap on a control your own policy treats as release-blocking.

@@ -1,0 +1,29 @@
+## What's actually broken
+
+This isn't a Semgrep problem — it's a lock-portability problem. The hash-locked requirements file was resolved on Windows, so it pinned `pywin32`, a Windows-only package that has no Linux wheel. Per the **Assurance tool bootstrap invariant**: *"Assurance tool locks are environment-bound unless demonstrated universal. A lock resolved for one OS/runtime must not be silently reused for an incompatible environment."* That's exactly this case, and the invariant is explicit that the failure mode is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE` — not a defect in Semgrep, not a reason to loosen the install.
+
+## Why none of the three proposed fixes are acceptable
+
+- **Removing `--require-hashes`** — disables supply-chain integrity verification for a security tool's own dependency chain. The invariant says explicitly: *"never remove integrity hashes... merely to make CI green."* This is a security-control weakening for convenience, which governance overrides ("security overrides convenience... do not weaken, disable, or broadly suppress controls merely to make code, tests, scanners, or CI pass").
+- **Installing Semgrep without the lock** — same effect by another route: it floats versions and drops hash pinning, which the invariant separately prohibits ("never... float versions").
+- **Ignoring `pywin32` on Linux** — *could* be legitimate (it may be a transitive, Windows-only dependency), but doing it now, unconditionally, to unblock CI is exactly the pattern the invariant forbids: *"never... mark a required capability N/A merely to make CI green."* Whether it's safe to exclude depends on **why** the lock pulled it in — that has to be verified, not assumed.
+
+## The correct fix
+
+Generate a Linux-resolved, hash-locked requirements file for the assurance toolchain (resolve/lock on the Ubuntu runner's Python version and platform), rather than reusing the Windows-resolved lock. Two things to check in the process:
+
+1. Confirm whether `pywin32` appears in the source requirements with a `sys_platform == "win32"` marker, or whether it was pulled in unconditionally. If it's a legitimately platform-conditional dependency of something in the toolchain (common for packages that shell out to `colorama`/`pywin32-ctypes`-style Windows helpers), the marker — not a manual ignore — is what makes it correctly absent from the Linux lock.
+2. Re-lock with hashes for the Linux target (and keep the Windows lock separately if Windows is also a supported dev/CI environment), so both environments have their own environment-bound, hash-verified lock rather than one lock silently reused across platforms.
+
+This is ordinary bounded engineering (C1) — it fixes tool bootstrap without touching what's required, how failures are classified, or the security posture of the scan itself — so I'd proceed with generating the Linux lock once the lock-tooling question below is answered, no C2 sign-off needed. If the fix instead required changing which checks are required or how a failure is classified, that would become a C2 assurance-policy decision needing your approval — it doesn't, as scoped.
+
+## Status until this is done
+
+SAST in Ubuntu CI is currently `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`, not a pass and not something a local run can substitute for (M1/SA1 requires this in CI specifically). If there's any pressure to treat the branch as release-ready in the meantime: a governance/policy exception could in principle permit proceeding with incomplete assurance, but (a) that's a separate explicit decision from you, not something I can self-authorize, and (b) even granted, it would never relabel this control as PASS — it stays recorded as `INCOMPLETE_ASSURANCE` regardless.
+
+## What I need from you before generating the new lock
+
+- What tool generated the current lock (`pip-tools`, `poetry`, `uv`, manual `pip freeze`)? I want to reuse the established mechanism rather than introducing a different locking tool as an undiscussed baseline change.
+- Is there a pinned Python version/architecture for the Ubuntu runner I should resolve against, or should I infer it from the CI config?
+
+These are process/tooling facts, not material security or product tradeoffs, so they don't block a recommendation — but I don't want to guess an answer that then has to be re-locked again.

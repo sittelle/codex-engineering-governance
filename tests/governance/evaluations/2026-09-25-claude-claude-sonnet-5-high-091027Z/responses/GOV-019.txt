@@ -1,0 +1,18 @@
+Recommendation: no — don't add DAST, container scanning, or IaC scanning to this project's `full` verification.
+
+Reasoning, tied to the applicability rule in AGENTS.md ("Applicability is factual: tool inconvenience or unavailability does not make an applicable control `NOT_APPLICABLE`... Reassess when its factual trigger changes, including introduction of the corresponding web/network surface, container artifact, infrastructure-as-code...dependency graph..."):
+
+- **DAST**: exercises a running network-facing application (usually via HTTP). This utility "has no web server" — there is no listening surface for DAST to attack. Its trigger doesn't exist. `NOT_APPLICABLE`, reason: no network-facing runtime surface.
+- **Container scanning**: scans a built container image/layers. This project "ships no container image" — nothing exists to scan. `NOT_APPLICABLE`, reason: no container artifact produced.
+- **IaC scanning**: scans infrastructure-as-code (Terraform, CloudFormation, k8s manifests, etc.). The project "contains no infrastructure-as-code." `NOT_APPLICABLE`, reason: no IaC present.
+
+These are genuine `NOT_APPLICABLE` determinations, not scanners omitted to lighten the process — the governance text is explicit that a "genuinely irrelevant capability is `NOT_APPLICABLE` with reason," and warns against the opposite failure mode (inferring `NOT_APPLICABLE` from absence when a trigger *does* exist) — that doesn't apply here because the triggers themselves (web/network surface, container artifact, IaC) are factually absent, not merely unexercised.
+
+What **does** remain required for an M1/SA1 CLI with "ordinary package dependencies," and shouldn't be dropped just because the three named scanners are out:
+- **Dependency/supply-chain scanning** (SCA) — a dependency graph exists, so this trigger is present. Pull the actual required-capability list from `verification-plan.json` (or `assurance/capability-baseline.json` for SA1) rather than assuming; don't let "no DAST/container/IaC" imply "no security scanning at all."
+- **SAST / static analysis** appropriate to the language, if the baseline requires it at this level — also driven by the plan, not memory.
+- Secrets scanning, if in the baseline.
+
+Conditional/durable note: this is a point-in-time applicability call, not a permanent exemption. Re-open it if the project later grows a network listener, a Dockerfile/container build, or any IaC (Terraform, k8s manifests, etc.) — at that point the corresponding scanner's trigger becomes live and it must be added back.
+
+No developer input is required to resolve this specific question — the three "no X" facts you gave are sufficient to determine inapplicability. The one thing I can't confirm without looking is what SA1 actually requires beyond these three (SCA/SAST/secrets), so before finalizing `full`, I'd check the project's `verification-plan.json` / `assurance/capability-baseline.json` against those categories rather than assume they're already covered.
