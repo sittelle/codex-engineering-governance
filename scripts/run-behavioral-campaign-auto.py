@@ -63,8 +63,13 @@ ROUTING_PROBE_FILE = "workflows/emergency-fix/WORKFLOW.md"
 ROUTING_PROBE_PREFIX = "Do not act on an assumed root cause when"
 PROBE_MATCH_WORDS = 8
 PROBE_ATTEMPTS = 2
-# Failed calls in a row after which a model run stops (quota, sign-in, network).
+# A usage/token limit pauses the run at once; unrecognized errors pause it
+# after this many failed calls in a row (e.g. expired sign-in, network).
 CONSECUTIVE_FAILURE_LIMIT = 3
+USAGE_LIMIT_MARKERS = (
+    "usage limit", "rate limit", "rate_limit", "quota", "insufficient", "credit balance",
+    "out of credits", "billing", "too many requests", "429", "limit reached", "resource_exhausted",
+)
 # Official Debian/Ubuntu apt install for the GitHub CLI, verbatim from
 # https://github.com/cli/cli/blob/trunk/docs/install_linux.md -- run through
 # bash rather than re-derived, so this matches the documented commands
@@ -423,6 +428,28 @@ def verify_instruction_loading(model_entry: dict, contexts: set[str], folders: d
     return results
 
 
+def is_usage_limit_error(reason: str | None) -> bool:
+    text = (reason or "").lower()
+    return any(marker in text for marker in USAGE_LIMIT_MARKERS)
+
+
+def pause_for_operator(model_entry: dict, resume_test_id: str, reason: str | None, limit_hit: bool) -> bool:
+    """Pause instead of burning the remaining calls; True means retry the
+    aborted scenario and continue with all following ones in this run."""
+    cause = ("this looks like a usage/token limit" if limit_hit else
+             f"{CONSECUTIVE_FAILURE_LIMIT} calls failed in a row (usage limit, expired sign-in, or network)")
+    print(
+        f"\nPAUSED {model_entry['label']}: {cause}.\n  Last error: {reason}\n"
+        f"  Fix the cause (top up tokens/credits, wait for the limit to reset, or sign in again), then press Enter "
+        f"to retry from {resume_test_id} and continue; type 'stop' to end this model's run and push what was captured."
+    )
+    try:
+        answer = input("> ").strip().lower()
+    except EOFError:
+        return False
+    return answer != "stop"
+
+
 def run_scenario(kit, row: dict, model_entry: dict, folders: dict[str, str], campaign_dir: Path) -> dict:
     cwd = context_directory(row["context"], folders)
     if model_entry["host"] == "codex":
@@ -667,23 +694,29 @@ def run_one_model(kit, model_entry: dict, rows: list[dict], folders: dict, sourc
     (campaign_dir / "responses").mkdir()
     (campaign_dir / "prompts").mkdir()
 
-    records = []
-    consecutive_failures = 0
-    for row in rows:
+    by_test: dict[str, dict] = {}
+    i, streak_start = 0, None
+    while i < len(rows):
+        row = rows[i]
         print(f"[{row['test_id']}] ({row['context']}) invoking {model_entry['host']}...")
         record = run_scenario(kit, row, model_entry, folders, campaign_dir)
-        records.append(record)
+        by_test[row["test_id"]] = record  # a retry replaces the failed attempt
         print(f"  -> {record['status']}" + (f" ({record['reason']})" if record["reason"] else ""))
-        consecutive_failures = consecutive_failures + 1 if record["status"] != "CAPTURED" else 0
-        if consecutive_failures >= CONSECUTIVE_FAILURE_LIMIT:
-            remaining = [r["test_id"] for r in rows[len(records):]]
-            print(
-                f"\nSTOPPED {model_entry['label']}: {CONSECUTIVE_FAILURE_LIMIT} consecutive invocations failed, which "
-                "usually means a usage/quota limit, an expired sign-in, or a network outage rather than the "
-                f"scenarios. Last error: {record['reason']}\n{len(remaining)} scenario(s) not run; after fixing "
-                f"the cause, rerun them with --select {','.join(remaining)}"
-            )
+        if record["status"] == "CAPTURED":
+            streak_start = None
+            i += 1
+            continue
+        streak_start = i if streak_start is None else streak_start
+        limit_hit = is_usage_limit_error(record["reason"])
+        if limit_hit or i - streak_start + 1 >= CONSECUTIVE_FAILURE_LIMIT:
+            if pause_for_operator(model_entry, rows[streak_start]["test_id"], record["reason"], limit_hit):
+                i, streak_start = streak_start, None
+                continue
+            remaining = [r["test_id"] for r in rows[streak_start:]]
+            print(f"{len(remaining)} scenario(s) without a response; rerun them later with --select {','.join(remaining)}")
             break
+        i += 1
+    records = [by_test[r["test_id"]] for r in rows if r["test_id"] in by_test]
 
     metadata = build_metadata(kit, model_entry, records, source, probe_results)
     (campaign_dir / "EVALUATION-METADATA.json").write_text(

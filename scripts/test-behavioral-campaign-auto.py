@@ -393,45 +393,79 @@ def test_routing_probe_blocks_campaign_when_locator_unreadable(failures: list[st
             failures.append("an unreadable GOVERNANCE_ROOT locator must fail the instruction-loading check")
 
 
-def test_consecutive_failures_stop_the_model_run(failures: list[str]) -> None:
-    """A usage/quota wall makes every further call fail; the run must stop
-    after CONSECUTIVE_FAILURE_LIMIT failures in a row, still push what was
-    captured, and name the scenarios to rerun."""
+def _run_session_with(tmp: Path, fake_invoke, answers: list[str], selection: str):
+    """One automated Codex session against a scratch evidence repo; returns
+    (runner module, console output, pushed EVALUATION-METADATA or None)."""
+    origin, work = make_scratch_repo(tmp)
+    (work / "VERSION").write_text("2.0.0\n", encoding="utf-8")
+    run(["git", "-C", str(work), "add", "VERSION"])
+    run(["git", "-C", str(work), "commit", "-m", "add VERSION for metadata"])
+    mod = load_runner_with_scratch_root(work)
+    mod.invoke_codex = fake_invoke
+    mod.verify_instruction_loading = lambda model_entry, contexts, folders: []
+    kit = mod.load_campaign_kit()
+    workspace = tmp / "workspace"
+    workspace.mkdir()
+    (workspace / "folders.json").write_text(json.dumps({"GOVERNED_REPOSITORY": str(tmp), "UNGOVERNED": str(tmp)}), encoding="utf-8")
+    replies = iter(answers)
+    mod.input = lambda prompt="": next(replies)
+    captured = io.StringIO()
+    with contextlib.redirect_stdout(captured):
+        mod.run_automated(kit, workspace, selection)
+    run(["git", "-C", str(work), "fetch", "origin", mod.EVIDENCE_BRANCH])
+    listing = run(["git", "-C", str(work), "ls-tree", "--name-only", f"origin/{mod.EVIDENCE_BRANCH}", f"{mod.EVIDENCE_ROOT}/"]).stdout.split()
+    metadata = None
+    if listing:
+        shown = run(["git", "-C", str(work), "show", f"origin/{mod.EVIDENCE_BRANCH}:{listing[0]}/EVALUATION-METADATA.json"]).stdout
+        metadata = json.loads(shown)
+    return mod, captured.getvalue(), metadata
+
+
+def test_usage_limit_pauses_and_resumes_in_the_same_run(failures: list[str]) -> None:
+    """A token/usage limit must pause the run; after the operator confirms,
+    the aborted scenario and all following ones run in the same campaign, so
+    the whole test never has to be repeated."""
     with tempfile.TemporaryDirectory() as tmp:
-        tmp = Path(tmp)
-        origin, work = make_scratch_repo(tmp)
-        (work / "VERSION").write_text("2.0.0\n", encoding="utf-8")
-        run(["git", "-C", str(work), "add", "VERSION"])
-        run(["git", "-C", str(work), "commit", "-m", "add VERSION for metadata"])
-        mod = load_runner_with_scratch_root(work)
+        calls = []
+
+        def fake_invoke(prompt, cwd, model, effort, extra_disallowed=()):
+            calls.append(prompt)
+            if len(calls) == 3:
+                return {"status": "DID_NOT_EXECUTE", "reason": "codex exec exited 1: You've hit your usage limit.", "invocation": ["fake"], "response": None}
+            return _answer("fake response\n")
+
+        mod, output, metadata = _run_session_with(Path(tmp), fake_invoke, ["1", "", "n"], "GOV-004-GOV-011")
+        assert_true("PAUSED" in output and "usage limit" in output, "a usage limit must pause the run and show the error", failures)
+        assert_true(len(calls) == 9, f"expected 8 scenarios plus 1 retry (9 calls), got {len(calls)}", failures)
+        results = (metadata or {}).get("results", [])
+        assert_true(
+            [r["test_id"] for r in results] == [f"GOV-{n:03d}" for n in range(4, 12)]
+            and all(r["status"] == "CAPTURED" for r in results),
+            f"the resumed run must yield one complete campaign with one record per scenario, got {[(r['test_id'], r['status']) for r in results]}",
+            failures,
+        )
+
+
+def test_repeated_failures_pause_and_can_stop(failures: list[str]) -> None:
+    """Unrecognized repeated failures also pause the run; choosing 'stop'
+    pushes what was captured and names the scenarios still to run."""
+    with tempfile.TemporaryDirectory() as tmp:
         calls = []
 
         def fake_invoke(prompt, cwd, model, effort, extra_disallowed=()):
             calls.append(prompt)
             if len(calls) <= 2:
                 return _answer("fake response\n")
-            return {"status": "DID_NOT_EXECUTE", "reason": "codex exec exited 1: usage limit reached", "invocation": ["fake"], "response": None}
-        mod.invoke_codex = fake_invoke
-        mod.verify_instruction_loading = lambda model_entry, contexts, folders: []
+            return {"status": "DID_NOT_EXECUTE", "reason": "codex exec exited 1: unexpected failure", "invocation": ["fake"], "response": None}
 
-        kit = mod.load_campaign_kit()
-        workspace = tmp / "workspace"
-        workspace.mkdir()
-        (workspace / "folders.json").write_text(json.dumps({"GOVERNED_REPOSITORY": str(tmp), "UNGOVERNED": str(tmp)}), encoding="utf-8")
-        answers = iter(["1", "n"])
-        mod.input = lambda prompt="": next(answers)
-
-        captured = io.StringIO()
-        with contextlib.redirect_stdout(captured):
-            mod.run_automated(kit, workspace, "GOV-004-GOV-011")
-        output = captured.getvalue()
+        mod, output, metadata = _run_session_with(Path(tmp), fake_invoke, ["1", "stop", "n"], "GOV-004-GOV-011")
         limit = mod.CONSECUTIVE_FAILURE_LIMIT
-        assert_true(len(calls) == 2 + limit, f"expected 2 captured plus {limit} failed calls, got {len(calls)}", failures)
-        assert_true("STOPPED" in output and "usage limit reached" in output, "the stop and its last error must be reported", failures)
-        assert_true("--select GOV-009,GOV-010,GOV-011" in output, f"the rerun hint must name the scenarios not run: {output[-400:]}", failures)
-        run(["git", "-C", str(work), "fetch", "origin", mod.EVIDENCE_BRANCH])
-        log = run(["git", "-C", str(work), "log", f"origin/{mod.EVIDENCE_BRANCH}", "--oneline"]).stdout
-        assert_true("codex" in log, "the scenarios captured before the stop must still be pushed", failures)
+        assert_true(len(calls) == 2 + limit, f"expected 2 captured plus {limit} failed calls before the pause, got {len(calls)}", failures)
+        assert_true("PAUSED" in output, "repeated failures must pause the run", failures)
+        assert_true("--select GOV-006,GOV-007,GOV-008,GOV-009,GOV-010,GOV-011" in output,
+                    f"the rerun hint must start at the first failed scenario: {output[-400:]}", failures)
+        assert_true(metadata is not None and sum(r["status"] == "CAPTURED" for r in metadata["results"]) == 2,
+                    "the scenarios captured before stopping must still be pushed", failures)
 
 
 def test_git_remote_access_retries_through_browser_auth(failures: list[str]) -> None:
@@ -593,7 +627,8 @@ def main() -> int:
     test_instruction_probe_passes_when_instructions_are_quoted(failures)
     test_ungoverned_probe_blocks_campaign_on_governance_leak(failures)
     test_routing_probe_blocks_campaign_when_locator_unreadable(failures)
-    test_consecutive_failures_stop_the_model_run(failures)
+    test_usage_limit_pauses_and_resumes_in_the_same_run(failures)
+    test_repeated_failures_pause_and_can_stop(failures)
     test_git_remote_access_retries_through_browser_auth(failures)
     test_git_remote_access_gives_up_after_retry_limit(failures)
     test_push_existing_accepts_a_full_path_by_mistake(failures)
@@ -617,7 +652,8 @@ def main() -> int:
     print("- the instruction-loading check retries a one-off misquote, passes on a correct quote, and denies the Claude probe its file tools")
     print("- governance text reaching an ungoverned session stops the run (ADR 0005)")
     print("- an unreadable GOVERNANCE_ROOT locator stops the run even when the instructions themselves are loaded")
-    print("- repeated failed calls (quota/sign-in/network) stop the model run, keep the captured evidence, and name the scenarios to rerun")
+    print("- a usage/token limit pauses the run; after confirmation the aborted and all following scenarios run in the same campaign")
+    print("- repeated unrecognized failures pause the run; stopping keeps the captured evidence and names the scenarios to rerun")
     print("- unreachable git remote access retries through browser authorization until reachable")
     print("- unreachable git remote access gives up with a clear error after the retry limit")
     print("- push-existing recovers when a full path is passed instead of a bare folder name")
