@@ -573,6 +573,17 @@ def project_cycle(failures: list[str]) -> None:
             "New generated application content",
             failures,
         )
+        new_codex_hooks_path = target / ".codex" / "hooks.json"
+        check(new_codex_hooks_path.is_file(), "New did not create .codex/hooks.json", failures)
+        if new_codex_hooks_path.is_file():
+            new_codex_hooks = json.loads(new_codex_hooks_path.read_text(encoding="utf-8"))
+            entry = (new_codex_hooks.get("hooks", {}).get("PreToolUse") or [{}])[0]
+            check(entry.get("matcher") == "Bash", "New .codex/hooks.json matcher is not Bash-only", failures)
+            check(
+                "CODEX_HOME" in (entry.get("hooks") or [{}])[0].get("command", ""),
+                "New .codex/hooks.json command does not resolve GOVERNANCE_ROOT via CODEX_HOME",
+                failures,
+            )
 
         # Update: preserve project-owned host text and established technology baseline.
         agents = target / "AGENTS.md"
@@ -598,6 +609,10 @@ def project_cycle(failures: list[str]) -> None:
         )
         manifest.write_text(m, encoding="utf-8", newline="\n")
 
+        # A project's own customized hooks.json must never be overwritten by update.
+        custom_hooks_marker = {"custom": "user-owned, must survive update"}
+        new_codex_hooks_path.write_text(json.dumps(custom_hooks_marker) + "\n", encoding="utf-8", newline="\n")
+
         updated = run(["project", "update", "--project", str(target), "-y"])
         if not require_ok(updated, "project update failed", failures):
             return
@@ -611,6 +626,11 @@ def project_cycle(failures: list[str]) -> None:
         check(
             'record: "docs/design.md#approved-technology-baseline"' in new_manifest,
             "Update changed Technology Baseline record",
+            failures,
+        )
+        check(
+            json.loads(new_codex_hooks_path.read_text(encoding="utf-8")) == custom_hooks_marker,
+            "Update overwrote a project's customized .codex/hooks.json",
             failures,
         )
 
@@ -650,6 +670,7 @@ def project_cycle(failures: list[str]) -> None:
             "Adopt did not require Technology Baseline reconciliation",
             failures,
         )
+        check((existing / ".codex" / "hooks.json").is_file(), "Adopt did not create .codex/hooks.json", failures)
 
         # Dirty repository is a hard refusal; -y must not bypass it.
         dirty = base / "dirty"

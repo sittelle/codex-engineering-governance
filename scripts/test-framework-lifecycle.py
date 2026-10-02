@@ -351,6 +351,7 @@ def test_common(failures):
             == {
                 "CLAUDE.md",
                 "project-governance.yml",
+                ".codex/hooks.json",
                 ".governance/integrity.json",
                 ASSERTION_REL.as_posix(),
             },

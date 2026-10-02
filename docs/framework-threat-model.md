@@ -153,3 +153,32 @@ monitoring or an EDR agent watching governed project paths, run by IT
 independent of and underneath this framework, is the standard complementary
 control and is out of this framework's scope to configure or recommend a
 specific product for.
+
+**The two hosts' self-service hook layers are not symmetric, because their
+underlying mechanisms are not.** Claude Code supports a native command-content
+filter (the `if` permission-rule field) and a non-admin deny-rule mechanism
+for file edits and commands, confirmed against a real Claude Code session
+(`Edit(path)` blocks the Write tool too; a separate `Write(path)` entry is
+dead). Codex has neither: confirmed against its own documentation, a plain
+project or user `config.toml`/`hooks.json` cannot deny a specific command
+pattern or a non-read file operation at all, and a hook's `matcher` filters
+only by tool name, not command content. Consequently: (1) Codex's self-service
+hook is installed per governed project (via `project new`/`adopt`/`update`),
+not at user level like Claude's, so its cost is bounded to projects that
+already opted into this framework rather than every project on the machine;
+(2) the commit-only gate is implemented inside the shared Python hook script
+itself (`_is_git_commit_bash_call`) rather than natively, so a Codex session
+still pays the subprocess-spawn cost on every Bash call within a governed
+project, not only on commits, since there is no cheaper way to decide that
+without first running the script; (3) a direct file edit (`apply_patch`) is
+not covered by the hook at all for Codex, only Bash is, relying entirely on
+the same before-commit check as any other tampering path for its eventual
+backstop, since there is no native deny-rule equivalent to give it
+Claude-style instant protection for free. For the framework's own automated
+behavioral-evaluation runner specifically, Codex also requires reviewing and
+trusting the exact hook definition before any non-managed hook runs, even
+non-interactively; the runner passes `--dangerously-bypass-hook-trust`,
+justified only because the framework authors and already reviews its own
+hook content as part of its own source -- an end user's `codex exec`
+automation over arbitrary project content should not carry that same
+justification.

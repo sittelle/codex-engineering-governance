@@ -13,6 +13,7 @@ ALLOWED_FIXTURE_PATHS = {
     "AGENTS.md",
     "CLAUDE.md",
     "project-governance.yml",
+    ".codex/hooks.json",
     ".governance/integrity.json",
     ASSERTION_REL.as_posix(),
 }

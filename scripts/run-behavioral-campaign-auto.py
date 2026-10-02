@@ -257,6 +257,14 @@ def invoke_codex(prompt: str, cwd: Path, model: str, effort: str) -> dict:
             "--model", model,
             "-c", f'model_reasoning_effort="{effort}"',
             "--skip-git-repo-check",
+            # Codex requires reviewing and trusting the exact hook definition
+            # before a non-managed hook runs, in both interactive and exec
+            # contexts, with no non-interactive way to grant that trust
+            # otherwise. This bypass is for our own GOV-context fixtures'
+            # .codex/hooks.json, which this framework authors and already
+            # reviews as part of its own source -- never appropriate for an
+            # arbitrary downstream project's hook content.
+            "--dangerously-bypass-hook-trust",
             "--output-last-message", str(output_file),
             prompt,
         ]

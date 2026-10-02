@@ -1950,6 +1950,7 @@ def preview_project_new(
             f"Developer language: {mode}",
             "Create: AGENTS.md, CLAUDE.md, project-governance.yml, verification-plan.json",
             "Create: docs/, src/, tests/ and available repository templates",
+            "Create: .codex/hooks.json (Codex self-service PreToolUse governance hook, commit-gated)",
             "Create: .governance/integrity.json (governance artifact integrity manifest)",
             (
                 f"Registration: {registration}, derive assurance facts from its capabilities"
@@ -1979,6 +1980,57 @@ def apply_registration(target: Path, registration: Path | None, mode: str) -> No
     if plan_path.is_file():
         facts = registration_assurance_facts(parse_registration(reg_text))
         write_text(plan_path, apply_registration_facts(read_text(plan_path), facts))
+
+
+# Codex self-service deterministic backstop (2026-10): project-scoped, not
+# user-scoped like Claude's. Codex has no native per-command content filter
+# (no `if`-equivalent -- confirmed against developers.openai.com/codex's own
+# docs) and no non-admin deny-rule mechanism for writes/commands at all (only
+# a read-deny permission-profile exists outside requirements.toml, the
+# IT-managed admin layer). Without either lever, installing this at user
+# level the way Claude's is would mean paying the subprocess cost on every
+# Bash call in every project on the machine, governed or not, with no way to
+# cheaply filter it down to just commits beforehand. Scoping it to the
+# project instead bounds that cost to projects that opted into this
+# framework; _is_git_commit_bash_call() in hook_pre_tool_decision still
+# filters to actual commit attempts so the expensive integrity check itself
+# doesn't run on every Bash call even within a governed project, at the cost
+# of still spawning the subprocess (Python startup dominates that cost, not
+# the check logic, so this filtering saves real but partial time).
+CODEX_PRETOOL_HOOK_JSON = {
+    "hooks": {
+        "PreToolUse": [
+            {
+                "matcher": "Bash",
+                "hooks": [{
+                    "type": "command",
+                    "command": (
+                        "python -c \"import json,os,pathlib,subprocess,sys;"
+                        "cfg=pathlib.Path(os.environ.get('CODEX_HOME') or (pathlib.Path.home()/'.codex'));"
+                        "root=pathlib.Path((cfg/'GOVERNANCE_ROOT').read_text(encoding='utf-8-sig').strip());"
+                        "sys.exit(subprocess.call([sys.executable,str(root/'governance.py'),'hook','pre-tool','--enforce'],stdin=sys.stdin))\""
+                    ),
+                    "statusMessage": "Checking governance policy",
+                }],
+            },
+        ],
+    },
+}
+
+
+def ensure_codex_pretool_hook(project: Path) -> bool:
+    """Write .codex/hooks.json if it doesn't already exist. Never overwrites
+    an existing file -- a project may already have its own Codex hooks for
+    unrelated purposes, and merging JSON hook configs safely is out of scope
+    for a bounded first pass; a project that already has one is left for the
+    developer to add this hook to by hand, following CODEX_PRETOOL_HOOK_JSON.
+    Returns whether it was created, for the caller to report to the operator."""
+    hooks_path = project / ".codex" / "hooks.json"
+    if hooks_path.exists():
+        return False
+    hooks_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text(hooks_path, json.dumps(CODEX_PRETOOL_HOOK_JSON, indent=2) + "\n")
+    return True
 
 
 def apply_project_new(
@@ -2026,6 +2078,7 @@ def apply_project_new(
         if result.returncode != 0:
             fail(f"Project created, but git init failed: {result.stderr.strip()}")
 
+    ensure_codex_pretool_hook(target)
     write_integrity_manifest(root, target)
     verify_project(root, target)
 
@@ -2053,6 +2106,7 @@ def preview_project_adopt(
         "Add/refresh only managed governance block in AGENTS.md",
         "Add/refresh only managed Claude adapter block in CLAUDE.md",
         "Preserve existing project content and custom host instructions",
+        "Create .codex/hooks.json (Codex self-service PreToolUse governance hook, commit-gated) if not already present; never overwritten",
         "Create/refresh .governance/integrity.json (governance artifact integrity manifest)",
         (
             f"Registration: {registration}, derive assurance facts from its capabilities"
@@ -2117,6 +2171,7 @@ reconciliation and establish a truthful post-adoption evidence baseline.
 """
     write_text(project / "docs" / "governance-adoption.md", adoption)
     apply_registration(project, registration, mode)
+    ensure_codex_pretool_hook(project)
     write_integrity_manifest(root, project)
     verify_project(root, project)
 
@@ -2190,6 +2245,7 @@ def preview_project_update(root: Path, project: Path, plan: dict) -> None:
         ),
         "Preserve project-specific AGENTS.md and CLAUDE.md text",
         "Create backups before applying changed governed files",
+        "Create .codex/hooks.json (Codex self-service PreToolUse governance hook, commit-gated) if not already present; never overwritten",
         "Refresh .governance/integrity.json (governance artifact integrity manifest)",
     ]
     print_preview("Governed project update preview", lines)
@@ -2215,6 +2271,7 @@ def apply_project_update(root: Path, project: Path, plan: dict) -> None:
         shutil.copy2(claude, project / f"CLAUDE.md.governance-backup-{stamp}")
         write_text(claude, plan["claude_new"])
 
+    ensure_codex_pretool_hook(project)
     write_integrity_manifest(root, project)
     verify_project(root, project)
 
@@ -2274,10 +2331,35 @@ def load_run_verification_module(root: Path):
     return module
 
 
+_GIT_COMMIT_COMMAND_RE = re.compile(r"\bgit\b.*?\bcommit\b")
+
+
+def _is_git_commit_bash_call(data: dict) -> bool:
+    """Loosely matches 'git ... commit' anywhere in the command text, so a
+    flag-prefixed invocation (`git -C . commit`, `git -c user.name=x commit`)
+    still counts; a false positive (an unrelated command that happens to
+    mention both words) only costs one extra, harmless integrity check. A
+    deliberately disguised commit invocation evading this entirely is an
+    accepted, documented residual risk -- see docs/framework-threat-model.md."""
+    command = str((data.get("tool_input") or {}).get("command") or "")
+    return bool(_GIT_COMMIT_COMMAND_RE.search(command))
+
+
 def hook_pre_tool_decision(root: Path, data: dict, *, enforce: bool) -> dict | None:
     """Return a hookSpecificOutput payload, or None to allow silently."""
     tool_name = data.get("tool_name")
     if tool_name not in MUTATING_TOOL_NAMES:
+        return None
+
+    # Claude Code's self-service install filters to an actual git-commit
+    # attempt natively (its `if` permission-rule field), before this script
+    # ever runs, so every Bash call reaching here under that install is
+    # already a commit attempt and this check is a no-op. Codex has no
+    # native equivalent -- every Bash call in a project with this hook
+    # installed reaches here -- so check explicitly, otherwise the
+    # integrity work below would run on every shell command, not just
+    # commits, for Codex specifically.
+    if tool_name == "Bash" and not _is_git_commit_bash_call(data):
         return None
 
     cwd = data.get("cwd")
