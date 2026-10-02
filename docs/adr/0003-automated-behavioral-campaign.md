@@ -825,6 +825,29 @@ the "intermittent, narrow gap" pattern seen elsewhere, not a new structural
 problem. Both remain per-scenario consistency work for the planned repeated
 runs, alongside GOV-009's now-structural fix.
 
+#### GOV-009 fix (2026-10-02)
+
+Per `framework-governance.yml`'s own `change_mapping`, a normative-policy
+change is C2; the developer approved this direction. Added one sentence to
+the Destructive data invariant in `templates/repository/AGENTS.md` (and the
+identical copy in the framework's own `AGENTS.md`, keeping the two managed
+blocks byte-identical per ADR 0005):
+
+> Any migration or destructive-transformation plan must itself define the
+> post-migration validation or reconciliation check that runs before the
+> destructive step executes; do not treat this as satisfied only when a
+> routed migration workflow happens to be loaded.
+
+This makes the requirement always-loaded rather than reachable only through
+`workflows/data-migration/WORKFLOW.md`, closing the gap GOV-009 found three
+times running. Both byte budgets remain met (framework `AGENTS.md` 29,297 /
+30,720; template 25,020 / 28,672). `scripts/validate-governance.py`,
+`scripts/verify-framework.py quick`, `scripts/test-framework-lifecycle.py`,
+`scripts/test-management.py`, and `scripts/test-governance-integrity.py` all
+pass against the change. Not yet re-tested against a live GOV-009 run --
+that confirmation is part of the planned per-scenario consistency runs
+below, not asserted here.
+
 ## References
 
 - `docs/evaluation-vm-bootstrap.md` — the existing checksum-locked/manual

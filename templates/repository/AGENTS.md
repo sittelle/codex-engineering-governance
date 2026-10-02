@@ -194,7 +194,7 @@ Do not declare substantial work complete until applicable requirements, tests, s
 
 ## Destructive data invariant
 
-Before approving or executing deletion or irreversible transformation of existing data, explicitly establish whether the affected data is intentionally obsolete or must be preserved/migrated. Never infer data disposability from a schema change, cleanup request, refactor, feature request, or similarly broad instruction.
+Before approving or executing deletion or irreversible transformation of existing data, explicitly establish whether the affected data is intentionally obsolete or must be preserved/migrated. Never infer data disposability from a schema change, cleanup request, refactor, feature request, or similarly broad instruction. Any migration or destructive-transformation plan must itself define the post-migration validation or reconciliation check that runs before the destructive step executes; do not treat this as satisfied only when a routed migration workflow happens to be loaded.
 <!-- END ENGINEERING-GOVERNANCE-MANAGED -->
 
 # Project-specific instructions
