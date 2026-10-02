@@ -54,8 +54,7 @@ which narrows but does not eliminate this gap.
 ## Relationship to the self-service layer `governance.py host install` writes
 
 `governance.py host install`/`host update` additionally writes a lighter,
-self-service version of the same deny rules and `PreToolUse` hook (defaulting
-to `--enforce`) into the user's own `~/.claude/settings.json` -- no
+self-service version into the user's own `~/.claude/settings.json` -- no
 administrator and no OS-protected path required. This is `governance.py`'s
 `GOVERNANCE_SELF_PROTECTION_DENY_RULES`/`add_claude_pretool_hook`, tracked
 under installer ownership so `host uninstall` removes exactly what it added.
@@ -63,3 +62,18 @@ It gives an ordinary developer the deterministic backstop even when no
 enterprise policy is deployed, but unlike the managed layer above, the
 developer could edit or delete it locally; it does not substitute for an
 IT-managed deployment where that guarantee matters.
+
+Unlike the enterprise templates above, the self-service hook's matcher is
+`Bash` only (not `Edit`/`Write`/`MultiEdit`/`NotebookEdit`, already covered
+for free by the deny rules), and it is further gated with Claude Code's
+native `if` filter to only actually run before a `git commit`, so a
+subprocess spawns once per commit rather than before every tool call. This
+is a deliberate, documented trade-off (see `docs/framework-threat-model.md`,
+residual-risks section): a differently-phrased commit invocation such as
+`git -C . commit ...` can silently skip the check, since `if` is a plain
+text-pattern match, not an understanding of what the command does. This is
+accepted because the threat this layer defends against -- an agent that
+weakens or edits governance files -- has no reason to disguise the commit
+that would reveal it; a deliberate attempt to exploit that blind spot would
+require premeditated human intent to defeat the audit trail, a different and
+out-of-scope threat for a trusted-employee deployment.

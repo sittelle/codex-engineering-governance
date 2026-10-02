@@ -133,3 +133,23 @@ its deterministic backstop is absent. If Codex offers no managed policy
 surface equivalent to Claude Code's managed settings, Codex's Layer 1 is
 incomplete and this is recorded as a known risk rather than papered over with
 a project-level, user-editable setting.
+
+**Blind spot shared by every control in this document: none of them can see
+a change made outside the agent's own tool calls.** The deny rules, the
+`PreToolUse` governance hook (self-service or IT-managed), and the
+commit-time integrity check in threat 9 all operate inside Codex's or Claude
+Code's own permission/hook system; they fire only when the agent itself
+edits a file or runs a command through that tool. None of them has any
+visibility into a governance-owned file edited directly with a different
+editor or process, outside any agent session, or into a change made and then
+reverted before the next commit. This is a structural limit of an
+application-layer control, not an implementation gap this framework can
+close from inside itself. Where that blind spot matters -- most plausibly as
+a deliberate insider attempt to defeat the audit trail, not as agent
+misbehavior, which this blind spot does not meaningfully protect since the
+agent has no reason to revert what it was not instructed to hide -- it is a
+host/endpoint-security concern, not a coding-governance one: file-integrity
+monitoring or an EDR agent watching governed project paths, run by IT
+independent of and underneath this framework, is the standard complementary
+control and is out of this framework's scope to configure or recommend a
+specific product for.

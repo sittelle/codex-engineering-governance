@@ -432,7 +432,23 @@ GOVERNANCE_SELF_PROTECTION_DENY_RULES: tuple[str, ...] = (
     "Bash(git reflog delete*)",
 )
 
-GOVERNANCE_PRETOOL_HOOK_MATCHER = "Edit|Write|MultiEdit|NotebookEdit|Bash"
+# Matcher is Bash only, not Edit/Write/MultiEdit/NotebookEdit: those already
+# have an instant, free, unconditional backstop in the deny rules above, so
+# routing them through this subprocess-spawning hook too would only add
+# latency to every file edit for no additional protection. The `if` filter
+# further narrows to an actual git commit attempt (natively, via Claude
+# Code's own permission-rule matching, before the subprocess spawns at all),
+# since checking once per commit rather than on every Bash call is enough
+# for the agent-misbehavior/prompt-injection threat this exists for (an
+# agent does not try to hide tampering it was not instructed to hide, so it
+# leaves the tampered state in place for the next commit to catch) -- see
+# docs/framework-threat-model.md's residual-risks section for the accepted
+# blind spot this narrowing leaves (a differently-phrased commit invocation,
+# e.g. `git -C . commit ...`, can silently skip the `if` filter) and why a
+# deliberate attempt to exploit that blind spot is out of scope for a
+# trusted-employee threat model.
+GOVERNANCE_PRETOOL_HOOK_MATCHER = "Bash"
+GOVERNANCE_PRETOOL_HOOK_IF = "Bash(git commit *)"
 # Resolves GOVERNANCE_ROOT from CLAUDE_CONFIG_DIR at hook run time, not at
 # install time, so this exact command string is install-location-independent
 # and therefore trivially idempotent across installs/updates.
@@ -545,7 +561,11 @@ def _claude_pretool_hook_matches(entry) -> bool:
     if not isinstance(inner, list) or len(inner) != 1:
         return False
     hook = inner[0]
-    return isinstance(hook, dict) and hook.get("command") == GOVERNANCE_PRETOOL_HOOK_COMMAND
+    return (
+        isinstance(hook, dict)
+        and hook.get("command") == GOVERNANCE_PRETOOL_HOOK_COMMAND
+        and hook.get("if") == GOVERNANCE_PRETOOL_HOOK_IF
+    )
 
 
 def add_claude_pretool_hook(settings_path: Path) -> dict:
@@ -573,6 +593,7 @@ def add_claude_pretool_hook(settings_path: Path) -> dict:
             "matcher": GOVERNANCE_PRETOOL_HOOK_MATCHER,
             "hooks": [{
                 "type": "command",
+                "if": GOVERNANCE_PRETOOL_HOOK_IF,
                 "command": GOVERNANCE_PRETOOL_HOOK_COMMAND,
                 "statusMessage": GOVERNANCE_PRETOOL_HOOK_STATUS_MESSAGE,
             }],
