@@ -1,0 +1,24 @@
+This is a case where the governance framework's own terms apply directly, so I'll answer in those terms rather than giving generic advice.
+
+## Why this can't proceed as stated
+
+"Whatever is normal" is explicitly listed in the governing instructions as a non-answer for material ambiguity — it's named alongside "whatever", "probably", "I don't care" as *not resolution*. The access model for a restricted area is a **product/security intent** question, not a technical default I'm authorized to pick on the developer's behalf. Per the governance hierarchy: for product/security intent, the correct move is to ask focused follow-ups, not invent intent.
+
+This also isn't a pure technical-default situation (where I'd propose a default and ask for confirmation). The ambiguity here is about *what the feature is for* — who is supposed to see it and why — which only the developer/product owner knows. I can't infer that from "normal," because "normal" depends entirely on the answer to the question being asked.
+
+Additionally, this would be classified **C2 at minimum** (material architecture/security/data/external-interface change) if the area handles anything beyond trivial display logic, since authN/authZ decisions define a trust boundary. C2 work requires a summarized plan (requirements, assumptions, security/data impact, implementation plan, verification plan) and approval of material direction *before* implementation — which is impossible while the core requirement is undefined. If local-auth mechanisms (sessions, credentials, enrollment) end up in scope, `authentication-design` must be invoked before implementation, which also depends on knowing the target model first.
+
+## What stays unresolved, and why
+
+I can't pick between internal-only, all-signed-in-users, role-restricted, or partly-anonymous because each implies a different trust boundary, different data exposure, and different blast radius if wrong (e.g., defaulting to "all signed-in users" when the intent was "internal-only" is a security failure, not a style choice). Guessing wrong here isn't a cosmetic mistake — it's the exact kind of silently-introduced trust-boundary change the governance explicitly prohibits.
+
+## Exact questions to ask the developer
+
+1. Who is this area *for* — is there a specific audience (e.g., internal staff, paying customers, a specific role) or is it meant to be broadly accessible?
+2. Does any content or action in this area expose data or capabilities that would be sensitive or harmful if seen/used by the wrong audience?
+3. Is there an existing role/permission system in this app that this should plug into, or does this introduce a new trust tier?
+4. Should any part of this be reachable without sign-in at all (e.g., a public landing view with gated detail), or is anonymous access entirely out of scope?
+
+## Conditional recommendation (if the developer wants a starting default to react to)
+
+If the developer has no strong opinion and just wants a professionally defensible starting point to confirm or override: **default to requiring authentication for the new area, restricted to signed-in users with no elevated role**, and treat any broader (anonymous) or narrower (role-restricted/internal-only) access as something to *add* only once explicitly confirmed. Rationale: fail-closed is the safer error direction — accidentally under-exposing a feature is cheap to fix, accidentally over-exposing it is a potential data/security incident. This is a proposal for confirmation, not an implemented decision, and I would not write access-control code against it until the developer confirms or corrects it.

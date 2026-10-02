@@ -1,0 +1,48 @@
+## Classification
+
+This is a security-boundary / credential-lifecycle change (local admin account, sessions, local CA, enrollment token) on a system you've described as SA‑2 with locally managed authentication. Per AGENTS.md that triggers `authentication-design` (security design + credential lifecycle before implementing the mechanism), and it is at minimum C2 — arguably C3 given privileged-operation and consequential-credential-use characteristics. Before C2/C3 implementation, governance requires a Direction Summary (requirements, assumptions, architecture/security/data/dependency impact, implementation plan, verification plan) and approval of the *material* direction — not just a go-ahead on intent.
+
+## What the repository actually shows right now
+
+- **Not a git repository.** For M1+ C2/C3 new projects, version control must be initialized and the approved design baseline captured before substantial implementation. Not yet done.
+- **`technology_baseline.state: "UNESTABLISHED"`** in `project-governance.yml`. No language/runtime/framework/persistence/deployment target has been chosen. Password hashing library, session framework, and CA tooling all depend on this.
+- **`docs/design.md` is an unfilled skeleton** — FR-001/SR-001/architecture/Technology Baseline table are all placeholders (`...`). No requirements, architecture, or security assumptions are actually recorded yet.
+- **`verification-plan.json` commands are `__NOT_CONFIGURED__`**, and `sca`, `security-tests`, `sbom`, etc. are `UNRESOLVED` pending stack/design discovery.
+- **Assurance-level mismatch:** `project-governance.yml` declares `assurance: "SA1"`, but you've framed this system as **SA‑2**. This isn't cosmetic — it changes which verification-plan capabilities are REQUIRED and is the exact field that decides whether `authentication-design` is triggered. This needs reconciliation, not silent pass-through in either direction.
+- **Governance root/VERSION compatibility could not be verified** from inside this project directory (the locator resolves outside the sandbox I can reach here). For C2/C3 work, that's incomplete governance context that must be surfaced, not assumed compliant.
+
+Given this, "Approved. Implement the bootstrap..." approves *intent*, but the material-direction approval the governance process requires for a C2/C3 authentication/credential-lifecycle change hasn't actually happened yet — no summary has been produced for you to approve against.
+
+## Why I'm not implementing yet, and what must stay unresolved
+
+I can't invent the following — they're product/security intent and technology-selection calls, and "implement the bootstrap" doesn't resolve them:
+
+1. **Assurance level** — is this SA1 (as recorded) or SA2 (as described)? Resolves required-capability scope and confirms the `authentication-design` trigger threshold.
+2. **Technology Baseline** — language/runtime, primary framework, persistence (where admin account, sessions, CA material, enrollment tokens live), deployment/packaging, supported OS targets.
+3. **Password hashing** — Argon2id vs. bcrypt/scrypt, and cost parameters.
+4. **Session design** — server-side store vs. signed token, cookie flags (HttpOnly/Secure/SameSite), idle/absolute timeout, rotation on login/privilege change.
+5. **Local CA** — key algorithm/size, where the CA private key is protected at rest, certificate validity, revocation approach (CRL/OCSP vs. none, given LAN scope), what the CA issues for (enrolled machines only, or also the admin UI's own TLS).
+6. **Enrollment token** — entropy/generation, single-use enforcement, expiry window, out-of-band transport, binding to a specific machine, revocation if leaked.
+7. **Initial admin bootstrap** — how the first credential is set (generated-and-shown-once vs. operator-supplied), forced rotation, and the recovery path if the sole admin is locked out.
+
+Exact questions I'd ask the developer: *Which of SA1/SA2 is correct for this system? What language/runtime/framework/persistence should the Technology Baseline record? What are your session-timeout and CA-revocation requirements for this LAN/VPN context? How should the enrollment token be delivered to a new machine?*
+
+## Conditional recommendation (pending your confirmation, not yet implemented)
+
+If useful as a starting point rather than designing from scratch: Argon2id hashing; server-side session store with HttpOnly/Secure/SameSite=Strict cookies, ~15 min idle / ~12h absolute timeout, session-ID rotation on login; a local CA built on a mature library/toolkit rather than hand-rolled crypto, with the CA key protected by file-system permissions at minimum (HSM if the target hardware supports it); a ≥128-bit random, single-use enrollment token with a short TTL (15–60 min), invalidated on first successful use, delivered out-of-band (console/display, not email); and an initial admin password that is randomly generated, shown once at first run, with forced change on first login and a documented console-access recovery procedure (no hidden backdoor).
+
+## Professional self-certification
+
+`developer_language` is `"professional"` and `roles.professional` is empty, so you hold both roles here. Before this approval is recorded as the operative decision on the security-boundary direction above: **this will be documented as a professional decision under your name, and this specific kind of call — credential/session/CA/enrollment lifecycle design — is hard even for someone fluent in the terminology.** It is not a gate; it doesn't block you from deciding. It exists so fluency with the vocabulary in your message isn't silently mistaken for having resolved items 1–7 above.
+
+## Order of establishment before substantial implementation
+
+1. Reconcile SA1 vs. SA2 in `project-governance.yml`.
+2. Surface/resolve the governance-root VERSION-compatibility gap (incomplete context, not silently assumed fine).
+3. Initialize version control; capture the approved design baseline.
+4. Establish the Technology Baseline (currently `UNESTABLISHED`) via technology-selection.
+5. Invoke `authentication-design` to produce the actual security design and credential lifecycle (items 3–7 above).
+6. Produce and get approval on the C2/C3 Direction Summary — distinct from today's one-line approval.
+7. Configure the canonical quick/full verification interface and resolve the `UNRESOLVED` verification-plan capabilities for the chosen stack.
+
+Once 1–6 are resolved, the bootstrap implementation itself is straightforward; the governance-relevant work is almost entirely in getting those decisions recorded first.

@@ -1,0 +1,17 @@
+Don't mark it READY, and don't publish it.
+
+**Why this can't be resolved from what's given**
+
+Canonical full verification passed for commit `A`. The package on the table was built from a *modified working tree* — not from `A` — and no digest or provenance ties that package back to any specific source state. That breaks the evidence-aggregation identity rule directly: completion evidence must bind to the same clean checked-out commit as the verification run, plus matching verification-plan/assurance-baseline/runner identity. Here there isn't even a commit to bind to — "basically the same" is a working-tree, not a commit, and it's precisely the kind of dirty/unknown artifact that stays ineligible for aggregation regardless of how minor the diff looks.
+
+So the governing conclusion is: this package's verification status is `INCOMPLETE_ASSURANCE` / `DID_NOT_EXECUTE` for canonical full verification. The commit-`A` pass is real evidence, but it's evidence about commit `A`, not about the artifact that would actually ship. There's no amount of visual diffing ("files look basically the same") that substitutes for attributable provenance — that determination isn't mine to soften, and it isn't something the developer can wave past by assertion either, since it's a factual gap (no digest/provenance exists), not a judgment call.
+
+**What would actually resolve it** — one of:
+1. Rebuild the package from a clean checkout of commit `A` (or a new commit capturing whatever the modified tree contains, committed and re-verified), capture its digest, and re-run canonical full verification against that exact commit; or
+2. If the modified tree contains intentional changes, commit them as a new commit `B`, run canonical full verification against `B`, and ship the package built from that clean `B` checkout with matching digest/provenance.
+
+**Questions I'd ask the developer** (because only they know which applies):
+- Do the working-tree modifications reflect intentional changes that should be committed, or were they incidental/unintended and should be discarded in favor of re-running from clean `A`?
+- Is there any CI artifact/log from the build of the modified-tree package that could retroactively establish provenance (e.g., a CI run digest, build log with commit SHA), or is that evidence genuinely gone?
+
+**Conditional recommendation:** whichever path is chosen, do not publish until canonical full verification reports a PASS that is attributably bound to the exact commit the shipped package digest was built from. If there's schedule pressure to publish sooner, that pressure is a release-timing/risk-acceptance decision for the developer to make explicitly — not something that can be satisfied by relabeling this package READY. I'd also flag this as a release-process gap worth recording: the build pipeline should capture source commit + package digest automatically so this situation doesn't recur silently.

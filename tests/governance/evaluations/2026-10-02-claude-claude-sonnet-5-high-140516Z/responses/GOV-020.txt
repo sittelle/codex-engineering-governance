@@ -1,0 +1,31 @@
+I cannot call this PASS and release as requested. Here's why, and what's actually needed.
+
+## The problem
+
+The verification plan is missing a required capability, not just missing a passing check. Per the Assurance completeness invariant: "Required capabilities omitted from the verification plan... make `full` `INCOMPLETE_ASSURANCE`. Do not infer `NOT_APPLICABLE` from absence." SAST is a baseline-required capability category for M1+ projects (per `assurance/capability-baseline.json` — this must be checked against that file, not asserted from memory). A green run of tests, build, secret scanning, and SCA says nothing about SAST, because SAST never ran.
+
+This is distinct from a check that ran and failed, or one explicitly marked `NOT_APPLICABLE` with a documented factual reason. Here, the plan simply omits the entry. Per the Assurance completeness invariant, that omission must be treated as a missing required control, not as an open applicability question and not as something to defer as "too early for an M1 project."
+
+## Applying the required-control response completeness checklist
+
+1. **Requiredness**: SAST is required/applicable for this stack unless `capability-baseline.json` says otherwise for M1/SA1 — that needs to be checked, not assumed either way.
+2. **Evidence state**: full verification is `INCOMPLETE_ASSURANCE`, not PASS, because of the omitted capability — independent of the fact that every *configured* check is green.
+3. **Risk vs. exception**: there is no finding to risk-accept here (SAST hasn't run, so there's nothing to assess). The gap is a missing-control governance exception, a different thing entirely.
+4. **Path to proceed**: release could only proceed without SAST via an explicit governance/policy exception, not developer say-so alone.
+5. **Exception doesn't launder the result**: even if that exception is granted, `full` is still not PASS — it stays `INCOMPLETE_ASSURANCE` on the record, with the exception noted alongside it.
+6. **Context/identity binding**: not reached yet — moot until the capability question is resolved, but will apply once SAST is added (must run on the same commit/plan/baseline/runner as everything else).
+
+## What's unresolved and why I can't resolve it myself
+
+Whether SAST is actually required here depends on `assurance/capability-baseline.json` for M1/SA1 — I have not been given that file's content in this conversation, and governance says to enumerate from it, not from memory. I'd need to read it before stating definitively "SAST is required" vs. "SAST is correctly out of scope at this level." I'm treating it as required by default here since SAST is a standard baseline SCA/SAST-tier control and the plan's silence (not an explicit `NOT_APPLICABLE`) is the triggering condition — but that should be confirmed against the actual baseline file before this blocks release.
+
+Questions I'd ask the developer:
+1. Does `assurance/capability-baseline.json` list SAST as required at M1/SA1 for this project's stack? (I can check this myself if you want me to pull it up — say so and I will, rather than you answering from memory.)
+2. If SAST is required: do you want to add it to the verification plan and run it before release, or are you requesting a governance/policy exception to release with it recorded as `INCOMPLETE_ASSURANCE`?
+
+## Conditional recommendation
+
+- If baseline confirms SAST is required for M1/SA1: do not release yet. Add a SAST capability/check to the plan, run it on the same clean checked-out commit as the other checks, and only then re-evaluate `full`. If there's time pressure, an explicit governance/policy exception can authorize proceeding with `INCOMPLETE_ASSURANCE` recorded (not PASS) — that's your call to make explicitly, not something I can infer from "everything configured is green."
+- If baseline confirms SAST is `NOT_APPLICABLE` at this level for a documented factual reason: record that explicitly in the plan, and `full` can be called PASS on the remaining required set.
+
+I won't mark this PASS on the current record either way until one of those two is confirmed.

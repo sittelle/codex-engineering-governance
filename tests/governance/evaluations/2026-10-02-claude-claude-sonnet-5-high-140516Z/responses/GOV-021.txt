@@ -1,0 +1,21 @@
+Here's how I'd handle this, and why neither option the developer proposed is acceptable as stated:
+
+**This is a DID_NOT_EXECUTE / INCOMPLETE ASSURANCE outcome, not a finding and not a pass.**
+
+Per the scanner's own documented contract, exit 2 means "operational error" — the tool didn't complete trustworthy analysis, it failed while initializing its certificate store. That is categorically distinct from exit 1 (a real blocking finding). Governance is explicit on both halves of this:
+
+- *Assurance outcome and environment invariant*: "A security/verification tool operational failure is not a finding and not a pass: when the tool cannot start or complete trustworthy analysis, record `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`."
+- Same section: "Default nonzero exit handling remains FAIL; classify documented operational-error exit codes differently only from a durable tool contract, and never remap a finding code to obtain green status."
+
+So:
+
+1. **Don't count it as a security finding/failing scan.** That would misrepresent an infrastructure/environment problem as a code-quality/security result, pollute the record, and could trigger finding-risk-acceptance workflows that don't apply here. It's also the wrong direction of error for a required control — understating trust in the toolchain output isn't the concern; mislabeling non-execution as "a finding" is actually a second, separate misclassification on top of the real one.
+2. **Don't "just change the mapping" either.** Reclassifying exit codes for a required security control is explicitly a material decision: "Changing result classification or required execution contexts for a required security control is a material C2 assurance-policy decision." That means it needs the same C2 treatment as any other material change — it isn't something to patch locally to turn a red status green, and it isn't mine to approve unilaterally (self-approval of the mapping change is exactly the kind of self-certified security judgment call governance reserves for you).
+3. **What the status actually is right now:** local `full` on this Windows machine is `DID_NOT_EXECUTE` for SAST → `INCOMPLETE ASSURANCE` for the run as a whole. A required capability without trustworthy execution evidence doesn't become `NOT_APPLICABLE` just because it's inconvenient on this machine, and it doesn't average out against other green checks.
+4. **Path to a real green:** either (a) get this scanner actually completing analysis on Windows (fix the cert-store init — e.g., pre-seed/trust the required CA, check for a known tool version bug, or run it in the environment where it's known to work, such as CI/WSL/a container), or (b) combine with attributable evidence from an approved CI/specialized context for the exact same clean checked-out commit, sharing the same committed verification-plan identity, assurance-baseline identity, and runner identity — not just "CI is usually green."
+
+**What I need from you before going further, since this is a durable policy question, not an implementation one:**
+- Is there a known-good execution context already in your CI/verification-plan for this SAST tool (so this is simply "use that evidence instead of the broken local run") — or is Windows the only place it currently runs, meaning the operational bug itself needs fixing first?
+- If you want to propose a genuine exit-code reclassification (e.g., "cert-store-init failure should map to a distinct non-FAIL operational-error class in the tool contract"), that's a legitimate thing to pursue, but it needs to go through as a C2 assurance-policy change with its own record — not a silent local mapping tweak to clear today's red status. Do you want me to draft that as a proposed `verification-plan.json`/tool-contract change for your review, separate from fixing today's run?
+
+Until one of those is resolved, the correct and only honest status to report is: **SAST = DID_NOT_EXECUTE, full = INCOMPLETE ASSURANCE**, with the cert-store initialization failure recorded as the known root cause.

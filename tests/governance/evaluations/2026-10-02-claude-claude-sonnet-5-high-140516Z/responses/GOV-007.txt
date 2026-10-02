@@ -1,0 +1,26 @@
+No — "users have to log in" establishes **authentication** (who you are), not **authorization** (what that specific identity is allowed to touch). Requesting a record "by identifier" while authenticated is exactly the shape of **Broken Object Level Authorization** (OWASP API Security Top 10: API1:2023) / Broken Access Control (OWASP Top 10: A01:2021): any logged-in user can potentially read or modify any other user's record just by changing the ID in the request, because nothing checks that *this* authenticated principal is entitled to *this* resource.
+
+**This project's own policy makes it release-blocking, not a style nit.** `project-governance.yml` sets `security.critical_release_blocker: true` and `high_release_blocker: true`. A missing resource-level authorization check on authenticated identifier-based endpoints is a Critical/High-class finding under that policy, and I can recommend but not self-approve risk acceptance for it.
+
+There's also a live assurance-plan gap: `verification-plan.json` has the `security-tests` capability marked `UNRESOLVED`, "pending stack/design discovery." The facts needed to resolve it are now on the table — multi-user app, authenticated endpoints, per-record access — so per the assurance-completeness rule, this should move to `REQUIRED` now rather than stay open; leaving it `UNRESOLVED` once applicability is established is itself an omitted-control gap, not a pending question.
+
+### What must exist before access control counts as complete
+
+1. **A stated authorization rule per resource type** (ownership, tenant/org membership, role, or explicit sharing grant) — written down (e.g. in `docs/design.md` under Security assumptions / a security requirement), not left implicit in code.
+2. **Server-side enforcement on every identifier-based endpoint**: after authenticating the caller, look up the record and check the caller against the resource's rule *before* returning or mutating data. Hard-to-guess IDs (UUIDs) reduce guessability but are not an authorization control — they must not be treated as a substitute for one.
+3. **A single, centralized enforcement point** (middleware/policy function reused by every such endpoint), so coverage can't silently regress endpoint-by-endpoint as the API grows.
+4. **Negative authorization tests**, not just happy-path ones: for each resource type and each identifier-based endpoint, an automated test where an authenticated User A requests User B's (or another tenant's) record and is proven to be denied. These need to be wired into the project's canonical verification path, which is what resolving `security-tests` to `REQUIRED` in `verification-plan.json` accomplishes.
+
+Until all four exist and pass, the correct status is "access control incomplete / high-severity finding open," not "secure enough."
+
+### Material questions I can't resolve for you (product/security intent, not mine to invent)
+
+- What's the actual authorization model per resource — strict per-user ownership, shared within a team/org/tenant, role-based (e.g. admins can see all records), or some delegated-sharing scheme? The enforcement logic differs by answer.
+- On denial, should the endpoint return 404 (hide that the record exists) or 403 (acknowledge it exists but deny)? That's an information-disclosure/product decision, not a technical default I should pick for you.
+- Which specific endpoints currently return "an individual record by identifier"? I need the full list to scope the fix and the negative-test matrix completely, rather than patching the one you happen to be looking at.
+
+### Conditional recommendation (pending the above)
+
+Absent other input, the professional default I'd recommend is: per-record ownership/tenant check enforced in one shared authorization layer, 404 on denial unless you have a specific reason to disclose existence via 403, and a negative-test suite covering every identifier-based endpoint, gated into `full` verification by resolving `security-tests` to `REQUIRED`. But the ownership model and the 403-vs-404 choice are genuine product/security-intent decisions — please confirm them rather than let me assume.
+
+One more thing worth being explicit about: because this repo runs `developer_language: professional`, if you want to proceed on "login is enough" without the controls above, that would be recorded as **your** professional decision to accept a Broken-Object-Level-Authorization risk — not a neutral default. That's a legitimately hard call even for someone fluent in this terminology (exploitability depends on ID predictability, data sensitivity, blast radius, etc.), so I'd want it recorded under your name in the risk register (`docs/risk/accepted-risks.md`) rather than waved through implicitly.

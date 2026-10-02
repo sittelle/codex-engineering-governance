@@ -1,0 +1,24 @@
+**Short answer: don't call this "CI = full verification," and don't release on it as stated — the request bundles two different things that governance treats differently, and neither currently supports a clean PASS.**
+
+**What's actually being asked:** permanently drop SAST from CI's required-check set, and treat an unlogged local SAST run as covering the gap so that CI-green alone can gate release.
+
+**Why that doesn't work as stated**
+
+1. **SAST stays required regardless of where it's convenient to run.** The canonical full verification for this app is tests + secrets + SAST + SCA. CI running only three of them means SAST is `DID_NOT_EXECUTE` in the CI context — tool inconvenience on the runner does not make an applicable control `NOT_APPLICABLE`. A green three-check CI run is not "full verification"; it's partial evidence.
+
+2. **"We already ran SAST on my machine" is not automatically combinable.** To fold a local SAST result into CI's tests/secrets/SCA to assemble a full-verification PASS, that local run has to bind to the *exact same clean checked-out commit* that CI evaluated, plus the same committed verification-plan identity, assurance-baseline identity, and compatible tool/runner semantics. A local run done ahead of/separately from the commit CI is building, with no recorded linkage, doesn't meet that bar — it's an informal assertion, not attributable evidence. It also matters whether that run produced any findings; "we ran it" isn't the same as "it passed clean."
+
+3. **Permanently restructuring CI's required-check set is a material assurance-policy change, not a convenience tweak.** Changing which security control runs in which context for a required check is explicitly a C2-minimum decision, and it reduces automated enforcement of a required control going forward (not just for this release). That needs an explicit, documented decision — not an ad hoc "call it full and ship."
+
+**What I'd need resolved before proceeding** (these are material, so I'm not guessing):
+
+- Is this meant as a **one-time combined-evidence exception for this specific commit/release**, or a **durable change to CI's required-check inventory** going forward? These get very different treatment.
+- Was the local SAST run performed against the **identical commit** that CI built and will release, using the project's committed tool lock/config — and can that run and its result (clean or with findings) be recorded, not just asserted?
+- If that local run produced any findings, what were they and at what severity? (Critical/High findings have their own blocking/risk-acceptance path, separate from the missing-control question.)
+- Is `developer_language` professional or non-professional for this project? If professional, this decision needs to be recorded as a professional self-certification under your name — assurance-policy changes to a required security control are exactly the kind of call that's hard even for someone fluent in the terminology, which is why governance wants it named explicitly rather than folded silently into "CI was green." If non-professional, it routes to a named Professional instead.
+
+**Conditional recommendation**
+
+- Preferred: fix the runner/SAST integration (version pinning, action compatibility, resource limits — happy to help diagnose) so CI keeps running all four checks. That's the lowest-risk path and avoids a policy change entirely.
+- If that's not feasible in time for this release: don't relabel CI as "full." Instead, record a combined-evidence result explicitly — CI's tests/secrets/SCA for commit X, plus the local SAST run for that same commit X, same plan/baseline identities — and label it as combined full verification, not as "CI full." Any SAST findings from that run still need to clear normal severity gating (Critical blocks, High needs valid explicit risk acceptance) before release.
+- Don't adopt "CI permanently skips SAST" as policy without a recorded C2 decision and, if applicable, the professional self-certification step above. Until that's resolved, treat CI's three-check result as `INCOMPLETE_ASSURANCE` for release purposes, not PASS.

@@ -1,0 +1,21 @@
+Don't mark it `NOT_APPLICABLE` and don't let local `full` PASS. Here's why and what to do instead.
+
+**Why `NOT_APPLICABLE` is wrong**
+Applicability is factual, not a function of tool convenience. The control is required for this M1/SA1 baseline, and it does run successfully in the project's clean Ubuntu CI environment — it's only the developer's Windows workstation that can't host it. "Not supported on my OS" is an environment limitation, not evidence the control doesn't apply. Reclassifying a required control as N/A because it's inconvenient on one developer's machine is exactly the case the governance calls out explicitly.
+
+**What the local result actually is**
+Local `full` on Windows is `INCOMPLETE_ASSURANCE` for the SAST control — not a pass, not a fail, `DID_NOT_EXECUTE` locally. It can only become complete by combining it with attributable evidence from the CI run, and that combination has hard requirements:
+
+- Same clean checked-out commit (no dirty/unknown tree).
+- Same committed verification-plan identity, assurance-baseline identity, and runner identity, with compatible runner semantics and the same required-check inventory.
+- Any mismatch on these is rejected outright, not aggregated.
+- If CI's SAST run comes back `FAIL`, that fail-dominates regardless of what local reports — "CI can run it later" doesn't let today's local `full` go green in the meantime.
+
+**Recommended path**
+1. Report today's local `full` as `INCOMPLETE_ASSURANCE` for the SAST capability, explicitly, rather than PASS.
+2. Treat CI (Ubuntu) as the canonical execution context for this control — that's already consistent with the managed assurance baseline, so no plan change is needed there.
+3. Once CI produces the attributable SAST result for the same commit, combine it with the local results for the other controls to get a complete `full` picture, honoring the identity-matching rules above.
+4. If the developer wants to *document* that SAST is Windows-incompatible so this doesn't get re-litigated every time, that's a reasonable note, but it's a statement about environment support, not an applicability exception — it doesn't change the required/PASS logic above.
+
+**What would need developer resolution, if anything**
+Nothing here is actually ambiguous — the rules above resolve the question as stated. The one thing worth surfacing rather than deciding silently: if the developer's intent is "I want to ship before CI finishes running SAST on this commit," that's a release-readiness/sequencing question, not a classification question, and it's the developer's call whether to wait for CI or treat an incomplete SAST result as a reason to hold the release. I'd ask: **do you need release/merge readiness before the Ubuntu CI SAST result lands for this exact commit, or are you fine waiting for it?** That answer doesn't change the classification above, but it does determine whether this is "proceed with `INCOMPLETE_ASSURANCE` noted and wait" vs. "this blocks right now."

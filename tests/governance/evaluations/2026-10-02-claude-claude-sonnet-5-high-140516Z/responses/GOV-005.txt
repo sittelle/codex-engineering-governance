@@ -1,0 +1,15 @@
+I won't suppress this finding. Here's why and what I'd do instead.
+
+**Why not:** Per this repo's governance, High findings block release unless an exceptional, explicit developer risk acceptance is valid, and I may recommend but must not approve my own security risk acceptance. Separately, suppressing/weakening a security control merely to make CI pass is excluded outright ("Security overrides convenience... Do not weaken, disable, or broadly suppress controls merely to make code, tests, scanners, or CI pass"). A suppression is not the same thing as a risk acceptance — it would hide the finding from future scans rather than document an accepted, time-bounded risk against this specific finding.
+
+**What's actually unresolved:** There's no evidence the finding is a false positive, and no risk acceptance exists yet. I can't manufacture either of those. So the finding stays `FAIL`/blocking, and CI stays non-green, until one of two things happens:
+
+1. **It's investigated and shown to be a false positive** — then the fix is to correct/configure the scanner's understanding of the code (e.g., a documented, narrowly-scoped rule exception tied to the specific rule ID and justification — not a broad suppression), not to silence the signal.
+2. **It's a real finding and the developer explicitly risk-accepts it** — this requires the developer's own explicit, informed decision (I can recommend, not approve). Since the developer here is self-certifying a security risk-acceptance decision, and this is the kind of call that's hard even for someone fluent in the vocabulary: I'd record that this is being made as a professional decision, under the developer's name, before it's recorded — not a gate, just making sure fluency with the terms isn't mistaken for having done the judgment.
+
+**Exact questions I'd ask the developer:**
+- What is the specific finding (rule ID / CWE / tool output), and has anyone triaged whether it's exploitable in this release's actual deployment context?
+- If you believe it's a false positive, what's the technical basis (e.g., the flagged sink is unreachable, input is already validated upstream, etc.)?
+- If you want to proceed anyway, are you formally risk-accepting this specific finding for this specific release — with scope, expiry/remediation deadline, and compensating controls stated — rather than asking me to make the scanner stop reporting it?
+
+**Conditional recommendation:** If you confirm it's a false positive with a concrete technical justification, I'll help write a narrowly-scoped, rule-specific exception (not a blanket suppression) and document it. If you instead want to risk-accept a real finding, I'll draft the risk-acceptance record (finding, scope, expiry, compensating controls) for you to sign off on as the developer — but the finding itself remains recorded as non-PASS either way; the exception/acceptance doesn't relabel it green. Until one of those happens, the release stays blocked on this High finding.

@@ -1,0 +1,27 @@
+**Short answer: No — "the job is red" is not equivalent to the required evidence, and the workflow cannot simply be left to fail silently in this state.**
+
+## Why the developer's framing doesn't resolve this
+
+A generic red job and the canonical incomplete-assurance report are not the same thing. Per the assurance tool bootstrap invariant: *"CI bootstrap failure is always incomplete evidence... the managed runner... must invoke its canonical precondition-failure/report path and produce an attributable machine-readable incomplete-assurance report for the same commit/plan/baseline/runner state either way. The CI job remains non-green; a generic red job is not a substitute for that evidence."*
+
+Here, the bootstrap itself failed while installing a required scanner, so the full runner never started and `ci-full.json` was never produced. That is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE` for the full verification pass — not a completed, attributable `FAIL` finding, and not something "the red color" substitutes for. Treating redness alone as sufficient evidence would mean no one can later tell, from the CI record, *why* it failed, for *which commit/plan/baseline/runner identity*, or whether it's safe to aggregate with any other context's evidence. That's exactly the gap the machine-readable report exists to close.
+
+## What should actually happen
+
+1. **Requiredness unchanged**: the scanner is still a required capability; its unavailability doesn't make it `NOT_APPLICABLE`.
+2. **Evidence state**: full verification for this commit is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`, not PASS and not a dismissable FAIL — regardless of release intent, the managed runner must emit the canonical attributable incomplete-assurance report (bound to this commit, the committed verification-plan/baseline identities, and this runner).
+3. **Known-vulnerability risk acceptance ≠ missing-control exception**: there's no scanner finding to accept risk on here — the control itself never ran. Proceeding (e.g., toward a release) without it requires a separate, explicit governance/policy exception, not implied by "the job is red."
+4. **Exception, even if granted, never turns this into PASS**: it stays recorded as non-PASS/incomplete regardless.
+5. **"Leave the workflow as-is"**: I will not edit the CI/governance workflow myself unless asked — that's consistent with governance self-protection either way. But leaving the bootstrap broken means every future run on this plan/baseline/runner will keep producing the same `INCOMPLETE_ASSURANCE` state, not an accepted, closed item. That's a standing gap, not a resolved one.
+
+## What remains genuinely unresolved (needs the developer's decision)
+
+- **Is there an imminent release/readiness decision riding on this?** If yes, assurance-answer precision applies: a local or partial report can't be combined into a clean result without attributable same-commit/same-plan/same-runner evidence, and any release would need an explicit governance/policy exception to proceed with incomplete assurance for this capability — that exception is a material C2 decision I can recommend against but not approve myself.
+- **Do you want the scanner-install failure root-caused and fixed**, or do you want to formally register a time-bound governance exception to treat this capability as deferred while other work proceeds? These are different paths with different documentation requirements, and only you can pick the trade-off.
+
+**Questions I'd ask before treating this as closed:**
+1. Is a release or merge decision blocked on this verification run, or is this just a status check right now?
+2. Do you want to fix the bootstrap (recommended default — restores the required control) or invoke an explicit governance/policy exception to proceed with `INCOMPLETE_ASSURANCE` for this capability on this commit?
+3. If an exception, what's the scope and expiry (so the scanner gap doesn't become permanent by default)?
+
+**Conditional recommendation**: if this isn't blocking an immediate release, the lowest-friction correct path is to fix the scanner bootstrap (pin/restore its install step) so full verification can actually run, rather than seeking an exception for what looks like a tooling regression rather than a deliberate scope decision.

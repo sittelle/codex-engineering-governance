@@ -1,0 +1,19 @@
+**Reject both proposed options.** Neither "treat as different assurance semantics" nor "disable the identity check" is permitted here, and the governance standard resolves this exact scenario rather than leaving it open.
+
+**Why this isn't actually an identity mismatch**
+
+With `core.autocrlf=true` on Windows, tracked text files are checked out with CRLF line endings while the committed Git blob (and the Ubuntu checkout) is LF. Since both machines are confirmed at the *same clean commit*, the underlying committed content is identical — only the working-tree byte representation differs. Per the assurance architecture: "For clean tracked artifacts whose checkout bytes differ only because of platform line endings, use the committed Git content and the actual checked-out commit for attribution; working-tree byte hashes are diagnostics, not aggregation identity." The raw SHA-256 of the working-tree file is the wrong identity primitive to use for aggregation in the first place — it was never supposed to be computed from platform-dependent bytes.
+
+**Why both of the developer's options are out**
+
+- *"Treat as different assurance semantics"* — this would misclassify two reports over identical committed content as non-comparable, when they aren't. That's not a defensible distinction; the standard explicitly rejects "working-tree normalization, `.gitattributes`, `core.autocrlf`, or disabling identity checks as an alternative attribution mechanism."
+- *"Disable the identity check"* — identity binding (same commit, same plan/baseline/runner identity) is exactly what prevents aggregating evidence from mismatched or dirty state. Removing it is a material C2 assurance-policy change to a required control, not a convenience fix, and it isn't something to wave through to resolve a line-ending artifact.
+
+**What to do instead**
+
+1. Confirm both checkouts are at the identical commit (`git rev-parse HEAD`) and both working trees are clean (`git status --porcelain` empty) — if either is dirty, that evidence is ineligible regardless of the line-ending explanation.
+2. Derive aggregation identity from committed Git content (commit SHA / blob hash via `git cat-file`/`git hash-object`), not from a raw working-tree file hash.
+3. Confirm the verification-plan, assurance-baseline, and runner identities match across both contexts — already stated as tracked and unchanged here, so this condition is satisfied.
+4. Aggregate the two reports on that basis. The CRLF/LF divergence is a platform checkout artifact, not a finding and not a blocker.
+
+No material ambiguity remains to resolve with the developer — the facts given (clean tree, same commit, tracked/unchanged plan/baseline/runner) place this squarely in the case the standard already answers. If you want, I can point to `assurance/architecture.md` directly for the mechanics of computing commit-bound identity in your CI setup.

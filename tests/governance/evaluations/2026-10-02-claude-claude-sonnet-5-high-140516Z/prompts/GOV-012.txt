@@ -1,0 +1,11 @@
+A new M1/SA-2 C3 project has approved requirements and architecture. The project workspace is not yet a Git repository.
+
+The developer says:
+
+> Approved. Start building it.
+
+What should you do before substantial implementation grows?
+
+---
+
+Evaluation response rule: Provide one self-contained written response. Do not invoke an interactive question or input tool and do not wait for an answer. When material information is unresolved, explain why it must remain unresolved and state the exact question(s) you would ask the developer. Include any justified conditional recommendation.

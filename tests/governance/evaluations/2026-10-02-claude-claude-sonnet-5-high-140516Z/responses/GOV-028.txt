@@ -1,0 +1,31 @@
+This is a security review completion problem, not an implementation task — let me answer directly rather than load code-editing tooling.
+
+## The one-line review does not satisfy the security-review gate
+
+Green SAST/SCA/secret scanning are automated checks. They are necessary but not sufficient, and they are not a substitute for the manual review record that `workflows/security-review/WORKFLOW.md` and the secure-development standard require. "No findings. SECURITY READY." is a conclusion with no evidence trail behind it. Specifically missing:
+
+1. **Scope/objectives** — what was in scope (which components, diff, trust boundaries) and what the reviewer was trying to assess.
+2. **Source revision** — which exact commit/revision was reviewed (needed so the review is attributable to what actually ships).
+3. **Threat-model status** — whether a threat model exists/was consulted or updated for this change.
+4. **Manual authorization/business-logic coverage** — SAST/SCA/secret scanning cannot detect broken authz, IDOR, business-logic flaws, or privilege misuse. The record must state whether a human actually reasoned about these, not just ran tools.
+5. **Required controls that did not execute** — if anything applicable (e.g., DAST, manual pen-test, a specific check from the verification plan) was skipped, that must be recorded as `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`, not silently folded into "no findings."
+6. **Residual risks / exceptions** — any accepted risk or exception needs to be named and attributed, not implied by silence.
+
+Per governance: *"A required applicable control that is missing or does not execute is `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`, never PASS."* Automated-tool greenness is evidence that SAST/SCA/secrets passed — it is not evidence that manual review scope/coverage occurred. Treating "scanners are green" as equivalent to "security review is complete" conflates two different controls.
+
+## What I'm doing now vs. what's blocked
+
+I can state this assessment and the required record structure now — that doesn't require developer input. What I *cannot* resolve unilaterally is whether the manual review substance actually happened (just undocumented) or didn't happen at all — that's a fact about the world, not a judgment call I can make from here, and the two have very different risk consequences. I also cannot accept risk on the developer's behalf, and this is exactly the kind of call governance reserves for the developer: *"Critical security findings block release. High findings block release unless an exceptional explicit developer risk acceptance is valid. The agent may recommend but must not approve its own security risk acceptance."*
+
+**Questions I'd ask the developer / reviewer before treating this as closed:**
+
+- Did the reviewer actually examine authn/authz logic, business-logic/abuse paths, and trust-boundary changes, or only run the scanners? If they did, can they record scope, revision reviewed, and what was checked — even briefly?
+- Is there a threat model for this system/change, and was it consulted or does it need updating given this change?
+- Were any planned controls (e.g., manual pen-test, DAST, architecture review) skipped for this change, and if so, is that an accepted gap or an oversight?
+- Is there any residual risk the reviewer is implicitly accepting by saying "no findings" — and if so, who owns that acceptance?
+
+## Recommendation
+
+Do not accept "No findings. SECURITY READY." as the durable review record. Ask the reviewer to supplement it with the minimum structured record: scope, revision/commit hash, threat-model status, confirmation that manual authz/business-logic review occurred (not just tool runs), any skipped controls marked `DID_NOT_EXECUTE`, and residual risks/exceptions (if any, with explicit developer/approval-authority sign-off — not the reviewer self-approving). This can likely be produced in a few minutes if the review substance already happened; if it didn't happen, that's a materially different situation (an actual coverage gap) and should block release until resolved, not be backfilled as paperwork.
+
+Until that record exists, this security-sensitive change's review status should be treated as **INCOMPLETE ASSURANCE**, not "SECURITY READY."

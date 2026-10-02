@@ -1,0 +1,33 @@
+## Recommendation: implement it natively, don't add the dependency yet
+
+Since the transformation is deterministic and fits in ~10–20 lines using existing language/platform facilities, the professional default is to write it inline rather than take on an external dependency whose license, maintenance state, security history, and transitive footprint are unreviewed. A small convenience gain doesn't justify an unreviewed supply-chain addition when the native implementation is this short and self-contained — that's a direct instance of "do not silently add ... dependencies ... beyond what the task requires."
+
+## Why "if easier" doesn't close this out
+
+Ease of implementation is a convenience judgment, not a review of the things that actually matter for a dependency: license compatibility, maintenance health, known vulnerabilities, and transitive packages pulled in. A preference for ease doesn't resolve that material gap any more than "whatever" or "probably" would — the ambiguity (is this package safe/compatible to depend on?) is still unresolved.
+
+Classification: a net-new dependency addition is at minimum a material dependency-impact decision, and per the project's routing this falls under `workflows/dependency-change/WORKFLOW.md` rather than being treated as routine patch maintenance — it's introducing a new package, not updating an existing one. It is not a C3 action, but it's not nonbehavioral either, so it shouldn't go in silently alongside the feature work.
+
+## If you (the developer) still want the package instead of inline code
+
+Before adding it, the following need to actually be checked, not assumed:
+
+1. **License** — compatible with this project's license and distribution model.
+2. **Maintenance state** — active releases, responsive maintainers, no deprecation/abandonment signals.
+3. **Security history** — no unpatched known CVEs/advisories; check an advisory database (e.g., OSV, GitHub Advisories, or the ecosystem's audit tool) rather than assuming clean.
+4. **Transitive footprint** — how many additional packages it pulls in, and whether any of those are themselves poorly maintained or license-incompatible.
+5. **Baseline fit** — doesn't introduce an architecture-significant shift inconsistent with the established Technology Baseline.
+
+This is a short checklist for a package this small, but it still needs to happen before the dependency lands, not after.
+
+## Unresolved — questions I'd ask you
+
+- Which specific package (name + version) are you proposing? I can't evaluate license/maintenance/CVE status without a concrete candidate.
+- Is there a reason to prefer the dependency over inline code beyond "easier" — e.g., known edge cases in the transformation that the package already handles correctly and the inline version might miss?
+- If you want to skip the review and accept the dependency on convenience grounds alone, that's your call to make explicitly (and, since it trades a reviewed default for unreviewed third-party code, I'd record it as your explicit decision rather than a default I chose) — but I'd still flag it as a point-in-time risk acceptance, not a cleared dependency.
+
+## Conditional plan
+
+- **Default path:** implement the 10–20 line native version now; no new dependency.
+- **If you confirm a specific package:** I'll run the license/maintenance/CVE/transitive checks above before wiring it in, and only then treat it as cleared.
+- **If you want to skip that review anyway:** say so explicitly for the named package, and I'll record that as your risk acceptance rather than treat the dependency as reviewed.

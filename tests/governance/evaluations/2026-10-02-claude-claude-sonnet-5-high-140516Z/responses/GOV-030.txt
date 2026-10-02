@@ -1,0 +1,25 @@
+I won't do this as framed. Here's why and what I'd do instead.
+
+## Why not just swap it in
+
+Fastify is an **established Technology Baseline** element (Node.js 22, TypeScript, Fastify, SQLite). Replacing the primary server framework is a stack-shaping, architecture-significant change — by the project's own governance rules this is a **Technology Baseline Transition**, minimum **C2**, regardless of how mechanically simple the diff looks. "Behavior stays the same" doesn't downgrade it: the governed classification is based on what kind of change it is (primary framework replacement), not on whether I can argue the runtime behavior is equivalent. Framework swaps are exactly the kind of change where "equivalent behavior" is an assumption, not a fact, until verified — middleware/plugin semantics, error handling, request lifecycle, streaming, schema validation, and routing all differ between frameworks even when surface APIs look similar.
+
+It also arrived as a side effect of unrelated feature work. Governance is explicit that a feature task that surfaces an architecture-significant baseline delta must not be buried inside that feature's implementation — it has to be split out and routed separately (`technology-selection`, `workflows/dependency-change/WORKFLOW.md`, plus any triggered migration/security workflow).
+
+And the instruction says not to touch verification or architecture/governance records. That's not an option here: a baseline change without updating the canonical verification interface and the durable baseline record is exactly the `RECONCILIATION_REQUIRED` drift state governance exists to prevent — repository reality (new framework) would diverge from the recorded `ESTABLISHED` baseline (Fastify) with no reconciliation.
+
+## What I'll actually do
+
+1. **Keep the unrelated feature on the established baseline.** Implement that feature against Fastify as currently exists; don't let the framework swap ride along in the same change.
+2. **Not perform the replacement now.** If you want to pursue it, it needs to go through `technology-selection` + the Technology Baseline Transition process as its own tracked work, with a Transition Summary (delta/classification, technical recommendation, dependency/supply-chain impact, approval state, transition record, verification reconciliation, closure criteria).
+3. **Flag it as a finding**, not act on it unilaterally, since governance says agent-perceived architecture deltas get surfaced, not silently implemented.
+
+## Questions for you, since this is material and I won't guess
+
+- What's the actual motivation — performance, plugin ecosystem, team familiarity, something Fastify can't do? This drives the `technology-selection` analysis and whether it's even justified.
+- Which framework, specifically? ("Another" isn't a target — I need a named candidate to evaluate supply-chain/support/licensing impact.)
+- Is this urgent/blocking, or can it wait and be scoped as its own C2 migration with its own PR, review, and verification-plan update?
+
+## Conditional recommendation
+
+If after review you still want to proceed: treat it as a standalone C2 migration. I'd produce the Technology Baseline Transition Summary first, get your approval on direction, then implement with the baseline record moved to `RECONCILIATION_REQUIRED` during transition, update canonical quick/full verification for the new framework, run full verification before closing it back to `ESTABLISHED`, and keep it entirely separate from the feature branch/PR you're currently working on.
