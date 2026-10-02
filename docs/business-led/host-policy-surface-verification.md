@@ -29,9 +29,17 @@ Precedence (highest to lowest): managed settings, `--settings` CLI flag,
 **Deny-rule syntax: `Tool(specifier)`** in `permissions.deny`, evaluated
 deny-then-ask-then-allow, first match wins; a managed deny rule cannot be
 overridden by a lower-level allow rule. Confirmed forms: `Edit(...)`,
-`Write(...)`, `Read(...)`, `Bash(...)`, with `**`/`*` glob support and `/`,
-`./`, `~/`, `//` path-root forms. `disableBypassPermissionsMode: "disable"`
-removes the dangerous-skip-permissions escape hatch from managed settings.
+`Read(...)`, `Bash(...)`, with `**`/`*` glob support and `/`, `./`, `~/`,
+`//` path-root forms. **Correction (2026-10-02, confirmed live against a
+real Claude Code session, superseding the `Write(...)` form originally
+listed as confirmed here):** `Write(path)` is not matched by file
+permission checks at all -- Claude Code prints a startup warning and
+ignores it, since `Edit(path)` already covers every file-editing tool
+including Write. A `Write(path)` deny entry is not a gap (the paired
+`Edit(path)` entry for the same path still blocks it), but it is dead
+configuration; `host-adapters/claude/managed-settings.*.json` and
+`governance.py`'s self-service rule set were corrected to drop it.
+`disableBypassPermissionsMode: "disable"` removes the dangerous-skip-permissions escape hatch from managed settings.
 
 **Hook protocol: PreToolUse**, registered under `hooks.PreToolUse` in any
 settings file including managed settings. JSON on stdin includes

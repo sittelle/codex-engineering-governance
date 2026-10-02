@@ -402,20 +402,20 @@ def remove_claude_read_rule(settings_path: Path, ownership: dict) -> None:
 # developer gets the deterministic backstop even when no enterprise policy is
 # deployed; the enterprise layer additionally cannot be locally disabled.
 GOVERNANCE_SELF_PROTECTION_DENY_RULES: tuple[str, ...] = (
+    # Edit(path) alone, confirmed live against a real Claude Code session: a
+    # paired Write(path) entry is not matched by file permission checks at
+    # all (Claude Code prints "only Edit(path) rules are [matched]... Edit
+    # rules cover all file-editing tools" and ignores it), so it was dead
+    # weight carried over from host-adapters/claude/managed-settings.block.json
+    # -- not a gap, since Edit(path) already covers the Write tool too, just
+    # redundant configuration generating a startup warning for no protection.
     "Edit(./project-governance.yml)",
-    "Write(./project-governance.yml)",
     "Edit(./verification-plan.json)",
-    "Write(./verification-plan.json)",
     "Edit(./.governance/**)",
-    "Write(./.governance/**)",
     "Edit(./.claude/**)",
-    "Write(./.claude/**)",
     "Edit(./.mcp.json)",
-    "Write(./.mcp.json)",
     "Edit(./registration.yml)",
-    "Write(./registration.yml)",
     "Edit(./CLAUDE.local.md)",
-    "Write(./CLAUDE.local.md)",
     "Read(~/.ssh/**)",
     "Read(~/.aws/**)",
     "Read(./.env)",
@@ -845,16 +845,24 @@ def host_install_or_update(
 
         # Self-service deterministic backstop: deny rules and the PreToolUse
         # hook are install-location-independent, so reconciliation here is
-        # simpler than the root-bound read rule above -- just verify
-        # previously-owned entries are untouched, then add whatever from the
-        # current canonical set is still missing (covers both a fresh install
-        # and a future version adding more rules on `host update`).
+        # simpler than the root-bound read rule above -- verify
+        # previously-owned entries are untouched, drop any we own that a
+        # newer version of the canonical list no longer wants (confirmed
+        # live: a rule dropped from the framework's list, such as the dead
+        # Write(path) entries removed here, otherwise lingers in settings.json
+        # forever, since the installer only ever added, never removed), then
+        # add whatever from the current canonical set is still missing
+        # (covers a future version adding more rules too).
         previous_deny = dict((state or {}).get("claude_deny_ownership") or {})
         owned_deny_rules = list(previous_deny.get("rules_added") or [])
         if owned_deny_rules:
             current_deny = claude_deny_rules(read_json_object(paths["settings"]))
             if any(rule not in current_deny for rule in owned_deny_rules):
                 fail("Claude governance deny rules were modified; refusing to overwrite settings")
+        stale_deny_rules = [rule for rule in owned_deny_rules if rule not in GOVERNANCE_SELF_PROTECTION_DENY_RULES]
+        if stale_deny_rules:
+            remove_claude_deny_rules(paths["settings"], {"rules_added": stale_deny_rules})
+            owned_deny_rules = [rule for rule in owned_deny_rules if rule not in stale_deny_rules]
         fresh_deny = add_claude_deny_rules(paths["settings"], GOVERNANCE_SELF_PROTECTION_DENY_RULES)
         deny_ownership = {
             "rules_added": owned_deny_rules + fresh_deny["rules_added"],

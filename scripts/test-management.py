@@ -184,6 +184,32 @@ def host_cycle(failures: list[str]) -> None:
             "Claude install did not add the self-service governance PreToolUse hook",
             failures,
         )
+
+        # A rule this installer added in an earlier version, but the current
+        # canonical list no longer wants, must be cleaned up on `host update`
+        # -- confirmed live against a real Claude Code session: a stale
+        # Write(path) rule the installer once added otherwise lingers in
+        # settings.json forever, since update only ever added rules before
+        # this fix.
+        claude_state_path = claude / ".sittelle-engineering-governance.json"
+        stale_state = json.loads(claude_state_path.read_text(encoding="utf-8"))
+        stale_rule = "Write(./a-retired-governance-rule.example)"
+        stale_state["claude_deny_ownership"]["rules_added"].append(stale_rule)
+        claude_state_path.write_text(json.dumps(stale_state, indent=2) + "\n", encoding="utf-8", newline="\n")
+        stale_settings = json.loads((claude / "settings.json").read_text(encoding="utf-8"))
+        stale_settings["permissions"]["deny"].append(stale_rule)
+        (claude / "settings.json").write_text(json.dumps(stale_settings, indent=2) + "\n", encoding="utf-8", newline="\n")
+        stale_cleanup = run(["host", "update", "--host", "claude", "-y"], env=env)
+        if require_ok(stale_cleanup, "host update with a stale owned deny rule failed", failures):
+            cleaned_deny = json.loads((claude / "settings.json").read_text(encoding="utf-8")).get("permissions", {}).get("deny", [])
+            check(stale_rule not in cleaned_deny, "host update did not remove a deny rule retired from the canonical list", failures)
+            check(
+                all(rule in cleaned_deny for rule in gov.GOVERNANCE_SELF_PROTECTION_DENY_RULES),
+                "host update's stale-rule cleanup also dropped a still-canonical rule",
+                failures,
+            )
+            check("Read(.env)" in cleaned_deny, "host update's stale-rule cleanup touched unrelated user content", failures)
+
         root_text = ROOT.resolve().as_posix()
         if re.match(r"^[A-Za-z]:/", root_text):
             root_text = "/" + root_text[0].lower() + root_text[2:]
