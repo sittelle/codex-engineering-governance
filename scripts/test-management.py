@@ -79,6 +79,13 @@ def init_clean_git(path: Path) -> None:
 
 
 def host_cycle(failures: list[str]) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("governance_under_test_hooks", MANAGER)
+    gov = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = gov
+    spec.loader.exec_module(gov)
+
     with tempfile.TemporaryDirectory(prefix="governance-host-") as td:
         base = Path(td)
         codex = base / "codex"
@@ -157,14 +164,24 @@ def host_cycle(failures: list[str]) -> None:
 
         settings = json.loads((claude / "settings.json").read_text(encoding="utf-8"))
         check(settings.get("model") == "user-choice", "Claude install changed user model", failures)
+        deny = settings.get("permissions", {}).get("deny", [])
+        check("Read(.env)" in deny, "Claude install removed the pre-existing user deny rule", failures)
         check(
-            settings.get("permissions", {}).get("deny") == ["Read(.env)"],
-            "Claude install changed user deny rules",
+            all(rule in deny for rule in gov.GOVERNANCE_SELF_PROTECTION_DENY_RULES),
+            "Claude install did not add the self-service governance deny rules",
             failures,
         )
         check(
             "Bash(git status)" in settings.get("permissions", {}).get("allow", []),
             "Claude install changed pre-existing user allow rules",
+            failures,
+        )
+        check(
+            any(
+                gov._claude_pretool_hook_matches(entry)
+                for entry in settings.get("hooks", {}).get("PreToolUse", [])
+            ),
+            "Claude install did not add the self-service governance PreToolUse hook",
             failures,
         )
         root_text = ROOT.resolve().as_posix()
@@ -261,12 +278,17 @@ def host_cycle(failures: list[str]) -> None:
         check(settings.get("model") == "user-choice", "Claude uninstall changed user model", failures)
         check(
             settings.get("permissions", {}).get("deny") == ["Read(.env)"],
-            "Claude uninstall changed user deny rules",
+            "Claude uninstall did not restore pre-existing user deny rules exactly",
             failures,
         )
         check(
             settings.get("permissions", {}).get("allow") == ["Bash(git status)"],
             "Claude uninstall did not restore pre-existing user allow rules",
+            failures,
+        )
+        check(
+            "hooks" not in settings,
+            "Claude uninstall did not remove the installer-added PreToolUse hook container",
             failures,
         )
         check(

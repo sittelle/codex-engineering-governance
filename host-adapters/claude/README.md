@@ -50,3 +50,16 @@ persistent memory feature or cap subagent permission expansion; see the
 `docs/business-led/host-policy-surface-verification.md` for the recorded
 KNOWN RISK. `strictPluginOnlyCustomization` prevents *adding* new agents,
 which narrows but does not eliminate this gap.
+
+## Relationship to the self-service layer `governance.py host install` writes
+
+`governance.py host install`/`host update` additionally writes a lighter,
+self-service version of the same deny rules and `PreToolUse` hook (defaulting
+to `--enforce`) into the user's own `~/.claude/settings.json` -- no
+administrator and no OS-protected path required. This is `governance.py`'s
+`GOVERNANCE_SELF_PROTECTION_DENY_RULES`/`add_claude_pretool_hook`, tracked
+under installer ownership so `host uninstall` removes exactly what it added.
+It gives an ordinary developer the deterministic backstop even when no
+enterprise policy is deployed, but unlike the managed layer above, the
+developer could edit or delete it locally; it does not substitute for an
+IT-managed deployment where that guarantee matters.

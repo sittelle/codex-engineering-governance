@@ -393,6 +393,230 @@ def remove_claude_read_rule(settings_path: Path, ownership: dict) -> None:
         write_text(settings_path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
 
+# Self-service deterministic backstop (2026-10): installed into the user's
+# own ~/.claude/settings.json by `host install`/`host update`, no administrator
+# privileges required. This is the same deny-rule list and PreToolUse hook as
+# host-adapters/claude/managed-settings.block.json, which remains the
+# IT-managed enterprise layer written to an OS-protected path by an
+# administrator, not by this installer. Having both means an ordinary
+# developer gets the deterministic backstop even when no enterprise policy is
+# deployed; the enterprise layer additionally cannot be locally disabled.
+GOVERNANCE_SELF_PROTECTION_DENY_RULES: tuple[str, ...] = (
+    "Edit(./project-governance.yml)",
+    "Write(./project-governance.yml)",
+    "Edit(./verification-plan.json)",
+    "Write(./verification-plan.json)",
+    "Edit(./.governance/**)",
+    "Write(./.governance/**)",
+    "Edit(./.claude/**)",
+    "Write(./.claude/**)",
+    "Edit(./.mcp.json)",
+    "Write(./.mcp.json)",
+    "Edit(./registration.yml)",
+    "Write(./registration.yml)",
+    "Edit(./CLAUDE.local.md)",
+    "Write(./CLAUDE.local.md)",
+    "Read(~/.ssh/**)",
+    "Read(~/.aws/**)",
+    "Read(./.env)",
+    "Read(./.env.*)",
+    "Read(./secrets/**)",
+    "Bash(git push --force *)",
+    "Bash(git push -f *)",
+    "Bash(git reset --hard*)",
+    "Bash(git filter-branch*)",
+    "Bash(git update-ref*)",
+    "Bash(git rebase -i*)",
+    "Bash(git rebase --interactive*)",
+    "Bash(git reflog expire*)",
+    "Bash(git reflog delete*)",
+)
+
+GOVERNANCE_PRETOOL_HOOK_MATCHER = "Edit|Write|MultiEdit|NotebookEdit|Bash"
+# Resolves GOVERNANCE_ROOT from CLAUDE_CONFIG_DIR at hook run time, not at
+# install time, so this exact command string is install-location-independent
+# and therefore trivially idempotent across installs/updates.
+GOVERNANCE_PRETOOL_HOOK_COMMAND = (
+    "python -c \"import json,os,pathlib,subprocess,sys;"
+    "cfg=pathlib.Path(os.environ.get('CLAUDE_CONFIG_DIR') or (pathlib.Path.home()/'.claude'));"
+    "root=pathlib.Path((cfg/'GOVERNANCE_ROOT').read_text(encoding='utf-8-sig').strip());"
+    "sys.exit(subprocess.call([sys.executable,str(root/'governance.py'),'hook','pre-tool','--enforce'],stdin=sys.stdin))\""
+)
+GOVERNANCE_PRETOOL_HOOK_STATUS_MESSAGE = "Checking governance policy"
+
+
+def claude_deny_rules(data: dict) -> list[str]:
+    permissions = data.get("permissions")
+    if permissions is None:
+        return []
+    if not isinstance(permissions, dict):
+        fail("Claude settings permissions must be a JSON object")
+    values = permissions.get("deny")
+    if values is None:
+        return []
+    if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
+        fail("Claude settings permissions.deny must be a string array")
+    return values
+
+
+def add_claude_deny_rules(settings_path: Path, rules: tuple[str, ...]) -> dict:
+    """Add any of these deny rules not already present (idempotent) and return
+    ownership facts covering only the rules newly added by this call."""
+    existed = settings_path.exists()
+    data = read_json_object(settings_path)
+
+    permissions_existed = "permissions" in data
+    if permissions_existed and not isinstance(data["permissions"], dict):
+        fail("Claude settings permissions must be a JSON object")
+    permissions = data.setdefault("permissions", {})
+
+    deny_existed = "deny" in permissions
+    if deny_existed:
+        values = permissions["deny"]
+        if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
+            fail("Claude settings permissions.deny must be a string array")
+    else:
+        values = []
+        permissions["deny"] = values
+
+    added = [rule for rule in rules if rule not in values]
+    if added:
+        values.extend(added)
+        write_text(settings_path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+    return {
+        "rules_added": added,
+        "settings_created": not existed,
+        "permissions_created": not permissions_existed,
+        "deny_created": not deny_existed,
+    }
+
+
+def remove_claude_deny_rules(settings_path: Path, ownership: dict) -> None:
+    """Remove only the exact deny-rule entries/containers created by this installation."""
+    rules_added = ownership.get("rules_added") or []
+    if not rules_added:
+        return
+    if not settings_path.is_file():
+        fail("Claude settings file is missing; refusing partial uninstall")
+
+    data = read_json_object(settings_path)
+    permissions = data.get("permissions")
+    if not isinstance(permissions, dict):
+        fail("Claude settings permissions changed; refusing partial uninstall")
+    values = permissions.get("deny")
+    if not isinstance(values, list):
+        fail("Claude settings permissions.deny changed; refusing partial uninstall")
+    for rule in rules_added:
+        if rule not in values:
+            fail("Claude governance deny rules were modified; refusing partial uninstall")
+    for rule in rules_added:
+        values.remove(rule)
+
+    if ownership.get("deny_created") and not values:
+        permissions.pop("deny", None)
+    if ownership.get("permissions_created") and not permissions:
+        data.pop("permissions", None)
+
+    if ownership.get("settings_created") and not data:
+        settings_path.unlink()
+    else:
+        write_text(settings_path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+
+def claude_pretool_hooks(data: dict) -> list:
+    hooks = data.get("hooks")
+    if hooks is None:
+        return []
+    if not isinstance(hooks, dict):
+        fail("Claude settings hooks must be a JSON object")
+    values = hooks.get("PreToolUse")
+    if values is None:
+        return []
+    if not isinstance(values, list):
+        fail("Claude settings hooks.PreToolUse must be an array")
+    return values
+
+
+def _claude_pretool_hook_matches(entry) -> bool:
+    if not isinstance(entry, dict) or entry.get("matcher") != GOVERNANCE_PRETOOL_HOOK_MATCHER:
+        return False
+    inner = entry.get("hooks")
+    if not isinstance(inner, list) or len(inner) != 1:
+        return False
+    hook = inner[0]
+    return isinstance(hook, dict) and hook.get("command") == GOVERNANCE_PRETOOL_HOOK_COMMAND
+
+
+def add_claude_pretool_hook(settings_path: Path) -> dict:
+    """Add the governance PreToolUse hook (idempotent) and return ownership facts for uninstall."""
+    existed = settings_path.exists()
+    data = read_json_object(settings_path)
+
+    hooks_existed = "hooks" in data
+    if hooks_existed and not isinstance(data["hooks"], dict):
+        fail("Claude settings hooks must be a JSON object")
+    hooks = data.setdefault("hooks", {})
+
+    pretool_existed = "PreToolUse" in hooks
+    if pretool_existed:
+        values = hooks["PreToolUse"]
+        if not isinstance(values, list):
+            fail("Claude settings hooks.PreToolUse must be an array")
+    else:
+        values = []
+        hooks["PreToolUse"] = values
+
+    added = not any(_claude_pretool_hook_matches(entry) for entry in values)
+    if added:
+        values.append({
+            "matcher": GOVERNANCE_PRETOOL_HOOK_MATCHER,
+            "hooks": [{
+                "type": "command",
+                "command": GOVERNANCE_PRETOOL_HOOK_COMMAND,
+                "statusMessage": GOVERNANCE_PRETOOL_HOOK_STATUS_MESSAGE,
+            }],
+        })
+        write_text(settings_path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+    return {
+        "entry_added": added,
+        "settings_created": not existed,
+        "hooks_created": not hooks_existed,
+        "pretool_created": not pretool_existed,
+    }
+
+
+def remove_claude_pretool_hook(settings_path: Path, ownership: dict) -> None:
+    if not ownership.get("entry_added"):
+        return
+    if not settings_path.is_file():
+        fail("Claude settings file is missing; refusing partial uninstall")
+
+    data = read_json_object(settings_path)
+    hooks = data.get("hooks")
+    if not isinstance(hooks, dict):
+        fail("Claude settings hooks changed; refusing partial uninstall")
+    values = hooks.get("PreToolUse")
+    if not isinstance(values, list):
+        fail("Claude settings hooks.PreToolUse changed; refusing partial uninstall")
+
+    matches = [i for i, entry in enumerate(values) if _claude_pretool_hook_matches(entry)]
+    if not matches:
+        fail("Claude governance PreToolUse hook was modified; refusing partial uninstall")
+    del values[matches[0]]
+
+    if ownership.get("pretool_created") and not values:
+        hooks.pop("PreToolUse", None)
+    if ownership.get("hooks_created") and not hooks:
+        data.pop("hooks", None)
+
+    if ownership.get("settings_created") and not data:
+        settings_path.unlink()
+    else:
+        write_text(settings_path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+
 def host_status(root: Path, host: Host) -> str:
     paths = host_paths(host)
     state = load_host_state(paths["state"], host)
@@ -598,6 +822,40 @@ def host_install_or_update(
         else:
             locator_ownership = add_claude_read_rule(paths["settings"], claude_locator_rule(paths["locator"]))
 
+        # Self-service deterministic backstop: deny rules and the PreToolUse
+        # hook are install-location-independent, so reconciliation here is
+        # simpler than the root-bound read rule above -- just verify
+        # previously-owned entries are untouched, then add whatever from the
+        # current canonical set is still missing (covers both a fresh install
+        # and a future version adding more rules on `host update`).
+        previous_deny = dict((state or {}).get("claude_deny_ownership") or {})
+        owned_deny_rules = list(previous_deny.get("rules_added") or [])
+        if owned_deny_rules:
+            current_deny = claude_deny_rules(read_json_object(paths["settings"]))
+            if any(rule not in current_deny for rule in owned_deny_rules):
+                fail("Claude governance deny rules were modified; refusing to overwrite settings")
+        fresh_deny = add_claude_deny_rules(paths["settings"], GOVERNANCE_SELF_PROTECTION_DENY_RULES)
+        deny_ownership = {
+            "rules_added": owned_deny_rules + fresh_deny["rules_added"],
+            "settings_created": previous_deny.get("settings_created", fresh_deny["settings_created"]),
+            "permissions_created": previous_deny.get("permissions_created", fresh_deny["permissions_created"]),
+            "deny_created": previous_deny.get("deny_created", fresh_deny["deny_created"]),
+        }
+
+        previous_hook = dict((state or {}).get("claude_pretool_hook_ownership") or {})
+        if previous_hook.get("entry_added"):
+            if not any(
+                _claude_pretool_hook_matches(entry)
+                for entry in claude_pretool_hooks(read_json_object(paths["settings"]))
+            ):
+                fail("Claude governance PreToolUse hook was modified; refusing to overwrite settings")
+            hook_ownership = previous_hook
+        else:
+            hook_ownership = add_claude_pretool_hook(paths["settings"])
+    else:
+        deny_ownership = {}
+        hook_ownership = {}
+
     new_state = {
         "schema_version": 1,
         "framework": FRAMEWORK_ID,
@@ -609,6 +867,8 @@ def host_install_or_update(
         "locator_created": locator_created,
         "claude_settings_ownership": claude_ownership,
         "claude_locator_read_ownership": locator_ownership,
+        "claude_deny_ownership": deny_ownership,
+        "claude_pretool_hook_ownership": hook_ownership,
     }
     save_host_state(paths["state"], new_state)
     verify_host(root, host)
@@ -642,6 +902,20 @@ def preflight_host_uninstall(root: Path, host: Host) -> tuple[dict, dict, str | 
         if locator_ownership.get("entry_added"):
             if locator_ownership.get("rule") not in claude_allow_rules(read_json_object(paths["settings"])):
                 fail("Claude GOVERNANCE_ROOT Read allow rule was modified; refusing partial uninstall")
+
+        owned_deny_rules = (dict(state.get("claude_deny_ownership") or {}).get("rules_added")) or []
+        if owned_deny_rules:
+            current_deny = claude_deny_rules(read_json_object(paths["settings"]))
+            if any(rule not in current_deny for rule in owned_deny_rules):
+                fail("Claude governance deny rules were modified; refusing partial uninstall")
+
+        hook_ownership = dict(state.get("claude_pretool_hook_ownership") or {})
+        if hook_ownership.get("entry_added"):
+            if not any(
+                _claude_pretool_hook_matches(entry)
+                for entry in claude_pretool_hooks(read_json_object(paths["settings"]))
+            ):
+                fail("Claude governance PreToolUse hook was modified; refusing partial uninstall")
 
     block = None
     if state.get("managed_sha256"):
@@ -677,7 +951,12 @@ def host_uninstall(root: Path, host: Host) -> None:
         paths["locator"].unlink()
 
     if host.key == "claude":
-        # Locator rule first: the root rule's ownership records which containers to clean up.
+        # Reverse install order so the root read-rule's ownership (the only one
+        # that may carry settings_created=True, since it was added first) is
+        # the last removal: its own "delete the file if now empty" check must
+        # see every other owned entry already stripped out.
+        remove_claude_pretool_hook(paths["settings"], dict(state.get("claude_pretool_hook_ownership") or {}))
+        remove_claude_deny_rules(paths["settings"], dict(state.get("claude_deny_ownership") or {}))
         remove_claude_read_rule(paths["settings"], dict(state.get("claude_locator_read_ownership") or {}))
         ownership = dict(state.get("claude_settings_ownership") or {})
         remove_claude_read_rule(paths["settings"], ownership)
@@ -724,6 +1003,24 @@ def verify_host(root: Path, host: Host) -> None:
                 "Claude Code: GOVERNANCE_ROOT is not covered by the expected "
                 "permissions.allow Read rule; run `host update` to add it"
             )
+
+        deny_ownership = dict(state.get("claude_deny_ownership") or {})
+        owned_deny_rules = deny_ownership.get("rules_added") or []
+        if owned_deny_rules:
+            deny_values = claude_deny_rules(settings)
+            missing = [rule for rule in owned_deny_rules if rule not in deny_values]
+            if missing:
+                fail(
+                    "Claude Code: governance self-protection deny rules are missing or "
+                    "modified; run `host update` to restore them"
+                )
+        hook_ownership = dict(state.get("claude_pretool_hook_ownership") or {})
+        if hook_ownership.get("entry_added"):
+            if not any(_claude_pretool_hook_matches(entry) for entry in claude_pretool_hooks(settings)):
+                fail(
+                    "Claude Code: the governance PreToolUse hook is missing or modified; "
+                    "run `host update` to restore it"
+                )
 
 
 def claude_managed_settings_path() -> Path:
@@ -803,6 +1100,11 @@ def preview_host_action(root: Path, action: str, hosts: list[Host]) -> None:
                     f"  ensure {claude_read_rule(root)} and {claude_locator_rule(paths['locator'])} "
                     f"are in {paths['settings']} permissions.allow"
                 )
+                lines.append(
+                    f"  ensure the self-protection deny rules and the PreToolUse governance hook "
+                    f"are in {paths['settings']} (self-service deterministic backstop; an IT-managed "
+                    "policy at the OS-level path, if present, is separate and cannot be weakened by this)"
+                )
             lines.append("  preserve unrelated user content")
         elif action == "uninstall":
             paths, state, _ = preflight_host_uninstall(root, host)
@@ -818,6 +1120,12 @@ def preview_host_action(root: Path, action: str, hosts: list[Host]) -> None:
                 ).get("entry_added"):
                     lines.append(
                         f"  remove only the recorded governance Read allow rules from {paths['settings']}"
+                    )
+                if dict(state.get("claude_deny_ownership") or {}).get("rules_added") or dict(
+                    state.get("claude_pretool_hook_ownership") or {}
+                ).get("entry_added"):
+                    lines.append(
+                        f"  remove only the recorded governance deny rules and PreToolUse hook from {paths['settings']}"
                     )
             lines.append("  preserve unrelated user content")
     print_preview(f"Host {action} preview", lines)
