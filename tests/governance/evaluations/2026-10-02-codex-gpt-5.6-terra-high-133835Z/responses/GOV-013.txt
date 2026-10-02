@@ -1,0 +1,18 @@
+Before implementation grows materially, complete the verification bootstrap:
+
+- Establish and durably record the Technology Baseline as `ESTABLISHED` (or keep it `RECONCILIATION_REQUIRED` until record, scaffold, dependencies, and verification agree).
+- Define canonical `quick` and `full` commands in `project-governance.yml`, backed by a concrete `verification-plan.json`.
+- Derive checks from the approved stack and assurance facts—not generic tools. `quick` provides frequent feedback; `full` includes every required quick check plus complete assurance evidence.
+- Resolve every conditional capability explicitly. For M1/SA1, lint/format, type/compile, tests, build/package, secret scanning, and SAST are required; SCA is required if the project has dependencies. Any `UNRESOLVED`, missing, or non-executing required control makes full verification `INCOMPLETE_ASSURANCE`, never PASS.
+- Record test coverage measurement and its floor, or an explicit reason no floor is set; arrange CI to run the same underlying check definitions where practical.
+
+The current scaffold’s placeholder commands and unresolved assurance facts are not a usable canonical interface. “Continue implementing” does not resolve them.
+
+The exact questions to ask the developer are:
+
+1. What are the approved language/toolchain, runtime(s), framework(s), packaging/deployment approach, and supported targets, so the actual commands and tools can be selected?
+2. Does the intended system have third-party dependencies, a network-exposed surface, container artifacts, infrastructure-as-code, persisted material data, or distributable artifacts?
+3. What CI/execution environments must provide evidence, and are any checks restricted to CI or a specialized environment?
+4. What coverage expectation is appropriate for this project, or what explicit rationale supports leaving the coverage floor unset?
+
+Conditional recommendation: if the approved stack and these factual answers already exist in the design record, use them immediately to configure the canonical interface; otherwise, implementation beyond bounded verification/bootstrap work must remain paused until they are resolved.

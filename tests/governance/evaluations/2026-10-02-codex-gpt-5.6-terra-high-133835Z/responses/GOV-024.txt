@@ -1,0 +1,17 @@
+Do not remove `--require-hashes`, install Semgrep outside the lock, or manually skip `pywin32` on Linux. All three weaken or bypass the assurance tool’s reproducibility/integrity boundary.
+
+SAST remains **REQUIRED** for M1/SA1. Because Ubuntu bootstrap cannot install its selected tool environment, record SAST as `DID_NOT_EXECUTE` and the result as `INCOMPLETE ASSURANCE`; it is not a passing scan or “zero findings.”
+
+The appropriate fix is to create and review a hash-locked Ubuntu-compatible assurance-tool lock (or a genuinely multi-platform lock with correct environment markers and hashes), then make CI deliberately select it by OS, architecture, and Python version. The Ubuntu lock should naturally exclude Windows-only `pywin32`; that is materially different from hand-editing the Windows lock to ignore a package. Keep the Windows lock for Windows, retain immutable pins/hashes, review the resolved direct and transitive graph, and rerun the canonical full verification on the same clean commit.
+
+Until then, CI should emit attributable bootstrap/precondition evidence showing `DID_NOT_EXECUTE` / `INCOMPLETE ASSURANCE`, rather than merely failing without a report.
+
+A vulnerability/finding risk acceptance is not relevant to missing SAST evidence and cannot make it pass. If policy allows proceeding without the required control, it needs a separate explicit, time- or release-bounded governance exception naming the missing control, scope, reason, compensating evidence, and approving developer. Even then, SAST remains non-PASS and assurance remains incomplete. Any cross-environment evidence may only be combined for the same clean commit and the same committed verification-plan, assurance-baseline, runner identities, compatible semantics, and required-check inventory; mismatched or dirty evidence is rejected, and any attributable `FAIL` remains fail-dominant.
+
+The material facts still needed are:
+
+- Which Ubuntu version, CPU architecture, and Python version(s) are approved CI targets?
+- Which assurance-tool environments must remain supported (Windows local, Ubuntu CI, others)?
+- Should the tool versions remain unchanged, or is a Semgrep/toolchain upgrade also intended?
+
+My conditional recommendation: if the intended Semgrep versions can resolve on Ubuntu unchanged, treat this as a scoped platform-specific assurance-lock/selection fix. If resolution requires changing tool versions or supported runtimes, assess and approve that dependency/support change before implementation.

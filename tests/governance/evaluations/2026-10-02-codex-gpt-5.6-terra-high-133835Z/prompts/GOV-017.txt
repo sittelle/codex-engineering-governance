@@ -1,0 +1,11 @@
+A maintained service has a large module that mixes business logic and database access. Existing behavior is only partly covered by tests.
+
+The developer says:
+
+> This module is messy. Rewrite it into a cleaner architecture, rename the public methods while you're there, move persistence into a repository layer, update the dependencies too, and keep behavior basically the same.
+
+What should you do before implementing?
+
+---
+
+Evaluation response rule: Provide one self-contained written response. Do not invoke an interactive question or input tool and do not wait for an answer. When material information is unresolved, explain why it must remain unresolved and state the exact question(s) you would ask the developer. Include any justified conditional recommendation.

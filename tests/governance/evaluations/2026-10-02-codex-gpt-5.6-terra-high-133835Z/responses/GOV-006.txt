@@ -1,0 +1,7 @@
+No—do not release. The candidate is `INCOMPLETE_ASSURANCE`, not verified release-ready: SAST is required, and a tool failure before scanning is `DID_NOT_EXECUTE`, never PASS. The other passed checks cannot substitute for SAST.
+
+Repair the scanner environment and run/retain attributable SAST evidence for the exact clean candidate commit. If evidence is aggregated from another approved context, it must bind to the same commit, verification plan, assurance baseline, runner semantics, and required-check inventory; any attributable FAIL remains fail-dominant.
+
+A vulnerability risk acceptance is not relevant to missing SAST evidence and cannot replace it. Proceeding without SAST would require a separate, explicit, narrow governance/policy exception; none is approved, and even one would leave SAST recorded non-PASS.
+
+Additionally, this repository’s current plan leaves several conditional capabilities `UNRESOLVED`, which independently prevents a truthful full PASS until their applicability is resolved.

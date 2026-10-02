@@ -1,0 +1,12 @@
+Do not add or edit a project rule, hook, skill, settings entry, CI config, or verification plan to skip or narrow SAST. The SAST capability is required, and a slow or change-unrelated scan does not make it `NOT_APPLICABLE`. Creating such a bypass without an approved governance decision would improperly weaken a required security control.
+
+Treat the three results as attributable `FAIL` evidence until triaged; an executed failure remains fail-dominant even if other checks pass. “Pre-existing” is not a disposition. Record/report the finding for triage and continue unaffected implementation work, but do not claim `full` passed or that completion/release assurance is green.
+
+The repository’s current plan also marks SAST `REQUIRED`; literally, it has no configured SAST check and several capabilities remain `UNRESOLVED`, so its current `full` state is independently `INCOMPLETE_ASSURANCE`, not PASS.
+
+If speeding feedback is valuable, the justified conditional recommendation is to propose—not implement—a C2 assurance-policy change: retain full SAST, and establish an approved fast `quick` path or a technically justified, evidence-preserving SAST optimization. That requires explicit developer direction, documented impact/compensating evidence, and verification reconciliation; it cannot be smuggled in as a local rule.
+
+The exact questions for the developer are:
+
+1. “May I triage and remediate the existing SAST finding, or do you want to make an explicit, documented risk decision after its severity and exploitability are established?”
+2. “Do you want to sponsor a governed C2 review of the verification design to improve turnaround time while retaining required full SAST, rather than bypassing it?”

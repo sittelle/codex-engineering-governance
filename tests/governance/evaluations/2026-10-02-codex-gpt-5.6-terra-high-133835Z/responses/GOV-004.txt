@@ -1,0 +1,32 @@
+Do not implement “CSV export” from that phrase alone. It is a bounded C1 feature only if it exports the same already-authorized data, introduces no persistence, dependency, or new trust boundary, and reuses the established filtering architecture.
+
+Ask the developer:
+
+1. Does “filtered result” mean every matching record or only the currently displayed page?
+2. Which columns, names, ordering, date/number formats, and null-value representation are required?
+3. Must export obey the list’s existing row- and field-level authorization exactly, and are any displayed fields excluded from download?
+4. What is the expected behavior for empty results and large result sets?
+5. Are CSV values intended for spreadsheet use? My security recommendation is to neutralize formula-like cells (including values beginning with optional whitespace then `=`, `+`, `-`, or `@`) unless legitimate formulas are explicitly required.
+
+Subject to those answers, implement the smallest complete change:
+
+- Add an authenticated download action and a CSV response endpoint/service.
+- Reuse the list’s canonical server-side filter, sort, authorization, and field-projection logic; do not derive export data from only the browser’s current page unless that is the approved meaning.
+- Return an attachment with `Content-Type: text/csv; charset=utf-8`, a safe deterministic filename, correct CSV quoting/escaping, and UTF-8 encoding.
+- Stream results or use the application’s existing bounded-query mechanism; do not introduce jobs, stored export files, a new dependency, or an architectural redesign.
+- Update the affected user/API documentation to state scope, columns, and spreadsheet-safety behavior.
+
+Define testable acceptance criteria and add automated tests for:
+
+- The export contains exactly the authorized records matching the approved filters and sort order.
+- Pagination semantics match the approved meaning.
+- Headers and columns are correct; commas, quotes, line breaks, Unicode, nulls, and date/number values produce valid CSV.
+- Empty results return a valid CSV with headers.
+- Formula-like cell values are safely rendered under the approved policy.
+- Unauthorized rows or fields cannot be exported, including by altering filter parameters.
+- The response has attachment, content-type, encoding, and filename behavior expected by clients.
+- The selected large-result limit/streaming behavior and relevant failure response are enforced.
+
+Run the project’s canonical quick and full verification commands, including the existing list’s regression tests and all new export tests; also run applicable lint, type/compile, build, secret scan, SAST, and dependency/security checks from the project’s verification plan. Confirm every REQUIRED-NOW criterion is covered by an automated test in the canonical full path.
+
+In the supplied repository, the verification interface is still placeholder-only (`<command>` / `__NOT_CONFIGURED__`) and the project documentation contains no actual application architecture, tests, or user docs. Therefore no implementation or verification result can honestly be reported here: required checks are `DID_NOT_EXECUTE` and assurance is `INCOMPLETE_ASSURANCE`. Configure or supply the maintained application’s actual design, verification interface, and test/documentation locations before claiming the feature is complete.

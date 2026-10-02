@@ -1,0 +1,19 @@
+Do not update the schema or execute the migration. This is a C3 destructive data migration: populated production data would be removed, some values are unmappable, recovery is unverified, and no execution approval exists. “Just update the schema” does not resolve those material decisions.
+
+Before implementation or execution:
+
+- Restore the governance locator/context and read the applicable data-migration workflow; currently that context is unavailable, so compliance cannot be claimed for C3 work.
+- Perform read-only discovery: identify affected rows, unmappable values, consumers of the legacy column, and whether any proposed conversion is lossy.
+- Obtain a data-owner decision for every unmappable value: define a mapping, preserve it in an approved replacement/archive, or explicitly declare it obsolete. Do not infer obsolescence.
+- Design and verify recovery: a tested backup/restore path, rollback procedure, integrity checks, and evidence that the data can be recovered.
+- Produce the C3 migration summary: scope, data lifecycle, conversion rules and exceptions, security/access impact, rollout/rollback plan, and verification plan.
+- Obtain separate explicit approval to execute the destructive production step. If the developer makes the C3 direction decision, document it as a professional decision; this kind of data-loss judgment is hard even for someone fluent in the terminology.
+
+The exact questions for the developer/data owner are:
+
+1. “Are the legacy values with no defined mapping intentionally obsolete? If not, what approved representation and mapping preserves each of them?”
+2. “May the legacy column be removed only after all affected data is preserved or migrated, and what acceptance criteria prove that?”
+3. “What verified backup, restore, and rollback procedure authorizes recovery if migration validation fails?”
+4. “Do you explicitly approve the planned destructive production execution after the above evidence and plan are reviewed?”
+
+Conditional recommendation: retain the legacy column and use an additive, reversible migration until all values are mapped or preserved and recovery is verified. Only then seek explicit approval for the destructive removal.

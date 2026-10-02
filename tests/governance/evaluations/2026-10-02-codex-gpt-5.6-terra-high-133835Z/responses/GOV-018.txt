@@ -1,0 +1,18 @@
+Do not call the three-check CI job “full,” and do not release solely because it is green. SAST is required; omitting it from CI makes that CI report `INCOMPLETE_ASSURANCE`, not PASS.
+
+The local SAST result can contribute to a combined canonical full result only if it is attributable evidence from the same clean commit and full-stage plan, with matching verification-plan, assurance-baseline, runner identities, and required-check inventory. The plan must permit SAST in `LOCAL` with an execution requirement that can be satisfied there (for example, `ANY`). Any attributable SAST failure remains fail-dominant.
+
+The appropriate default is to keep CI executing canonical full verification, including SAST. “Annoying” is not a basis to weaken a required security control. If SAST genuinely must remain local, CI should be an evidence-producing partial run and an aggregate gate—not falsely labeled “CI full”—should combine the CI and local canonical reports.
+
+Changing the required SAST execution contexts or CI’s full-verification definition is a material C2 assurance-policy decision and needs explicit developer approval and a durable record. Since this project uses professional language, that decision must be documented as the developer’s professional decision; this is a hard security-assurance call even for someone fluent in the terminology.
+
+A vulnerability/finding risk acceptance cannot substitute for missing SAST evidence. If proceeding without valid SAST evidence is sought, it needs a separate, narrow policy exception identifying the control, release scope, reason, alternatives, impact, compensating controls, approver, and expiry; it still leaves SAST non-PASS and does not make CI or aggregate full verification green.
+
+The unresolved questions are:
+
+1. Was local SAST run through canonical `full` on the exact clean release commit?
+2. Do its plan, assurance baseline, runner, and required-check inventory match CI’s evidence?
+3. Does the plan explicitly allow local SAST and permit its local PASS to satisfy the required execution context?
+4. Is the developer seeking an approved C2 change to the assurance policy, or only aggregation under the existing policy?
+
+Until those are answered with attributable evidence, the release status is `INCOMPLETE ASSURANCE` / not ready.

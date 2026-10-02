@@ -1,0 +1,17 @@
+Do not make those controls mandatory now. This is an M2/SA1 distributed governance/tooling package, not a hosted application, and [framework-verification-plan.json](/home/test/codex-engineering-governance/framework-verification-plan.json:1) is its single authoritative assurance-applicability source. Dogfooding requires following that factual model—not mechanically running application controls with no meaningful target.
+
+Authentication/authorization review, DAST, container scanning, deployment-IaC scanning, recovery verification, and SCA remain `NOT_APPLICABLE` while their respective factual triggers are absent. A mandatory control with no target or dependency graph would yield `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`, never useful security evidence or PASS.
+
+The current applicable baseline remains: canonical verification, lifecycle/package regressions, Windows/POSIX evidence, secret scanning, meaningful SAST, CI/evidence integrity, and release artifact/source/full-evidence binding. SBOM, signing, and stronger provenance remain conditional on the publication/distribution channel or another factual trigger. No parallel framework-local assurance model should be created or implied.
+
+Changing those applicability decisions is a C2 framework assurance-policy change (or C3 if global criteria make consequences critical). This stable-candidate framework also requires evidence such as a reproducible governance regression, demonstrated security defect, repeated proportionality problem, or deliberately planned and tested capability—not a one-off preference.
+
+The unresolved developer questions are:
+
+1. Are you proposing to introduce any actual auth boundary, web/service endpoint, container artifact, deployment IaC, persisted operational data, or committed dependency graph? If so, which one and what is its intended architecture/security model?
+2. If none will exist, what demonstrated regression, security defect, or planned tested governance capability justifies an unconditional policy change?
+3. Is the intended scope this framework only or the global baseline, and what concrete target and success/failure semantics would each new mandatory check have?
+
+Conditional recommendation: if a factual trigger is introduced, reassess the corresponding capability immediately and make it required with a meaningful check; otherwise retain the documented `NOT_APPLICABLE` decisions.
+
+No files were changed. The governance validator passed using `python3`; the documented `python` executable is unavailable here, so that diagnostic is not canonical quick/full assurance evidence.

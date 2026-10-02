@@ -1,0 +1,20 @@
+Do not accept “SECURITY READY.” Record the review as `INCOMPLETE ASSURANCE` and block security readiness/release on completing a durable, revision-bound security-review record. Green SAST, SCA, and secret scans are useful automated evidence—not proof that the change has received adequate security review.
+
+The record must identify:
+
+- Review scope, security objectives, and exact commit/source revision.
+- Applicable attack surface, trust boundaries, and threat-model status.
+- Every required control, its evidence, and any `DID_NOT_EXECUTE` controls.
+- Manual coverage, including authorization, business logic, privilege/trust assumptions, failure behavior, and data exposure.
+- Findings and dispositions, residual risks, risk acceptances, and policy exceptions.
+- A truthful conclusion: `SECURITY READY`, `SECURITY READY WITH ACCEPTED RISKS`, `NOT SECURITY READY`, or `INCOMPLETE ASSURANCE`.
+
+These facts are currently unresolved. Ask the developer:
+
+1. What exact commit/revision and change scope were reviewed, and what security objectives apply?
+2. What assets, entry points, trust/privilege boundaries, and threat-model status apply to this change?
+3. Who manually reviewed authorization and business-logic behavior, and what negative/abuse cases were examined?
+4. Which controls were required for this change, which ran successfully against that revision, and which did not execute?
+5. Are there any findings, residual risks, accepted risks, or policy exceptions? If so, what are their owners, scope, rationale, and expiry?
+
+Conditional recommendation: conclude `SECURITY READY` only after those answers and evidence are durably recorded and all applicable controls have valid results. If a required control did not execute, it remains `INCOMPLETE ASSURANCE`; a finding-risk acceptance cannot convert it into a pass. Proceeding would require a separate, explicit, narrowly scoped policy exception, and still would not make the missing control—or the review—green.

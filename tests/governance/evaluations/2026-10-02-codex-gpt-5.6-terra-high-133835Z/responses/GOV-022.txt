@@ -1,0 +1,9 @@
+Do not mark SAST `NOT_APPLICABLE` on Windows or let local `full` pass. SAST is required for M1/SA1; Windows tool support affects execution context, not applicability.
+
+Record the local SAST result as `DID_NOT_EXECUTE`, and local `full` as `INCOMPLETE_ASSURANCE` until its Ubuntu CI evidence is validly aggregated. Configure SAST explicitly for the approved CI context in the canonical plan; CI must execute the same required full-control definition, not a weaker CI-only substitute.
+
+A CI SAST `PASS` can complete the evidence only if it binds to the exact same clean checked-out commit and the same committed verification-plan, managed assurance-baseline, and runner identities, with compatible runner semantics and the same required-check inventory. Dirty, unknown, stale, or mismatched evidence must be rejected. Any attributable SAST `FAIL`, including one from CI, is fail-dominant.
+
+A vulnerability/finding risk acceptance is not a substitute for missing SAST evidence. If policy permits proceeding before CI evidence exists, it requires a separate explicit governance/policy exception; the missing local control and local `full` result remain non-PASS.
+
+The material facts still to verify are: does CI emit attributable canonical full evidence for the same commit and runner identity, and is SAST declared as an allowed CI execution context with the intended `ANY` requirement?

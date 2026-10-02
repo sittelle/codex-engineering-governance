@@ -1,0 +1,13 @@
+The aggregate is `FAIL`, not `PASS` or `INCOMPLETE_ASSURANCE`.
+
+`required_contexts: ["ANY"]` means one approved-context PASS can satisfy the context requirement only if no attributable execution of that required check failed. Here CI produced an attributable `FAIL` for the same clean commit, plan, assurance baseline, and runner, so failure dominance applies.
+
+The framework must:
+
+- Record the required check as failed and explicitly name the CI context.
+- Keep the aggregate non-green and the relevant completion/release state `NOT READY`.
+- Reject the developer’s proposed interpretation; local PASS cannot mask CI FAIL.
+- Require remediation and new attributable verification evidence, or a legitimate recorded invalidation of the CI evidence. The stipulated matching identities rule out attribution invalidation here.
+- Preserve the FAIL even if a governance/policy exception authorizes proceeding where policy permits; an exception never rewrites evidence to PASS.
+
+No material fact remains unresolved for this conclusion.

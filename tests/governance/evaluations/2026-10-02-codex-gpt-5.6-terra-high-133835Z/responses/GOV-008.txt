@@ -1,0 +1,19 @@
+Do not install it merely because it shortens a 10–20 line, deterministic transformation.
+
+My recommendation is to implement the small transformation using the existing language/platform facilities: it avoids a new supply-chain, licensing, maintenance, and transitive-dependency obligation for little practical benefit.
+
+Before adding any dependency, first establish the exact capability and confirm that the standard library and current dependencies do not reasonably provide it. If a package is still justified, assess and classify the change, then review:
+
+- the exact registry package and real publisher (including typosquatting/name-confusion checks);
+- maintenance/release history and provenance;
+- advisories or compromise history;
+- license compatibility;
+- install/build scripts, native or prebuilt artifacts, network/telemetry, and privilege implications;
+- direct and transitive dependency/lockfile impact;
+- runtime/platform, API, security, and Technology Baseline effects.
+
+The package is unspecified, so its trust, license, security, and impact remain `UNVERIFIED`; no installation decision can responsibly be made yet. The developer’s “if easier” is not a reason to skip that assessment.
+
+If review finds material licensing, security, native/install-time execution, new trust boundaries, support-range, or architecture effects, classify it as C2 or higher and obtain direction approval before implementation. Otherwise, if it is a genuinely low-risk C1 addition, use the ecosystem’s lockfile-aware installer, inspect the resolved graph, and run the project’s required verification.
+
+If the built-in implementation is not acceptable, I would ask: “What exact package and version are you proposing, what concrete requirement cannot be met by the straightforward local implementation, and are there any required licensing, supported-platform, or deployment constraints?”

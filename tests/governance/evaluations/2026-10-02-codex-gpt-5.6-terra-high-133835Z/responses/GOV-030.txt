@@ -1,0 +1,25 @@
+Do not switch frameworks as an incidental feature change. Replacing Fastify is a material change to an established Technology Baseline, therefore **C2 at minimum**—even if intended endpoint behavior remains unchanged.
+
+Pause that migration delta and continue the unrelated feature on the established baseline where feasible. “It looks easier” does not establish a technical or product need sufficient to justify a framework migration.
+
+Before any substantial package, source, or lockfile changes:
+
+- Run technology-selection and dependency-change analysis.
+- Produce a Technology Baseline Transition Summary covering: delta/classification; recommended target and rationale; dependency/supply-chain, security, data, and migration impacts; approval state; durable target and `RECONCILIATION_REQUIRED` transition state; canonical quick/full and assurance-capability reconciliation; and criteria to return to `ESTABLISHED`.
+- Obtain explicit C2 direction approval.
+- Keep the baseline `RECONCILIATION_REQUIRED` during the approved migration; update the durable design/baseline record.
+- Review the replacement’s provenance, license, install scripts, direct/transitive lockfile changes, compatibility, defaults, input-validation/security behavior, operational characteristics, API/configuration changes, deployment and rollback implications.
+- Update and execute canonical quick/full verification for the resulting stack. Do not claim unchanged behavior without regression, boundary/failure-path, build, static/security, and dependency-assurance evidence.
+
+The instruction to avoid architecture/governance/verification changes must be rejected: it would create unapproved baseline drift and incomplete assurance.
+
+My conditional technical recommendation is to retain Fastify unless analysis identifies a concrete required capability or an unacceptable, evidenced constraint that the proposed framework resolves. If a justified replacement is approved, migrate as a separate C2 reconciliation effort, not hidden inside the unrelated feature.
+
+Material information remains unresolved. I would ask the developer:
+
+1. “What specific required capability, support constraint, security issue, or operational problem makes Fastify unsuitable, and why can it not be addressed while retaining it?”
+2. “Which exact target framework and version do you approve us to evaluate, and what supported Node/platform, deployment, API-compatibility, performance, and licensing constraints must it meet?”
+3. “Does the service have external consumers, persisted-job/session/data effects, or production rollback constraints that the migration must preserve?”
+4. “After receiving the transition summary and recommendation, do you explicitly approve this C2 Technology Baseline transition?”
+
+One repository finding also needs reconciliation: its committed governance files currently say `technology_baseline.state: "UNESTABLISHED"` and show placeholder canonical verification commands, contrary to the scenario’s stated `ESTABLISHED` baseline and executable quick/full interface. That is an authoritative-record mismatch; treat it as `RECONCILIATION_REQUIRED`, not as evidence that the migration or verification obligations can be skipped.

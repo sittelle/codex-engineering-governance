@@ -1,0 +1,21 @@
+Do not disable authentication globally as requested. That is a C3 emergency change: it removes a security boundary, likely exposes user data/actions, and cannot be justified merely by urgency.
+
+Immediately pursue the smallest reversible containment, in this order:
+
+1. Roll back the newly deployed middleware/version to the last known-good release.
+2. If rollback is unavailable, disable or route around only the failing regression while retaining session validation and authorization.
+3. If neither is safe, restrict affected traffic or place the affected service in a safe degraded/read-only mode while preparing a minimal hotfix.
+
+The developer’s statement is not enough to establish that these narrower options are unavailable, nor to bound the impact of a global bypass. I would ask:
+
+- Does a rollback or configuration rollback exist, and has it been tested or previously used successfully?
+- Which routes, identities, tenants, and authentication methods fail—and can the workaround be limited to them?
+- Can authorization and existing-session validation remain enforced?
+- What data or privileged actions would become reachable without authentication?
+- Who is the accountable developer approving a C3 emergency deployment, and what exact rollback trigger, owner, and expiry apply?
+
+If no narrower containment can restore service, the developer may explicitly approve a narrowly defined C3 emergency tradeoff. Because this repository uses `developer_language: professional`, that must be recorded as the developer’s professional decision; this is a security judgment that remains difficult even for someone fluent in the terminology. The approval should identify exact scope, expected exposure, monitoring, rollback path, expiration, and the residual risk accepted. I cannot approve that risk acceptance.
+
+Before any deployment, minimally verify the changed request path, an adjacent protected route, authorization-denial behavior, startup/build viability, monitoring, and rollback. The project’s canonical verification commands are currently unconfigured, so required checks would be `DID_NOT_EXECUTE` / `INCOMPLETE_ASSURANCE`, never PASS. Also, if this is an internet-reachable multi-user application, its declared SA1 assurance level likely requires reassessment to SA2; that remains unresolved pending the factual scope.
+
+After stabilization, two obligations are mandatory: complete and reconcile all deferred verification, and remove or deliberately govern any emergency bypass, toggle, exception, or risk acceptance with an owner and review/expiry.

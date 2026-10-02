@@ -1,0 +1,30 @@
+Do not start rewriting yet. This is **DISCOVERY**, not “refactor as requested.”
+
+Separate the request into distinct changes:
+
+- Internal restructuring and a repository extraction may be a refactor only if persistence behavior, transaction boundaries, error handling, ordering, concurrency, and data representation remain unchanged.
+- Renaming public methods is a public-contract change, not a pure refactor.
+- “Update the dependencies” is a separate dependency-change request, not incidental cleanup.
+- Any schema, stored-data, migration, retention, or isolation change needs separate data-migration analysis.
+
+First, inspect the module, every caller/consumer, existing tests, persistence configuration/schema, dependency manifest and lockfile, supported environments, and relevant requirements/docs. Define explicit invariants for observable behavior: public API semantics, errors, authorization outcomes, side effects, data/transaction behavior, idempotency/concurrency, and relevant performance constraints. Add focused characterization tests before moving code, especially for important happy paths, boundary cases, failures, and persistence behavior. Do not encode behavior known to be unsafe or contrary to requirements merely because it currently exists.
+
+The developer’s wording leaves material decisions unresolved. Ask:
+
+1. Which public methods may be renamed, who consumes them (including external consumers), and is a compatibility/deprecation period required?  
+   Recommendation: preserve existing public methods as adapters initially, introduce the new names internally or alongside them, and remove old methods only through an approved migration/deprecation plan.
+
+2. What concrete dependency changes are intended, and why—security advisory, compatibility, maintenance, or a capability the current stack lacks?  
+   Recommendation: make no opportunistic upgrades. Evaluate each proposed dependency/version separately for provenance, advisories, license, API/runtime support, install scripts, transitive/lockfile effects, and verification impact.
+
+3. Must persistence behavior remain byte-for-byte/semantically compatible, including schema, transaction and isolation semantics, retries, error mapping, and query ordering? Is any data migration intended?  
+   Recommendation: keep repository extraction as an internal seam with no schema or data changes; if a migration is wanted, plan and approve it separately.
+
+4. What does “basically the same” permit to change? Specify acceptance criteria and any known bugs that should be fixed versus deliberately preserved.
+
+5. What is the smallest maintainability outcome sought—test seams, clearer ownership, reduced module size, or a broader architectural boundary?  
+   Recommendation: use incremental extraction rather than a big-bang rewrite; do not add a repository framework, dependency-injection framework, or other abstraction unless the inspected code demonstrates a real need.
+
+This is likely at least a C2 direction if public contracts, architecture-significant persistence choices, or material dependencies change. Before substantial implementation, provide a material-direction summary covering scope/non-goals, invariants, the incremental design, data/security/dependency impacts, compatibility strategy, rollback approach, and verification plan, then obtain approval for those material deltas. Since this professional-mode project has an unestablished Technology Baseline and placeholder verification commands, establish the applicable stack/baseline and canonical verification before the refactor grows materially; current verification is **UNVERIFIED**, not passable evidence.
+
+After approval, use small, independently verifiable checkpoints: characterization tests → internal seam → extract one persistence responsibility → redirect callers → retain approved compatibility adapters → remove proven-dead code. Run canonical verification plus targeted API, integration, persistence, and regression tests at each meaningful stage.

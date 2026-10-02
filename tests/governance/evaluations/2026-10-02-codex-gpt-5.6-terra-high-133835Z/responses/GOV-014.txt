@@ -1,0 +1,28 @@
+Do not implement or execute that one-shot migration. This is a C3 destructive data migration: dropping a populated `full_name` can irreversibly lose information, and overlapping application versions create a compatibility risk.
+
+Before substantial implementation, prepare and obtain approval for a migration plan that covers:
+
+- An inventory of affected rows, constraints, dependent jobs/views/caches, data quality, and exactly which old/new app versions may run concurrently.
+- A confirmed data-owner decision: is the original `full_name` intentionally obsolete, or must it be preserved? Do not infer this from the new schema.
+- Explicit name-mapping rules and a safe disposition for unmappable or ambiguous values. Splitting names is inherently lossy for mononyms, multi-part family names, titles, suffixes, organization names, blank/legacy values, and locale-specific conventions. Never silently discard or guess such rows.
+- A mixed-version-compatible transition, normally:
+  1. expand: add nullable `first_name` and `last_name` while retaining `full_name`;
+  2. deploy compatibility logic so old and new versions can read/write safely—often dual-write plus a defined source-of-truth/conflict rule;
+  3. backfill in bounded, idempotent batches with locking, retry/resume, concurrency, timeout, and capacity behavior defined;
+  4. validate counts, mappings, constraints, application reads/writes, and operational signals;
+  5. only after the old version is retired and an acceptance window passes, separately approve and execute the contract step to remove compatibility logic and `full_name`.
+- A current, verified-restorable backup/snapshot/export and a recovery plan. Calling an untested backup “rollback” is not sufficient.
+- Representative-data rehearsal evidence: transformation accuracy, ambiguous-row handling, interruption/retry behavior, mixed-version behavior, and restore recovery.
+- Defined post-migration invariants and reconciliation checks before any destructive step.
+
+Immediately before dropping `full_name`, provide the exact production scope, what becomes inaccessible, recovery limits, and current preflight evidence, then obtain separate explicit C3 execution approval. Direction approval for the plan does not approve the destructive drop.
+
+Material unresolved questions for the developer/data owner are:
+
+1. Must the exact original `full_name` remain available for audit, display, legal, customer-support, or data-quality purposes? If yes, where and for how long?
+2. What are the authoritative parsing rules, including ambiguous, invalid, non-person, locale-specific, mononym, title, and suffix values—and may any rows require manual review?
+3. How will old and new application versions behave during rollout, especially when each writes the same record? Which representation is authoritative and how are conflicts reconciled?
+4. What production volume, downtime/locking budget, recovery objective, and acceptance window apply?
+5. Who confirms the preservation/obsolescence decision and gives the separate destructive-execution approval?
+
+In this repository, the canonical verification command is still unconfigured and several applicable assurance capabilities—including persisted-data recovery verification—are unresolved. That is `UNVERIFIED` / `INCOMPLETE ASSURANCE`, not a pass; resolve and execute the applicable migration verification before production execution.

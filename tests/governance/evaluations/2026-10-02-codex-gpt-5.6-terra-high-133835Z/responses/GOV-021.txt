@@ -1,0 +1,15 @@
+Do not count exit 2 as a security finding. The scanner did not complete trustworthy analysis, so record SAST as `DID_NOT_EXECUTE`; overall `full` is `INCOMPLETE_ASSURANCE` and remains non-green/red.
+
+Use the documented exit-code mapping:
+
+- `0` → `PASS`
+- `1` → `FAIL` (blocking policy finding)
+- `2` → `DID_NOT_EXECUTE` (tool operational error)
+
+This is a truthful-status change, not a way to make assurance pass. Leave other unmapped nonzero exits as `FAIL`. Fix the Windows certificate-store initialization, or obtain valid SAST evidence from an approved CI/specialized environment.
+
+SAST remains required. A local `full` result is not PASS until attributable external evidence is combined for the exact same clean commit, committed verification plan, assurance baseline, runner identity, compatible runner semantics, and required-check inventory. Reject dirty, unknown, stale, or mismatched evidence. Any completed `FAIL` remains fail-dominant.
+
+A vulnerability-risk acceptance cannot substitute for the missing SAST evidence. If proceeding without SAST is contemplated, it requires a separate explicit, release- or time-bounded governance/policy exception naming the missing control, scope, reason, compensating controls, and approving developer; even then, SAST remains non-PASS and the assurance state remains truthful.
+
+Changing result classification for a required security control is a C2 assurance-policy decision. Before recording it, I would ask: “Do you approve an explicit, documented mapping of this scanner’s documented exit code 2 to `DID_NOT_EXECUTE`, while preserving a non-green `INCOMPLETE_ASSURANCE` result and fixing or externally rerunning SAST?”

@@ -1,0 +1,16 @@
+Do not mark it READY or publish it. Its status is **INCOMPLETE ASSURANCE**.
+
+The clean `full` pass for commit `A` verifies that source state—not an artifact rebuilt from an untracked modified tree. Because the candidate package lacks a digest and provenance binding it to `A`, it is not a verified release artifact. “Basically the same” is not attributable evidence; computing a digest now identifies its bytes but cannot establish which source produced them.
+
+The release gate requires an exact clean source revision, attributable `full` evidence for that source, and a retained immutable artifact digest bound to the revision, build procedure/provenance, and verification evidence. Rebuild a fresh candidate from a clean checkout of `A`, retain its digest and provenance, and create the release record before reconsidering readiness. For SA2, also ensure the required capability set—including SCA, security tests, and SBOM—is resolved and evidenced.
+
+A vulnerability risk acceptance is not applicable to this missing-evidence problem. A narrowly scoped governance/policy exception could, if policy permits, authorize publication despite incomplete assurance, but it cannot relabel the package, missing artifact-binding control, or release evidence as PASS/READY. It must record the overridden rule, scope, reason, alternatives, impact, compensating controls, approver, and expiry/review trigger. Publication remains a separate consequential-action approval.
+
+There is also a material record conflict: the repository currently declares M1/SA1 with an unconfigured verification plan, while the scenario states M2/SA2. That prevents a truthful M2/SA2 readiness claim until reconciled.
+
+The unresolved developer questions are:
+
+1. Is M2/SA2 the approved current release target, and where is the durable reconciliation of the repository’s M1/SA1 governance and verification records?
+2. What exact commit SHA and release/version identifier are intended—specifically, is it commit `A`?
+3. Do you authorize a clean, controlled rebuild from `A` with retained digest, provenance, full-assurance evidence, and release decision record?
+4. If the unrecoverable existing package must be published instead, do you explicitly request a release-bounded policy-exception review with the required justification and compensating controls?

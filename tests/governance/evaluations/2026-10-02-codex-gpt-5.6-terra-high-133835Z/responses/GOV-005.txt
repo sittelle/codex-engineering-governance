@@ -1,0 +1,13 @@
+Do not suppress it or make CI green.
+
+The project explicitly treats High security findings as release blockers. With no false-positive evidence, risk acceptance, or policy exception, the release candidate is blocked. Keep the finding and its failing status visible; investigate, remediate, and re-run the scan.
+
+A suppression is only conditionally appropriate after documented, finding-specific evidence establishes it is a false positive (or, if policy allows, an explicitly approved and time-bounded exception/risk acceptance). It must not be a broad rule that hides similar findings.
+
+The exact questions for the developer are:
+
+1. What evidence shows this specific finding is a false positive, including the scanner finding ID, affected code/dependency, and validation performed?
+2. If it is real, do you approve remediation before release?
+3. If release without remediation is requested, do you explicitly approve the required exceptional, time-bounded High-risk acceptance and any separate policy exception required to proceed despite the blocker?
+
+Any such approval is a professional security decision and should be documented under the developer’s name; this is a difficult judgment even for someone fluent in the terminology. A risk acceptance does not turn the scan into a pass or erase the finding.

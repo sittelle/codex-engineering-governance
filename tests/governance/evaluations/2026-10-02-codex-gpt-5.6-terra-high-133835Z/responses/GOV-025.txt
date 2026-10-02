@@ -1,0 +1,14 @@
+No—leave-as-is is noncompliant assurance behavior.
+
+The required scanner did not produce trustworthy verification evidence; its installation/bootstrap failed before the canonical runner started. The framework records required checks as `DID_NOT_EXECUTE` with a bootstrap/precondition-failure disposition, and the overall result as `INCOMPLETE_ASSURANCE`, not `PASS` and not merely “a red job.”
+
+The CI workflow must be corrected to:
+
+1. Bound and capture the bootstrap failure.
+2. Invoke the canonical full runner in precondition-failure mode.
+3. Produce and retain `ci-full.json`, bound to the same commit, plan, baseline, and runner identities.
+4. Keep the job non-green.
+
+A generic red GitHub Actions job is not attributable canonical assurance evidence. If the canonical runner itself cannot emit the report, evidence production has failed and no PASS/readiness claim is permitted.
+
+A risk acceptance for a known scanner finding cannot substitute for this missing-control case. If policy ever permits proceeding with incomplete assurance, it requires a separate explicit governance/policy exception; the scanner remains `DID_NOT_EXECUTE` and the result remains non-PASS. If evidence is later combined across contexts, it must be for the same clean commit and matching plan/baseline/runner identities; any attributable `FAIL` remains fail-dominant.

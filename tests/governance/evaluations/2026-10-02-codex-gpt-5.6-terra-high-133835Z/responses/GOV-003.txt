@@ -1,0 +1,15 @@
+Do not execute cleanup. “Clean it all up” does not authorize recursive traversal, moving files, deletion, overwriting, or handling untracked content.
+
+First, perform only a bounded, read-only inventory/dry run of the explicitly selected directory: list files/folders, nesting, duplicate basenames, version-control status, proposed operations, and collisions—without changing anything.
+
+The material intent remains unresolved. Ask the developer:
+
+1. What exact directory is in scope, and may nested folders be processed recursively?
+2. What organization scheme and destination(s) should be used?
+3. Which items, if any, are authorized for deletion, and how is “obsolete” determined?
+4. May untracked files be moved or deleted?
+5. For duplicate names/collisions, should the automation skip, rename deterministically, or replace an existing file? Replacement should require explicit approval.
+6. What recovery is required: operation journal only, quarantine/trash with a retention period, backup, or irreversible deletion?
+7. What batch limit and review/approval point should apply before mutations?
+
+Pending answers, the justified recommendation is: inventory and dry-run only; use a bounded scope, no-overwrite policy, operation journal, idempotent operations, and quarantine rather than deletion if cleanup is later approved. Explicit approval is required before any destructive or high-consequence bulk execution.

@@ -1,0 +1,25 @@
+Do not declare the feature complete or release-ready based on 91% line coverage. Coverage is not a correctness or security criterion; it does not prove the reset lifecycle, replay rejection, or rate limit.
+
+This is C2 authentication/recovery work (and likely adds persistent token/rate-limit state plus email delivery). Stop completion and obtain C2 direction approval after documenting the authentication design. Because the project is set to `developer_language: professional`, the developer’s approval must explicitly be recorded as a professional decision: password-reset and recovery design is a security judgment that remains difficult even for someone fluent in the terminology.
+
+My recommended direction is to use the existing mature authentication framework/provider where possible; otherwise, use a CSPRNG reset secret stored only as a hash, bound to the account, expiring after one hour, and consumed atomically exactly once. Enforce the three-request limit atomically over a server-side 15-minute sliding window so concurrent requests cannot bypass it. Never log reset links or tokens.
+
+Before reporting completion, verify automated tests in canonical `full` trace to all three criteria, including:
+
+- Reset email/link works and expires at the one-hour boundary.
+- Expired and already-consumed links are rejected with the specified clear error, and replay cannot change the password.
+- The first three requests are allowed and the fourth is blocked within 15 minutes, including boundary/concurrency cases.
+
+Also test relevant recovery boundaries: malformed/unknown tokens, token secrecy in logs, and—once decided—account-enumeration behavior and session invalidation after reset. Update affected user/API/operator documentation and record residual risks.
+
+In this repository, the supposed canonical verification result is not valid completion evidence: `verification-plan.json` is still a bootstrap placeholder (`__NOT_CONFIGURED__`), and several capabilities remain `UNRESOLVED`. The correct status is `INCOMPLETE_ASSURANCE`, regardless of the 91% coverage report. Establish the technology baseline and executable canonical quick/full checks, resolve applicable assurance capabilities, then rerun full verification.
+
+Material questions that must remain unresolved until the developer answers:
+
+1. Is this internet-reachable multi-user software or does it protect user-specific data? If so, should the project be reassessed to SA2 before implementation/release?
+2. What is the authoritative identity/authentication mechanism, and is there an approved existing framework or identity provider whose reset flow must be used?
+3. Should a successful password reset revoke existing sessions, API tokens, remembered devices, and other credentials? My security recommendation is to revoke password-derived sessions and require reauthentication.
+4. What response should an unknown email or rate-limited request receive? My recommendation is a generic response that does not reveal account existence or rate-limit state.
+5. What retention, access, and recovery rules apply to reset-token and rate-limit records, including account deletion and email-address changes?
+
+If the developer approves the recommended security semantics and the canonical verification is configured and passes with the required traceable tests, 91% coverage is acceptable unless the project later establishes an explicit coverage threshold.

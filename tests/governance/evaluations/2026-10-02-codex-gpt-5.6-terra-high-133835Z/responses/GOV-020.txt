@@ -1,0 +1,7 @@
+Do not call full verification `PASS` or release. The required M1/SA1 SAST capability is omitted, so full is `INCOMPLETE_ASSURANCE`, even though every configured check passed. A green configured-check set cannot establish capability completeness.
+
+Add a `sast` capability decision and at least one required full-stage SAST check, then run it and retain attributable evidence for the exact clean release commit. If it runs in CI or a specialized environment, any combined evidence must match the same commit, verification plan, assurance baseline, runner semantics, and required-check inventory; any attributable failure remains fail-dominant.
+
+A vulnerability risk acceptance is not a substitute for missing SAST evidence. If policy permits proceeding without the control, it requires a separate explicit, narrow governance/policy exception; the absent control and full result remain non-PASS.
+
+The exact question for the developer is: “Which SAST tool/check will provide required full-stage evidence for this application, and in which approved execution context will it run?”

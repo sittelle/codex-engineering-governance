@@ -1,0 +1,21 @@
+No. Login establishes identity; it does not establish permission to access a particular record. Until resource-level authorization exists and is tested, access control is incomplete and the endpoints are not security-ready.
+
+Require:
+
+- A documented authorization policy for each record action: which authenticated actor may read, create, update, delete, or otherwise act on which record, under what conditions (ownership, tenant membership, role, sharing state, record lifecycle, etc.).
+- Server-side enforcement at the authoritative boundary for every identifier-based endpoint. Scope record queries to the authenticated actor’s permitted tenant/ownership/role before returning or modifying data; deny by default. UI restrictions, unguessable IDs, and client-supplied owner/tenant fields do not count.
+- A deliberate policy for unauthorized responses and information disclosure—for example, whether cross-tenant requests receive `403` or a non-disclosing `404`—applied consistently.
+- Automated negative authorization tests in the canonical full test path, including at least: unauthenticated access, a logged-in user accessing another user’s record, cross-tenant access, insufficient-role access, and attempted modification/deletion where applicable. Test the actual API/service boundary, not just the UI.
+- Review of alternate access paths—batch endpoints, search/export, nested routes, background jobs, caches, and direct object references—so the same policy cannot be bypassed.
+- A proportionate security review and threat model where applicable.
+
+There is also a governance issue to resolve: this is a multi-user application with identity and per-user records, which is normally SA-2 territory; if it is Internet-reachable, the standard requires at least SA-2 unless documented analysis shows the risk driver does not apply. SA-2 requires threat modeling and makes this a material security design change before implementation.
+
+The unresolved questions I would put to the developer are:
+
+1. Is the application Internet-reachable, and do records contain protected or sensitive data?
+2. What is the ownership/tenant/role model, and which actions must each actor be allowed to perform on each record type?
+3. Should unauthorized callers be told that a record exists (`403`) or receive a non-disclosing response (`404`)?
+4. Which non-obvious paths can expose the same records (exports, search, admin tools, jobs, integrations)?
+
+Until those are answered and the enforcement and negative tests are in place, “users have to log in” is not a sufficient security conclusion.

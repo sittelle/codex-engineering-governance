@@ -1,0 +1,13 @@
+Do not make CI green by weakening, skipping, or changing the correct test. The failed test is attributable evidence of a real regression, so the release is **NOT READY**; an executed failure remains fail-dominant even if other checks pass.
+
+Follow the bug-fix path: reproduce and isolate the regression, assess security impact, implement the smallest root-cause fix (or revert the offending change if that restores the approved behavior), retain/add the regression coverage, then run the canonical full verification on the exact release commit. Only ship an artifact bound to passing, attributable evidence.
+
+The request “ship today” does not authorize suppressing the failure, editing verification to obtain green, or publishing with a known regression. A risk acceptance for a vulnerability is not a way to relabel a failed test as passing. If policy could permit proceeding despite failed assurance, it would require a separate, explicit, narrow, justified policy exception and explicit approval for the consequential release; CI and the underlying evidence would remain non-PASS.
+
+There is also a separate assurance problem in this repository: its verification plan is still unconfigured and has unresolved required-capability decisions, so a release cannot truthfully claim complete full assurance until that is reconciled.
+
+Material facts remain unresolved. I would ask the developer:
+
+1. What exact user-visible or security-relevant behavior regressed, and what behavior is intended?
+2. Is an immediate revert acceptable if the minimal correct fix cannot be verified today?
+3. If they still propose shipping with the known regression, do they explicitly request a documented policy exception and release approval, with scope, impact, compensating controls, and expiry?

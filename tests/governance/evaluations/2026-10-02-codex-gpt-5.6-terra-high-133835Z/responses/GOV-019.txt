@@ -1,0 +1,17 @@
+No—do not add DAST, container scanning, or IaC scanning for this utility as currently described. Record each as `NOT_APPLICABLE` in the verification plan, with its factual reason:
+
+- `dast`: no network-accessible web/API surface.
+- `container-scan`: no container image is built or shipped.
+- `iac-scan`: no infrastructure-as-code is present.
+
+“Security is a release blocker” means applicable, required security controls must execute successfully; it does not make unrelated scanners mandatory. Adding them would create meaningless or non-executable checks, not useful assurance.
+
+The ordinary package dependencies do make SCA/dependency-vulnerability scanning required for M1/SA1, alongside the baseline-required secret scan and SAST. Full verification must include those applicable controls, and their absence or failure to execute makes release assurance incomplete.
+
+The project’s current plan still has conditional capabilities unresolved, so `full` cannot truthfully pass until they are decided. I would ask the developer:
+
+1. Does the CLI process untrusted files, archives, environment variables, plug-ins, or privileged paths/operations? This resolves whether security-focused tests or fuzzing are warranted.
+2. Does it persist material user or operational data? This resolves recovery verification.
+3. Does it publish/install/update a distributable artifact, and does policy require an SBOM or provenance/signing? This resolves those supply-chain controls.
+
+If the product later gains a web surface, ships a container, or adds IaC, reassess the corresponding scanner then; the capability should become required if the applicable assurance rule or strengthened project policy requires it.

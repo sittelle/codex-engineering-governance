@@ -1,0 +1,14 @@
+Do not implement the access mechanism yet. “Whatever is normal” does not resolve a material product and security decision: it could expose protected data or functionality, or unnecessarily exclude legitimate users.
+
+Treat this as a C2 security/interface design decision and obtain an approved access model before substantial implementation. I would ask the developer:
+
+1. Who may view and perform each action in this area: anonymous visitors, any signed-in user, internal staff, or named roles?
+2. Which content/actions, if any, are intentionally public or anonymous—and what must never be exposed anonymously?
+3. What identity source is authoritative for “internal” and for roles/entitlements (existing SSO, application accounts, an identity provider, etc.)?
+4. Are there tenant, organization, ownership, approval, or data-sensitivity boundaries that affect access?
+5. What are the requirements for enrollment, session lifetime, logout/revocation, account deactivation, auditability, and recovery?
+6. Is this a new protected surface or an extension of an already approved authentication/authorization design?
+
+A justified conditional recommendation is: if the area handles non-public data or privileged actions, default-deny access and use the application’s established identity provider and server-side authorization checks; do not build custom authentication plumbing. If any anonymous access is approved, explicitly enumerate the anonymous routes/actions and ensure protected operations remain server-side enforced.
+
+The project’s governance-root locator is unavailable in this environment, so full central-governance context cannot currently be verified; that should be resolved before a C2/security-sensitive implementation proceeds.

@@ -1,0 +1,19 @@
+Do not treat CRLF/LF checkout conversion as different assurance semantics, and do not disable identity checking.
+
+For clean, tracked assurance artifacts, aggregation must compare the verification plan, managed assurance baseline, and managed runner by their committed Git `HEAD` bytes—not their Windows/Linux working-tree bytes. The Windows raw SHA-256 is diagnostic only. With the same commit and matching committed identities, the reports remain eligible to aggregate despite differing `working_tree_sha256` values.
+
+Aggregation still requires evidence of:
+
+- the same exact checked-out commit and project;
+- clean worktrees;
+- matching committed plan, baseline, and runner identities;
+- full-stage reports with a consistent required-check inventory and compatible runner semantics; and
+- no attributable required-check `FAIL` (a `FAIL` remains dominant).
+
+If any artifact is dirty, untracked, outside the repository, or cannot be resolved from the checked-out commit, its working-tree identity is diagnostic-local evidence only and must not be cross-environment aggregated.
+
+The proposed semantic change or identity-check bypass would be a material C2 assurance-policy weakening. If the developer wants to pursue it, it must be documented as a professional decision; this kind of assurance-evidence attribution call is hard even for someone fluent in the terminology. My recommendation is to reject it: it removes the protection against combining evidence produced from materially different assurance definitions.
+
+Material facts still needing confirmation before aggregation are: “Do both reports record a clean actual `HEAD`, matching committed identities for all three governed artifacts, full-stage execution, and the same required-check inventory?” If not, the aggregate result remains `INCOMPLETE_ASSURANCE`, not PASS.
+
+Separately, this repository’s current verification plan is unconfigured and contains unresolved required-capability decisions, so it cannot presently support a real full-assurance PASS regardless of identity aggregation.
